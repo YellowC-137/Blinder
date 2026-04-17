@@ -29,6 +29,78 @@ async function handleAction(action) {
   }
 }
 
+/**
+ * Displays scan results and saves a report.
+ */
+async function report(results, repoPath, options, skipConfirm = false) {
+  // Always save a report regardless of findings (or only if found? User said blinder init or scan시 자동으로 생성)
+  // Usually better to always save to track "clean" scans too.
+  const reportDir = path.join(repoPath, 'blinder_reports');
+  if (!fs.existsSync(reportDir)) {
+    fs.mkdirSync(reportDir, { recursive: true });
+  }
+
+  const projectName = path.basename(repoPath).toLowerCase().replace(/[^a-z0-9]/g, '_') || 'project';
+  const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
+  const reportFilename = `scan_result_${projectName}_${timestamp}.json`;
+  const reportPath = path.join(reportDir, reportFilename);
+
+  fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
+  logger.success(`Automatic report generated: blinder_reports/${reportFilename}`);
+
+  if (results.length === 0) {
+    logger.success('No secrets found!');
+    return false;
+  }
+
+  // Sort: CRITICAL > HIGH > MEDIUM > LOW
+  const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };
+  results.sort((a, b) => (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99));
+
+  logger.header('Scan Results');
+
+  // Separate sensitive file warnings from content matches
+  const fileWarnings = results.filter(r => r.isSensitiveFile);
+  const contentMatches = results.filter(r => !r.isSensitiveFile);
+
+  if (fileWarnings.length > 0) {
+    logger.warn(`\n🚨 Sensitive Files Detected (${fileWarnings.length}):`);
+    fileWarnings.forEach(res => {
+      logger.error(`  [${res.severity}] ${res.file}`);
+      logger.info(`     → ${res.content}`);
+    });
+    logger.divider();
+  }
+
+  if (contentMatches.length > 0) {
+    logger.info(`\n🔍 Hardcoded Secrets (${contentMatches.length}):`);
+    contentMatches.forEach(res => {
+      const severityPrefix = res.isTestKey ? '[TEST KEY] ' : (res.isLikelyExample ? '[EXAMPLE] ' : `[${res.severity}] `);
+      logger.warn(`  ${severityPrefix}${res.file}:${res.line} - ${res.patternName}`);
+      logger.info(`     Match: ${logger.maskSecret(res.match)}`);
+    });
+  }
+
+  if (options.output) {
+    const customPath = path.resolve(options.output);
+    fs.writeFileSync(customPath, JSON.stringify(results, null, 2));
+    logger.success(`Results also exported to ${options.output}`);
+  }
+
+  if (skipConfirm) return true;
+
+  const { proceed } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'proceed',
+      message: 'Would you like to proceed with secret protection (Auto-fix or Manual)?',
+      default: true
+    }
+  ]);
+
+  return proceed;
+}
+
 program
   .name('blinder')
   .description('Blinder - Automated security tool for iOS, Android, and Flutter projects')
@@ -60,55 +132,9 @@ program
     });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
-    if (results.length > 0) {
-      // Sort: CRITICAL > HIGH > MEDIUM > LOW
-      const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };
-      results.sort((a, b) => (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99));
-
-      logger.header('Scan Results');
-
-      // Separate sensitive file warnings from content matches
-      const fileWarnings = results.filter(r => r.isSensitiveFile);
-      const contentMatches = results.filter(r => !r.isSensitiveFile);
-
-      if (fileWarnings.length > 0) {
-        logger.warn(`\n🚨 Sensitive Files Detected (${fileWarnings.length}):`);
-        fileWarnings.forEach(res => {
-          logger.error(`  [${res.severity}] ${res.file}`);
-          logger.info(`     → ${res.content}`);
-        });
-        logger.divider();
-      }
-
-      if (contentMatches.length > 0) {
-        logger.info(`\n🔍 Hardcoded Secrets (${contentMatches.length}):`);
-        contentMatches.forEach(res => {
-          const severityPrefix = res.isTestKey ? '[TEST KEY] ' : (res.isLikelyExample ? '[EXAMPLE] ' : `[${res.severity}] `);
-          logger.warn(`  ${severityPrefix}${res.file}:${res.line} - ${res.patternName}`);
-          logger.info(`     Match: ${logger.maskSecret(res.match)}`);
-        });
-      }
-
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
-        logger.success(`Results exported to ${options.output}`);
-      }
-
-      const { proceed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'proceed',
-          message: 'Would you like to proceed with secret protection (Auto-fix or Manual)?',
-          default: true
-        }
-      ]);
-
-      if (proceed) {
-        await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
-      }
-    } else {
-      logger.success('No secrets found!');
+    const proceed = await report(results, repoPath, options);
+    if (proceed) {
+      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
     }
   }));
 
@@ -154,8 +180,15 @@ program
       logger.info('[Dry-Run] Would generate/update .gitignore');
     }
 
+    const scanSpinner = ora('Scanning for secrets...').start();
     const results = await scanProject(repoPath, project.platforms);
-    await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
+    scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
+
+    // For init, we skip the intermediate confirmation and go straight to method selection
+    const proceed = await report(results, repoPath, {}, true);
+    if (proceed) {
+      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
+    }
     
     logger.header('Process Finished!');
     if (!globalOptions.dryRun) {

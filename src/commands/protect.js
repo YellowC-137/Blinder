@@ -37,18 +37,22 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
       name: 'fixMode',
       message: 'Choose protection method:',
       choices: [
-        { name: 'Auto-fix (Migrate to .env and replace in source code)', value: 'auto' },
-        { name: 'Manual (Migrate to .env and provide manual instructions)', value: 'manual' }
+        { name: '1. Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
+        { name: '2. Manual (Provide instructions for manual migration)', value: 'manual' }
       ]
     }
   ]);
 
+  const isAutoMode = fixMode === 'auto';
   let allSelectedSecrets = [];
 
   // Stage 1: Production-ready keys
   if (prodReady.length > 0) {
     logger.info(`Processing ${prodReady.length} production-ready secrets...`);
-    const results = await processSecretGroup(prodReady, envContent, envExampleContent, fixMode === 'auto');
+    if (isAutoMode) {
+      logger.success('Auto-fix mode enabled: Migrating secrets automatically.');
+    }
+    const results = await processSecretGroup(prodReady, envContent, envExampleContent, isAutoMode);
     allSelectedSecrets.push(...results.selected);
     envContent = results.envContent;
     envExampleContent = results.envExampleContent;
@@ -66,7 +70,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     ]);
 
     if (includeTests) {
-      const results = await processSecretGroup(testKeys, envContent, envExampleContent, fixMode === 'auto');
+      const results = await processSecretGroup(testKeys, envContent, envExampleContent, isAutoMode);
       allSelectedSecrets.push(...results.selected);
       envContent = results.envContent;
       envExampleContent = results.envExampleContent;
@@ -83,21 +87,8 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     }
     
     if (fixMode === 'auto') {
-      const { confirmFix } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmFix',
-          message: `Are you sure you want to automatically replace ${allSelectedSecrets.length} secrets in your source code? (Recommended: commit your changes first)`,
-          default: true
-        }
-      ]);
-
-      if (confirmFix) {
-        logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
-        await applyAutoFixes(repoPath, allSelectedSecrets, options);
-      } else {
-        logger.info('Auto-fix cancelled. Secrets have been migrated to .env, but source code remains unchanged.');
-      }
+      logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
+      await applyAutoFixes(repoPath, allSelectedSecrets, options);
     } else {
       logger.header('Manual Action Required');
       logger.info('Please replace the secrets in your code with environment variable calls:');

@@ -4,6 +4,7 @@ export const templates = {
 .env
 .env.*
 !.env.example
+blinder_reports/
 *.pem
 *.key
 *.p12

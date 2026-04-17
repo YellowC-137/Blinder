@@ -88,8 +88,13 @@ export const patterns = [
   // ─── Hardcoded Passwords (보안지침 §1: 인증 정보) ───
   {
     name: 'Hardcoded Password',
-    regex: /\b(password|passwd|db_password|dbpassword)\s*[:=]\s*["']([^"']{6,})["']/gi,
+    regex: /\b(password|passwd|db_password|dbpassword|storePassword|keyPassword|key_password)\s*[:=]\s*["']([^"']{6,})["']/gi,
     severity: 'CRITICAL'
+  },
+  {
+    name: 'Sentry DSN',
+    regex: /https:\/\/[a-f0-9]{32}@[a-z0-9.]+\/\d+/g,
+    severity: 'HIGH'
   },
 
   // ─── OAuth Client Secret ───
@@ -125,6 +130,23 @@ export const patterns = [
     severity: 'HIGH'
   },
 
+  // ─── Mobile Specific Identifiers (보안지침 §2: iOS/Android) ───
+  {
+    name: 'Facebook App ID / Client Token',
+    regex: /\b(facebook[_-]?(app[_-]?id|client[_-]?token))\s*[:=]\s*["']([A-Za-z0-9]{15,})["']/gi,
+    severity: 'MEDIUM'
+  },
+  {
+    name: 'iOS Keychain Identifier',
+    regex: /\b(kSecAttr(Service|Account|AccessGroup|Generic))\b/g,
+    severity: 'LOW'
+  },
+  {
+    name: 'Apple Team ID',
+    regex: /\b[A-Z0-9]{10}\b/g,
+    severity: 'LOW'
+  },
+
   // ─── Generic patterns (catch-all) ───
   {
     name: 'Generic API Key',
@@ -157,6 +179,11 @@ export const sensitiveFiles = [
   // iOS
   { glob: '**/GoogleService-Info.plist', severity: 'CRITICAL', platform: 'ios', reason: 'Firebase 설정 및 API 키가 포함된 파일' },
   { glob: '**/*.xcconfig', severity: 'HIGH', platform: 'ios', reason: '서버 주소 및 키 정보가 담긴 환경 설정 파일' },
+  { glob: '**/*.mobileprovision', severity: 'HIGH', platform: 'ios', reason: 'iOS 프로비저닝 프로필 (앱 배포 및 권한 정보)' },
+  { glob: '**/*.provisionprofile', severity: 'HIGH', platform: 'ios', reason: 'iOS 프로비저닝 프로필 (앱 배포 및 권한 정보)' },
+  { glob: '**/*.entitlements', severity: 'MEDIUM', platform: 'ios', reason: 'iOS 앱 권한 및 Keychain Access Group 정보' },
+  { glob: '**/*.p12', severity: 'CRITICAL', platform: 'ios', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
+  { glob: '**/*.pfx', severity: 'CRITICAL', platform: 'ios', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
   // Android
   { glob: '**/google-services.json', severity: 'CRITICAL', platform: 'android', reason: 'Google 서비스 인증 정보가 포함된 파일' },
   { glob: '**/local.properties', severity: 'HIGH', platform: 'android', reason: 'SDK 경로 및 API Key가 저장될 수 있는 파일' },
