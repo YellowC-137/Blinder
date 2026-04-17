@@ -11,6 +11,10 @@ const logger = {
     }
   },
   divider: () => console.log(chalk.gray('━'.repeat(50))),
+  maskSecret: (secret) => {
+    if (!secret || secret.length < 8) return '********';
+    return secret.substring(0, 4) + '...' + secret.substring(secret.length - 4);
+  },
   header: (msg) => {
     console.log('\n' + chalk.bold.cyan(msg));
     logger.divider();
