@@ -1,0 +1,26 @@
+{
+  "name": "blinder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "blinder": "./bin/blinder.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "fast-glob": "^3.3.3",
+    "inquirer": "^13.4.1",
+    "ora": "^9.3.0",
+    "plist": "^3.1.0",
+    "xml2js": "^0.6.2"
+  }
+}
