@@ -13,6 +13,7 @@ import { protectSecrets } from '../src/commands/protect.js';
 
 import { loadConfig } from '../src/utils/config.js';
 import { sanitizeFiles } from '../src/commands/sanitize.js';
+import { restoreFromSanitized } from '../src/commands/restore.js';
 
 const program = new Command();
 
