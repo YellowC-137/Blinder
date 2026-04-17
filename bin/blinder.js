@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import ora from 'ora';
+import inquirer from 'inquirer';
 import logger from '../src/utils/logger.js';
 import { detectProjectType } from '../src/utils/detector.js';
 import { scanProject } from '../src/detectors/scanner.js';
@@ -75,7 +76,7 @@ program
   .command('init')
   .description('Complete setup (Scan + Protect + Gitignore)')
   .action(async () => {
-    logger.header('SecureShield Initialization');
+    logger.header('Blinder Initialization');
     const repoPath = process.cwd();
     const project = await detectProjectType(repoPath);
     

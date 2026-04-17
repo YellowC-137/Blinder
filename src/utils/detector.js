@@ -17,18 +17,16 @@ export async function detectProjectType(repoPath) {
     result.platforms.push('flutter');
   }
 
-  // 2. Check for Android
+  // Check for Android
   const hasAndroidDir = fs.existsSync(path.join(repoPath, 'android'));
   const hasBuildGradle = fs.existsSync(path.join(repoPath, 'build.gradle')) || 
                         fs.existsSync(path.join(repoPath, 'app/build.gradle'));
   
   if (hasAndroidDir || hasBuildGradle) {
-    if (!result.platforms.includes('flutter')) {
-      result.platforms.push('android');
-    }
+    result.platforms.push('android');
   }
 
-  // 3. Check for iOS
+  // Check for iOS
   const hasIosDir = fs.existsSync(path.join(repoPath, 'ios'));
   const xcodeProjects = await glob(['**/*.xcodeproj', '**/*.xcworkspace'], { 
     cwd: repoPath, 
@@ -37,10 +35,11 @@ export async function detectProjectType(repoPath) {
   });
 
   if (hasIosDir || xcodeProjects.length > 0) {
-    if (!result.platforms.includes('flutter')) {
-      result.platforms.push('ios');
-    }
+    result.platforms.push('ios');
   }
+
+  // Remove duplicates
+  result.platforms = [...new Set(result.platforms)];
 
   return result;
 }

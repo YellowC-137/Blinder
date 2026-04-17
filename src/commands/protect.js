@@ -47,7 +47,7 @@ export async function protectSecrets(repoPath, scanResults) {
       secretValue = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
     }
 
-    const envVarName = patternName.toUpperCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(2, 7).toUpperCase();
+    const envVarName = patternName.toUpperCase().replace(/\s+/g, '_');
     
     const { confirm } = await inquirer.prompt([
       {
