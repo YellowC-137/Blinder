@@ -1,115 +1,77 @@
 # Blinder 🛡️
 
-**Blinder**는 iOS, Android, Flutter 프로젝트를 위한 지능형 보안 자동화 CLI 도구입니다. 소스 코드에 하드코딩된 API 키와 민감정보를 탐지하고, 이를 안전하게 `.env`로 격리하며, 플랫폼별 최적의 환경 변수 참조 코드로 자동 변환해 줍니다.
+**Blinder**는 AI 에이전트(Cursor, ChatGPT, Claude 등)를 사용할 때 소스 코드 속의 민감정보가 외부로 유출되는 것을 사전에 방지하는 **AI 시대의 모바일 보안 자동화 도구**입니다.
+
+모바일 개발 환경(iOS, Android, Flutter)에서 하드코딩된 API 키를 탐지하고, 이를 안전하게 `.env`로 격리하며, AI에게 코드를 넘기기 전 시크릿이 정화된 안전한 복사본을 만들어줍니다.
 
 ---
 
-## 주요 기능
+## ✨ 핵심 기능
 
-- **🔍 지능형 스캐닝**: GitHub, GitLab, Stripe, Google API Key 등 20개 이상의 패턴 탐지 및 'Test' 키 자동 감별.
-- **🛡️ 2단계 보호 프로세스**: 운영용 시크릿을 먼저 처리하고, 테스트용 키는 선택적으로 수정하는 안전한 UX 제공.
-- **✨ 시크릿 마스킹**: 터미널 출력 및 로그에서 시크릿의 핵심 정보를 마스킹하여(예: `AIza...3456`) 2차 유출 방지.
-- **📝 환경 변수 자동 교체 (Auto-fix)**: 각 플랫폼(Dart, Kotlin, Swift)에 맞는 최적화된 환경 변수 호출 코드로 물리적 코드 교체.
-- **⚙️ .gitignore 최적화**: 모바일 플랫폼별로 유출되기 쉬운 파일(Keystore, .env, Local.properties 등) 보호 설정.
+- **🧹 지능형 정화 (Sanitize)**: 원본 코드를 수정하지 않고, 시크릿만 `<REDACTED>`로 치환된 AI 전송용 복사본을 `.blinder_sanitized/` 폴더에 생성합니다.
+- **🔍 AI 맞춤형 스캐닝**: 주석 내의 시크릿은 무시하고 실제 코드 내의 유효한 시크릿만 탐지하여 오탐을 최소화합니다.
+- **🛡️ 자동 환경 변수 변환 (Auto-fix)**: 탐지된 시크릿을 `.env`로 옮기고, Dart/Kotlin/Swift 등 플랫폼에 맞는 환경 변수 참조 코드로 자동 교체합니다.
+- **⚙️ 엔터프라이즈 보안 지침 준수**: Google, AWS, Stripe 등 글로벌 서비스는 물론 Kakao, Naver 등 국내 SDK 키와 `.p12`, `.keystore` 등 민감 파일까지 완벽 탐지합니다.
+- **📊 자동 리포트 & CI 지원**: 실행 시마다 `blinder_reports/`에 스캔 이력을 저장하며, `--ci` 모드를 통해 파이프라인에서 보안 사고를 원천 차단합니다.
 
 ---
 
-## 설치 및 준비
+## 🚀 시작하기
 
-Blinder를 시스템에 설치하고 사용하는 방법은 두 가지가 있습니다.
-
-### 방법 1: 개발 모드 (추천)
-소스 코드를 다운로드하여 직접 링크하는 방식입니다. 최신 업데이트를 바로 반영할 수 있습니다.
+### 설치
 
 ```bash
-# 1. 저장소 클론
+# 저장소 클론 및 설치
 git clone https://github.com/YellowC-137/Blinder.git
 cd Blinder
-
-# 2. 의존성 설치
 npm install
-
-# 3. 전역 명령어로 등록
-# 'npm link'는 현재 디렉토리의 패키지를 시스템 전역(Global)에 심볼릭 링크로 연결합니다.
-# 이를 통해 어디서든 'blinder' 명령어를 입력하면 현재 소스 코드가 실행됩니다.
 sudo npm link
 ```
 
-### 방법 2: 패키지 직접 설치
-저장소의 최신 버전을 npm을 통해 직접 전역 설치합니다.
+### 필수 명령어
 
+#### 1. `blinder init` (초기 설정)
+프로젝트 내의 시크릿을 탐지하고 `.env`로 마이그레이션하여 프로젝트 보안 기초를 다집니다.
+
+#### 2. `blinder sanitize` (AI 전송 전)
+AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **정화된 프로젝트 복사본**을 생성합니다.
 ```bash
-# GitHub 저장소에서 직접 글로벌 설치
-npm install -g github:YellowC-137/Blinder
+blinder sanitize
+# 프로젝트 전체가 복사되며 시크릿만 <REDACTED>로 마스킹됩니다.
+```
+
+#### 3. `blinder restore` (AI 작업 후)
+AI 에이전트가 `.blinder_sanitized/` 폴더 내에서 수정한 **모든 코드와 새 파일**을 원본 프로젝트로 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
+```bash
+blinder restore
+# AI의 로직 수정사항은 반영되고, 시크릿은 안전하게 다시 채워집니다.
+```
+
+#### 4. `blinder scan --ci` (파이프라인 검증)
+CI/CD 과정에서 시크릿 유출 여부를 자동으로 체크합니다. 시크릿 발견 시 빌드를 중단시킵니다.
+
+---
+
+## 🛠️ 프로젝트 설정 (`.blinderrc`)
+
+프로젝트 루트에 `.blinderrc` 파일을 만들어 Blinder의 동작을 커스터마이징할 수 있습니다.
+
+```json
+{
+  "customPatterns": [
+    { "name": "Internal API", "regex": "INTERNAL_[A-Z]{3}_KEY_[0-9a-f]{32}", "severity": "CRITICAL" }
+  ],
+  "ignorePaths": ["**/test/mocks/**"],
+  "sanitizeOutput": ".tmp_safe_code"
+}
 ```
 
 ---
 
-## 명령어 및 옵션 상세
+## 📱 플랫폼별 Auto-fix 예시
 
-모든 명령어는 기본적으로 전역 옵션을 공유하며, 각 명령어별 전용 옵션이 존재합니다.
-
-### 🌐 전역 옵션 (Global Options)
-모든 명령어 뒤에 붙여서 사용할 수 있습니다.
-- `-p, --path <path>`: Blinder가 작업을 수행할 태스크 디렉토리를 지정합니다. (기본값: 현재 디렉토리)
-- `--dry-run`: 실제 파일을 수정(쓰기/삭제)하지 않고, 어떤 변경이 일어날지 로그로만 출력합니다. 안정성 확인을 위해 처음에 사용하기 좋습니다.
-- `-h, --help`: 명령어 도움말을 출력합니다.
-
----
-
-### 1. `blinder scan`
-프로젝트 내의 민감정보를 찾아내 리포트를 생성합니다.
-
-| 옵션 | 설명 | 비고 |
+| 플랫폼 | Before (Hardcoded) | After (Blinder Auto-fix) |
 | :--- | :--- | :--- |
-| `-o, --output <file>` | 스캔 결과를 JSON 파일로 저장합니다. | 자동화 파이프라인 연동 시 유용 |
-| `--include-examples` | 테스트(`test/`), 예제(`example/`) 폴더 내 시크릿도 포함합니다. | 기본적으로는 무시됨 |
-
-**사용 예시:**
-```bash
-blinder scan -p ./my-project --include-examples
-```
-
----
-
-### 2. `blinder protect`
-탐지된 시크릿을 `.env`로 마이그레이션하고 소스 코드를 수정합니다. 실행 시 다음 과정이 진행됩니다.
-1. **운영용 시크릿**을 자동으로 `.env`에 추가 (중복 제외)
-2. **테스트용 시크릿** 포함 여부 선택
-3. **소스 코드 자동 수정(Auto-fix)** 여부 선택
-
-**사용 예시:**
-```bash
-blinder protect --dry-run # 시뮬레이션 모드
-```
-
----
-
-### 3. `blinder gitignore`
-현재 프로젝트 환경(iOS/Android/Flutter)에 최적화된 `.gitignore` 파일을 생성하거나 기존 파일에 보안 규칙을 추가합니다.
-
-**사용 예시:**
-```bash
-blinder gitignore
-```
-
----
-
-### 4. `blinder init` (추천)
-위의 모든 과정을 순차적으로 한 번에 수행하는 명령어입니다.
-`gitignore 생성` → `시크릿 스캔` → `보호 조치(Protect)` 순으로 진행됩니다.
-
----
-
-## 플랫폼별 실제 적용 예시
-
-Blinder의 **Auto-fix** 기능을 사용하면 다음과 같이 코드가 자동 변환됩니다.
-
-### Flutter (Dart)
-**Before:**
-```dart
-const apiKey = "AIzaSyB-EXAMPLE-KEY-123456";
-```
 **After (Blinder Auto-fix):**
 ```dart
 const apiKey = String.fromEnvironment('GOOGLE_API_KEY');

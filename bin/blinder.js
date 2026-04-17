@@ -11,6 +11,9 @@ import { scanProject } from '../src/detectors/scanner.js';
 import { generateGitignore } from '../src/commands/gitignore.js';
 import { protectSecrets } from '../src/commands/protect.js';
 
+import { loadConfig } from '../src/utils/config.js';
+import { sanitizeFiles } from '../src/commands/sanitize.js';
+
 const program = new Command();
 
 /**
@@ -33,8 +36,6 @@ async function handleAction(action) {
  * Displays scan results and saves a report.
  */
 async function report(results, repoPath, options, skipConfirm = false) {
-  // Always save a report regardless of findings (or only if found? User said blinder init or scan시 자동으로 생성)
-  // Usually better to always save to track "clean" scans too.
   const reportDir = path.join(repoPath, 'blinder_reports');
   if (!fs.existsSync(reportDir)) {
     fs.mkdirSync(reportDir, { recursive: true });
@@ -59,7 +60,6 @@ async function report(results, repoPath, options, skipConfirm = false) {
 
   logger.header('Scan Results');
 
-  // Separate sensitive file warnings from content matches
   const fileWarnings = results.filter(r => r.isSensitiveFile);
   const contentMatches = results.filter(r => !r.isSensitiveFile);
 
@@ -87,6 +87,12 @@ async function report(results, repoPath, options, skipConfirm = false) {
     logger.success(`Results also exported to ${options.output}`);
   }
 
+  // CI Mode check
+  if (options.ci && results.length > 0) {
+    logger.error('Secrets found in CI mode. Terminating with status 1.');
+    process.exit(1);
+  }
+
   if (skipConfirm) return true;
 
   const { proceed } = await inquirer.prompt([
@@ -103,7 +109,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
 
 program
   .name('blinder')
-  .description('Blinder - Automated security tool for iOS, Android, and Flutter projects')
+  .description('Blinder - AI-Agent Security & Secret Protection for Mobile Projects')
   .version('1.0.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false);
@@ -113,9 +119,11 @@ program
   .description('Scan project for sensitive information')
   .option('-o, --output <file>', 'Save scan results to a JSON file')
   .option('--include-examples', 'Include matches found in test/example files', false)
+  .option('--ci', 'Fail with exit code 1 if secrets are found', false)
   .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
     
     if (!fs.existsSync(repoPath)) {
       throw new Error(`Directory not found: ${repoPath}`);
@@ -128,7 +136,9 @@ program
 
     const scanSpinner = ora('Scanning for secrets...').start();
     const results = await scanProject(repoPath, project.platforms, {
-      includeExamples: options.includeExamples
+      includeExamples: options.includeExamples,
+      customPatterns: config.customPatterns,
+      ignore: config.ignorePaths
     });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
@@ -136,6 +146,33 @@ program
     if (proceed) {
       await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
     }
+  }));
+
+program
+  .command('sanitize')
+  .description('Create secure copies of files with masked secrets (for AI agents)')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
+    await sanitizeFiles(repoPath, { 
+      sanitizeOutput: config.sanitizeOutput,
+      customPatterns: config.customPatterns,
+      ignore: config.ignorePaths
+    });
+  }));
+
+program
+  .command('restore')
+  .description('Apply AI agent changes from sanitized project back to original')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
+    await restoreFromSanitized(repoPath, {
+      sanitizeOutput: config.sanitizeOutput,
+      dryRun: globalOptions.dryRun
+    });
   }));
 
 program
@@ -149,22 +186,12 @@ program
   }));
 
 program
-  .command('protect')
-  .description('Extract secrets to .env and protect codebase')
-  .action(() => handleAction(async () => {
-    const globalOptions = program.opts();
-    const repoPath = path.resolve(globalOptions.path);
-    const project = await detectProjectType(repoPath);
-    const results = await scanProject(repoPath, project.platforms);
-    await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
-  }));
-
-program
   .command('init')
   .description('Complete setup (Scan + Protect + Gitignore)')
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
     logger.header('Blinder Initialization');
     
     if (globalOptions.dryRun) {
@@ -176,15 +203,15 @@ program
     
     if (!globalOptions.dryRun) {
       await generateGitignore(repoPath, project.platforms);
-    } else {
-      logger.info('[Dry-Run] Would generate/update .gitignore');
     }
 
     const scanSpinner = ora('Scanning for secrets...').start();
-    const results = await scanProject(repoPath, project.platforms);
+    const results = await scanProject(repoPath, project.platforms, {
+      customPatterns: config.customPatterns,
+      ignore: config.ignorePaths
+    });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
-    // For init, we skip the intermediate confirmation and go straight to method selection
     const proceed = await report(results, repoPath, {}, true);
     if (proceed) {
       await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });

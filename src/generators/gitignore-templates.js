@@ -1,10 +1,10 @@
 export const templates = {
   common: `
-# Secrets & Environment
+# Blinder
 .env
-.env.*
-!.env.example
+.env.example
 blinder_reports/
+.blinder_sanitized/
 *.pem
 *.key
 *.p12

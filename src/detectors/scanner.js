@@ -27,14 +27,29 @@ function isTestKey(line, filePath, matchValue) {
 }
 
 /**
+ * Heuristic to detect if a line is a comment.
+ */
+function isCommentLine(line, ext) {
+  const trimmed = line.trim();
+  if (ext === '.swift' || ext === '.kt' || ext === '.java' || ext === '.dart') {
+    return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
+  }
+  if (ext === '.yaml' || ext === '.gradle' || ext === '.properties' || ext === '.py' || ext === '.sh') {
+    return trimmed.startsWith('#');
+  }
+  if (ext === '.xml' || ext === '.plist') {
+    return trimmed.startsWith('<!--');
+  }
+  return false;
+}
+
+/**
  * Scans for sensitive files that should never be committed.
- * (보안지침 §2: 플랫폼별 상세 체크리스트)
  */
 async function scanSensitiveFiles(repoPath, platforms) {
   const warnings = [];
 
   for (const sf of sensitiveFiles) {
-    // Skip if the platform doesn't match
     if (platforms.length > 0 && !platforms.includes(sf.platform) && !platforms.includes('flutter')) {
       continue;
     }
@@ -67,6 +82,7 @@ async function scanSensitiveFiles(repoPath, platforms) {
 export async function scanProject(repoPath, platforms, options = {}) {
   const results = [];
   const extensions = new Set();
+  const usedEnvNames = new Map();
   
   platforms.forEach(p => {
     (platformExtensions[p] || []).forEach(ext => extensions.add(ext));
@@ -92,11 +108,12 @@ export async function scanProject(repoPath, platforms, options = {}) {
     absolute: true
   });
 
-  // Phase 1: Content-based pattern scanning
+  const allPatterns = [...patterns, ...(options.customPatterns || [])];
+
   for (const filePath of files) {
     try {
+      const ext = path.extname(filePath);
       const stat = fs.statSync(filePath);
-      // Skip files larger than 1MB to avoid performance issues
       if (stat.size > 1024 * 1024) continue;
 
       const content = fs.readFileSync(filePath, 'utf8');
@@ -104,12 +121,13 @@ export async function scanProject(repoPath, platforms, options = {}) {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        for (const pattern of patterns) {
+        if (isCommentLine(line, ext)) continue;
+
+        for (const pattern of allPatterns) {
           let match;
           pattern.regex.lastIndex = 0;
           
           while ((match = pattern.regex.exec(line)) !== null) {
-            // Safe extraction: use the last non-undefined capture group, or full match
             let matchValue = match[0];
             for (let g = match.length - 1; g >= 1; g--) {
               if (match[g] !== undefined) {
@@ -120,10 +138,22 @@ export async function scanProject(repoPath, platforms, options = {}) {
             
             let severity = pattern.severity;
             const isTest = isTestKey(line, filePath, matchValue);
-            
             if (isTest) {
               severity = 'LOW';
             }
+
+            let baseEnvName = pattern.name.toUpperCase().replace(/\s+/g, '_');
+            let envVarName = baseEnvName;
+            
+            const existingValue = usedEnvNames.get(envVarName);
+            if (existingValue && existingValue !== matchValue) {
+              let counter = 1;
+              while (usedEnvNames.has(`${baseEnvName}_${counter}`) && usedEnvNames.get(`${baseEnvName}_${counter}`) !== matchValue) {
+                counter++;
+              }
+              envVarName = `${baseEnvName}_${counter}`;
+            }
+            usedEnvNames.set(envVarName, matchValue);
 
             const result = {
               file: path.relative(repoPath, filePath),
@@ -131,6 +161,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
               match: matchValue,
               fullMatch: match[0],
               patternName: pattern.name,
+              envVarName: envVarName,
               severity: severity,
               isTestKey: isTest,
               isSensitiveFile: false,
@@ -138,7 +169,6 @@ export async function scanProject(repoPath, platforms, options = {}) {
               isLikelyExample: isFalsePositive(line, filePath)
             };
 
-            // Filtering logic
             if (result.isLikelyExample && !options.includeExamples) {
               continue;
             }
@@ -152,9 +182,9 @@ export async function scanProject(repoPath, platforms, options = {}) {
     }
   }
 
-  // Phase 2: Sensitive file existence check
   const fileWarnings = await scanSensitiveFiles(repoPath, platforms);
   results.push(...fileWarnings);
 
   return results;
 }
+

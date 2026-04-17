@@ -111,7 +111,7 @@ async function processSecretGroup(group, envContent, envExampleContent, autoFix 
       secretValue = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
     }
 
-    const envVarName = patternName.toUpperCase().replace(/\s+/g, '_');
+    const envVarName = res.envVarName || patternName.toUpperCase().replace(/\s+/g, '_');
     const label = isTestKey ? '[TEST]' : '[PROD]';
     
     let confirm = autoFix;

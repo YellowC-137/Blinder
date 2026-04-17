@@ -143,7 +143,7 @@ export const patterns = [
   },
   {
     name: 'Apple Team ID',
-    regex: /\b[A-Z0-9]{10}\b/g,
+    regex: /\b(?:DEVELOPMENT_TEAM|TeamID|TEAM_ID)\s*[:=]\s*["']?([A-Z0-9]{10})["']?/gi,
     severity: 'LOW'
   },
 
