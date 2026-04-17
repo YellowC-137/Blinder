@@ -16,34 +16,88 @@
 
 ## 설치 및 준비
 
+Blinder를 시스템에 설치하고 사용하는 방법은 두 가지가 있습니다.
+
+### 방법 1: 개발 모드 (추천)
+소스 코드를 다운로드하여 직접 링크하는 방식입니다. 최신 업데이트를 바로 반영할 수 있습니다.
+
 ```bash
-# 1. 저장소 클론 또는 다운로드 후 이동
+# 1. 저장소 클론
+git clone https://github.com/YellowC-137/Blinder.git
 cd Blinder
 
-# 2. 전역 명령어로 등록
-npm link
-# npm install -g github:YellowC-137/Blinder
+# 2. 의존성 설치
+npm install
 
-# 3. 이제 어디서든 'blinder' 명령어를 사용하세요!
-blinder scan
+# 3. 전역 명령어로 등록
+# 'npm link'는 현재 디렉토리의 패키지를 시스템 전역(Global)에 심볼릭 링크로 연결합니다.
+# 이를 통해 어디서든 'blinder' 명령어를 입력하면 현재 소스 코드가 실행됩니다.
+sudo npm link
+```
+
+### 방법 2: 패키지 직접 설치
+저장소의 최신 버전을 npm을 통해 직접 전역 설치합니다.
+
+```bash
+# GitHub 저장소에서 직접 글로벌 설치
+npm install -g github:YellowC-137/Blinder
 ```
 
 ---
 
 ## 명령어 및 옵션 상세
 
-### `blinder scan`
-프로젝트를 스캔하여 민감정보 리포트를 출력합니다.
-- `-p, --path <dir>`: 스캔할 프로젝트 경로 지정 (기본값: 현재 폴더)
-- `-o, --output <file>`: 스캔 결과를 JSON 파일로 저장
-- `--include-examples`: 테스트/예제 폴더 내의 시크릿까지 포함하여 스캔
+모든 명령어는 기본적으로 전역 옵션을 공유하며, 각 명령어별 전용 옵션이 존재합니다.
 
-### `blinder protect`
-탐지된 시크릿을 `.env`로 옮기고 코드 교체 작업을 진행합니다.
-- `--dry-run`: 실제 파일을 수정하지 않고 변경될 내용만 미리 보기
+### 🌐 전역 옵션 (Global Options)
+모든 명령어 뒤에 붙여서 사용할 수 있습니다.
+- `-p, --path <path>`: Blinder가 작업을 수행할 태스크 디렉토리를 지정합니다. (기본값: 현재 디렉토리)
+- `--dry-run`: 실제 파일을 수정(쓰기/삭제)하지 않고, 어떤 변경이 일어날지 로그로만 출력합니다. 안정성 확인을 위해 처음에 사용하기 좋습니다.
+- `-h, --help`: 명령어 도움말을 출력합니다.
 
-### `blinder init`
-스캔, 보호, `.gitignore` 설정을 한 번에 수행합니다.
+---
+
+### 1. `blinder scan`
+프로젝트 내의 민감정보를 찾아내 리포트를 생성합니다.
+
+| 옵션 | 설명 | 비고 |
+| :--- | :--- | :--- |
+| `-o, --output <file>` | 스캔 결과를 JSON 파일로 저장합니다. | 자동화 파이프라인 연동 시 유용 |
+| `--include-examples` | 테스트(`test/`), 예제(`example/`) 폴더 내 시크릿도 포함합니다. | 기본적으로는 무시됨 |
+
+**사용 예시:**
+```bash
+blinder scan -p ./my-project --include-examples
+```
+
+---
+
+### 2. `blinder protect`
+탐지된 시크릿을 `.env`로 마이그레이션하고 소스 코드를 수정합니다. 실행 시 다음 과정이 진행됩니다.
+1. **운영용 시크릿**을 자동으로 `.env`에 추가 (중복 제외)
+2. **테스트용 시크릿** 포함 여부 선택
+3. **소스 코드 자동 수정(Auto-fix)** 여부 선택
+
+**사용 예시:**
+```bash
+blinder protect --dry-run # 시뮬레이션 모드
+```
+
+---
+
+### 3. `blinder gitignore`
+현재 프로젝트 환경(iOS/Android/Flutter)에 최적화된 `.gitignore` 파일을 생성하거나 기존 파일에 보안 규칙을 추가합니다.
+
+**사용 예시:**
+```bash
+blinder gitignore
+```
+
+---
+
+### 4. `blinder init` (추천)
+위의 모든 과정을 순차적으로 한 번에 수행하는 명령어입니다.
+`gitignore 생성` → `시크릿 스캔` → `보호 조치(Protect)` 순으로 진행됩니다.
 
 ---
 

@@ -48,7 +48,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   // Stage 1: Production-ready keys
   if (prodReady.length > 0) {
     logger.info(`Processing ${prodReady.length} production-ready secrets...`);
-    const results = await processSecretGroup(prodReady, envContent, envExampleContent);
+    const results = await processSecretGroup(prodReady, envContent, envExampleContent, fixMode === 'auto');
     allSelectedSecrets.push(...results.selected);
     envContent = results.envContent;
     envExampleContent = results.envExampleContent;
@@ -66,7 +66,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     ]);
 
     if (includeTests) {
-      const results = await processSecretGroup(testKeys, envContent, envExampleContent);
+      const results = await processSecretGroup(testKeys, envContent, envExampleContent, fixMode === 'auto');
       allSelectedSecrets.push(...results.selected);
       envContent = results.envContent;
       envExampleContent = results.envExampleContent;
@@ -83,8 +83,21 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     }
     
     if (fixMode === 'auto') {
-      logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
-      await applyAutoFixes(repoPath, allSelectedSecrets, options);
+      const { confirmFix } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirmFix',
+          message: `Are you sure you want to automatically replace ${allSelectedSecrets.length} secrets in your source code? (Recommended: commit your changes first)`,
+          default: true
+        }
+      ]);
+
+      if (confirmFix) {
+        logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
+        await applyAutoFixes(repoPath, allSelectedSecrets, options);
+      } else {
+        logger.info('Auto-fix cancelled. Secrets have been migrated to .env, but source code remains unchanged.');
+      }
     } else {
       logger.header('Manual Action Required');
       logger.info('Please replace the secrets in your code with environment variable calls:');
@@ -97,7 +110,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   }
 }
 
-async function processSecretGroup(group, envContent, envExampleContent) {
+async function processSecretGroup(group, envContent, envExampleContent, autoFix = false) {
   const selected = [];
   for (const res of group) {
     const { match, patternName, file, line, isTestKey } = res;
@@ -110,14 +123,20 @@ async function processSecretGroup(group, envContent, envExampleContent) {
     const envVarName = patternName.toUpperCase().replace(/\s+/g, '_');
     const label = isTestKey ? '[TEST]' : '[PROD]';
     
-    const { confirm } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'confirm',
-        message: `${label} Migrate secret "${logger.maskSecret(secretValue)}" found in ${file}:${line} to ${envVarName}?`,
-        default: !isTestKey
-      }
-    ]);
+    let confirm = autoFix;
+    if (!autoFix) {
+      const prompt = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message: `${label} Migrate secret "${logger.maskSecret(secretValue)}" found in ${file}:${line} to ${envVarName}?`,
+          default: !isTestKey
+        }
+      ]);
+      confirm = prompt.confirm;
+    } else {
+      logger.info(`${label} Automatically migrating "${logger.maskSecret(secretValue)}" from ${file}:${line}`);
+    }
 
     if (confirm) {
       selected.push({ ...res, envVarName, secretValue });
