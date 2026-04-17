@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 const { glob } = fg;
-import { patterns, platformExtensions } from './patterns.js';
+import { patterns, platformExtensions, sensitiveFiles } from './patterns.js';
 
 /**
  * Heuristic to detect if a match is likely a false positive.
@@ -23,10 +23,45 @@ function isTestKey(line, filePath, matchValue) {
   const lowerPath = filePath.toLowerCase();
   const lowerMatch = matchValue.toLowerCase();
   
-  // If it's specifically a 'test' keyword context
-  const hasTestKeyword = lowerPath.includes('test') || lowerLine.includes('test') || lowerMatch.includes('test');
-  
-  return hasTestKeyword;
+  return lowerPath.includes('test') || lowerLine.includes('test') || lowerMatch.includes('test');
+}
+
+/**
+ * Scans for sensitive files that should never be committed.
+ * (보안지침 §2: 플랫폼별 상세 체크리스트)
+ */
+async function scanSensitiveFiles(repoPath, platforms) {
+  const warnings = [];
+
+  for (const sf of sensitiveFiles) {
+    // Skip if the platform doesn't match
+    if (platforms.length > 0 && !platforms.includes(sf.platform) && !platforms.includes('flutter')) {
+      continue;
+    }
+
+    const found = await glob(sf.glob, {
+      cwd: repoPath,
+      ignore: ['**/node_modules/**', '**/Pods/**', '**/.git/**'],
+      absolute: true
+    });
+
+    for (const filePath of found) {
+      warnings.push({
+        file: path.relative(repoPath, filePath),
+        line: 0,
+        match: path.basename(filePath),
+        fullMatch: path.basename(filePath),
+        patternName: `Sensitive File: ${path.basename(filePath)}`,
+        severity: sf.severity,
+        isTestKey: false,
+        isSensitiveFile: true,
+        content: sf.reason,
+        isLikelyExample: false
+      });
+    }
+  }
+
+  return warnings;
 }
 
 export async function scanProject(repoPath, platforms, options = {}) {
@@ -38,7 +73,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
   });
 
   if (extensions.size === 0) {
-    ['.swift', '.kt', '.dart', '.xml', '.plist', '.json', '.env'].forEach(ext => extensions.add(ext));
+    ['.swift', '.kt', '.dart', '.xml', '.plist', '.json', '.env', '.properties', '.gradle'].forEach(ext => extensions.add(ext));
   }
 
   const ignorePatterns = [
@@ -57,8 +92,13 @@ export async function scanProject(repoPath, platforms, options = {}) {
     absolute: true
   });
 
+  // Phase 1: Content-based pattern scanning
   for (const filePath of files) {
     try {
+      const stat = fs.statSync(filePath);
+      // Skip files larger than 1MB to avoid performance issues
+      if (stat.size > 1024 * 1024) continue;
+
       const content = fs.readFileSync(filePath, 'utf8');
       const lines = content.split('\n');
 
@@ -69,12 +109,18 @@ export async function scanProject(repoPath, platforms, options = {}) {
           pattern.regex.lastIndex = 0;
           
           while ((match = pattern.regex.exec(line)) !== null) {
-            const matchValue = match.length > 1 ? match[match.length - 1] : match[0];
+            // Safe extraction: use the last non-undefined capture group, or full match
+            let matchValue = match[0];
+            for (let g = match.length - 1; g >= 1; g--) {
+              if (match[g] !== undefined) {
+                matchValue = match[g];
+                break;
+              }
+            }
             
             let severity = pattern.severity;
             const isTest = isTestKey(line, filePath, matchValue);
             
-            // If it's a test key, force severity to LOW
             if (isTest) {
               severity = 'LOW';
             }
@@ -87,12 +133,13 @@ export async function scanProject(repoPath, platforms, options = {}) {
               patternName: pattern.name,
               severity: severity,
               isTestKey: isTest,
+              isSensitiveFile: false,
               content: line.trim(),
               isLikelyExample: isFalsePositive(line, filePath)
             };
 
-            // Filtering: skip examples unless includeExamples is true or it's CRITICAL (and not a test key)
-            if (result.isLikelyExample && severity !== 'CRITICAL' && !options.includeExamples) {
+            // Filtering logic
+            if (result.isLikelyExample && !options.includeExamples) {
               continue;
             }
 
@@ -104,6 +151,10 @@ export async function scanProject(repoPath, platforms, options = {}) {
       continue;
     }
   }
+
+  // Phase 2: Sensitive file existence check
+  const fileWarnings = await scanSensitiveFiles(repoPath, platforms);
+  results.push(...fileWarnings);
 
   return results;
 }

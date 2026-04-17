@@ -66,11 +66,28 @@ program
       results.sort((a, b) => (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99));
 
       logger.header('Scan Results');
-      results.forEach(res => {
-        const severityPrefix = res.isTestKey ? '[TEST KEY] ' : (res.isLikelyExample ? '[EXAMPLE] ' : `[${res.severity}] `);
-        logger.warn(`${severityPrefix}${res.file}:${res.line} - ${res.patternName}`);
-        logger.info(`   Match: ${logger.maskSecret(res.match)}`);
-      });
+
+      // Separate sensitive file warnings from content matches
+      const fileWarnings = results.filter(r => r.isSensitiveFile);
+      const contentMatches = results.filter(r => !r.isSensitiveFile);
+
+      if (fileWarnings.length > 0) {
+        logger.warn(`\n🚨 Sensitive Files Detected (${fileWarnings.length}):`);
+        fileWarnings.forEach(res => {
+          logger.error(`  [${res.severity}] ${res.file}`);
+          logger.info(`     → ${res.content}`);
+        });
+        logger.divider();
+      }
+
+      if (contentMatches.length > 0) {
+        logger.info(`\n🔍 Hardcoded Secrets (${contentMatches.length}):`);
+        contentMatches.forEach(res => {
+          const severityPrefix = res.isTestKey ? '[TEST KEY] ' : (res.isLikelyExample ? '[EXAMPLE] ' : `[${res.severity}] `);
+          logger.warn(`  ${severityPrefix}${res.file}:${res.line} - ${res.patternName}`);
+          logger.info(`     Match: ${logger.maskSecret(res.match)}`);
+        });
+      }
 
       if (options.output) {
         const outputPath = path.resolve(options.output);

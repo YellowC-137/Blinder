@@ -22,8 +22,10 @@ cd Blinder
 
 # 2. 전역 명령어로 등록
 npm link
+# npm install -g github:YellowC-137/Blinder
 
 # 3. 이제 어디서든 'blinder' 명령어를 사용하세요!
+blinder scan
 ```
 
 ---

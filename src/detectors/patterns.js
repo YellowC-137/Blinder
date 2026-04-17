@@ -1,7 +1,9 @@
 /**
- * Database of regex patterns to detect secrets with word boundaries for precision.
+ * Comprehensive secret detection patterns aligned with enterprise security guidelines.
+ * Covers: Auth/Keys, Infrastructure, DB credentials, SDK keys, and crypto artifacts.
  */
 export const patterns = [
+  // ─── Platform-specific API Keys ───
   {
     name: 'Google API Key',
     regex: /\bAIza[0-9A-Za-z\-_]{35}\b/g,
@@ -13,25 +15,12 @@ export const patterns = [
     severity: 'HIGH'
   },
   {
-    name: 'Generic API Key',
-    regex: /\b(api[_-]?key|apikey)\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/gi,
-    severity: 'HIGH'
-  },
-  {
-    name: 'Generic Secret',
-    regex: /\b(secret|api[_-]?secret)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
-    severity: 'HIGH'
-  },
-  {
-    name: 'Generic Token',
-    regex: /\b(token|auth[_-]?token|authtoken)\s*[:=]\s*["']([A-Za-z0-9_\-\.]{20,})["']/gi,
-    severity: 'HIGH'
-  },
-  {
     name: 'Firebase API Key',
     regex: /"api_key":\s*"([^"]+)"/g,
     severity: 'HIGH'
   },
+
+  // ─── Git Provider Tokens ───
   {
     name: 'GitHub PAT',
     regex: /\bghp_[a-zA-Z0-9]{36}\b/g,
@@ -41,16 +30,6 @@ export const patterns = [
     name: 'GitHub Fine-grained PAT',
     regex: /\bgithub_pat_[a-zA-Z0-9_]{82}\b/g,
     severity: 'HIGH'
-  },
-  {
-    name: 'Stripe Live Secret Key',
-    regex: /\bsk_live_[0-9a-zA-Z]{24,}\b/g,
-    severity: 'HIGH'
-  },
-  {
-    name: 'Stripe Test Secret Key',
-    regex: /\bsk_test_[0-9a-zA-Z]{24,}\b/g,
-    severity: 'CRITICAL'
   },
   {
     name: 'GitLab Personal Access Token',
@@ -67,16 +46,101 @@ export const patterns = [
     regex: /\bglrt-[0-9a-zA-Z\-_]{20,}\b/g,
     severity: 'HIGH'
   },
+
+  // ─── Payment / SaaS Tokens ───
   {
-    name: 'Private Key',
-    regex: /-----BEGIN (RSA|EC|DSA|OPENSSH)? ?PRIVATE KEY-----/g,
-    severity: 'HIGH'
+    name: 'Stripe Live Secret Key',
+    regex: /\bsk_live_[0-9a-zA-Z]{24,}\b/g,
+    severity: 'CRITICAL'
+  },
+  {
+    name: 'Stripe Test Secret Key',
+    regex: /\bsk_test_[0-9a-zA-Z]{24,}\b/g,
+    severity: 'MEDIUM'
   },
   {
     name: 'Slack Webhook',
     regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9_]{8}\/B[A-Z0-9_]{8}\/[A-Za-z0-9_]{24}/g,
     severity: 'HIGH'
-  }
+  },
+
+  // ─── Cryptographic Material ───
+  {
+    name: 'Private Key',
+    regex: /-----BEGIN (RSA|EC|DSA|OPENSSH)? ?PRIVATE KEY-----/g,
+    severity: 'CRITICAL'
+  },
+
+  // ─── Database Connection Strings (보안지침 §1: 인프라 정보) ───
+  {
+    name: 'Database Connection String',
+    regex: /\b(mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>]{10,}/gi,
+    severity: 'CRITICAL'
+  },
+
+  // ─── Internal/Private IP Address (보안지침 §1: 인프라 정보) ───
+  {
+    name: 'Private IP Address',
+    regex: /\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g,
+    severity: 'MEDIUM'
+  },
+
+  // ─── Hardcoded Passwords (보안지침 §1: 인증 정보) ───
+  {
+    name: 'Hardcoded Password',
+    regex: /\b(password|passwd|db_password|dbpassword)\s*[:=]\s*["']([^"']{6,})["']/gi,
+    severity: 'CRITICAL'
+  },
+
+  // ─── OAuth Client Secret ───
+  {
+    name: 'OAuth Client Secret',
+    regex: /\b(client[_-]?secret|clientsecret)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
+    severity: 'HIGH'
+  },
+
+  // ─── Korean SDK Keys (보안지침 §2: iOS Info.plist, AppDelegate) ───
+  {
+    name: 'Kakao SDK App Key',
+    regex: /\b(kakao[_-]?(app[_-]?key|native[_-]?key|api[_-]?key))\s*[:=]\s*["']([A-Za-z0-9]{20,})["']/gi,
+    severity: 'HIGH'
+  },
+  {
+    name: 'Naver SDK Client ID/Secret',
+    regex: /\b(naver[_-]?(client[_-]?id|client[_-]?secret|api[_-]?key))\s*[:=]\s*["']([A-Za-z0-9_\-]{10,})["']/gi,
+    severity: 'HIGH'
+  },
+
+  // ─── Crypto Salt / IV (보안지침 §4: 암복호화 로직) ───
+  {
+    name: 'Hardcoded Crypto Salt/IV',
+    regex: /\b(salt|iv|initialization[_-]?vector)\s*[:=]\s*["']([A-Za-z0-9+/=]{8,})["']/gi,
+    severity: 'HIGH'
+  },
+
+  // ─── AndroidManifest meta-data API Key (보안지침 §2: Android) ───
+  {
+    name: 'Android Manifest API Key',
+    regex: /android:value\s*=\s*"([A-Za-z0-9_\-]{20,})"/g,
+    severity: 'HIGH'
+  },
+
+  // ─── Generic patterns (catch-all) ───
+  {
+    name: 'Generic API Key',
+    regex: /\b(api[_-]?key|apikey)\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/gi,
+    severity: 'HIGH'
+  },
+  {
+    name: 'Generic Secret',
+    regex: /\b(secret|api[_-]?secret)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
+    severity: 'HIGH'
+  },
+  {
+    name: 'Generic Token',
+    regex: /\b(token|auth[_-]?token|authtoken|access[_-]?token|session[_-]?token)\s*[:=]\s*["']([A-Za-z0-9_\-\.]{20,})["']/gi,
+    severity: 'HIGH'
+  },
 ];
 
 export const platformExtensions = {
@@ -84,3 +148,21 @@ export const platformExtensions = {
   ios: ['.swift', '.m', '.h', '.plist', '.xcconfig'],
   android: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json']
 };
+
+/**
+ * Sensitive files that should NEVER be committed to Git.
+ * (보안지침 §2: 플랫폼별 상세 체크리스트)
+ */
+export const sensitiveFiles = [
+  // iOS
+  { glob: '**/GoogleService-Info.plist', severity: 'CRITICAL', platform: 'ios', reason: 'Firebase 설정 및 API 키가 포함된 파일' },
+  { glob: '**/*.xcconfig', severity: 'HIGH', platform: 'ios', reason: '서버 주소 및 키 정보가 담긴 환경 설정 파일' },
+  // Android
+  { glob: '**/google-services.json', severity: 'CRITICAL', platform: 'android', reason: 'Google 서비스 인증 정보가 포함된 파일' },
+  { glob: '**/local.properties', severity: 'HIGH', platform: 'android', reason: 'SDK 경로 및 API Key가 저장될 수 있는 파일' },
+  { glob: '**/gradle.properties', severity: 'HIGH', platform: 'android', reason: 'API Key, KeyStore 비밀번호가 저장될 수 있는 파일' },
+  { glob: '**/*.jks', severity: 'CRITICAL', platform: 'android', reason: '앱 서명 키 파일 (유출 시 치명적)' },
+  { glob: '**/*.keystore', severity: 'CRITICAL', platform: 'android', reason: '앱 서명 키 파일 (유출 시 치명적)' },
+  // Flutter
+  { glob: '**/generated_plugin_registrant.dart', severity: 'MEDIUM', platform: 'flutter', reason: '내부 경로가 노출될 수 있는 자동 생성 파일' },
+];
