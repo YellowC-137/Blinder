@@ -1,6 +1,8 @@
 # Blinder 🛡️
 
-**Blinder**는 AI 에이전트(Cursor, ChatGPT, Claude 등)를 사용할 때 소스 코드 속의 민감정보가 외부로 유출되는 것을 사전에 방지하는 **AI 시대의 모바일 보안 자동화 도구**입니다.
+[🇰🇷 한국어](./README.md) | [🇺🇸 English](./README_en.md)
+
+**Blinder**는 AI 에이전트(Cursor, ChatGPT, Claude 등)를 사용할 때 소스 코드 속의 민감정보가 외부로 유출되는 것을 사전에 방지하는 **AI 시대의 보안 자동화 도구**입니다.
 
 모바일 개발 환경(iOS, Android, Flutter)에서 하드코딩된 API 키를 탐지하고, 이를 안전하게 `.env`로 격리하며, AI에게 코드를 넘기기 전 시크릿이 정화된 안전한 복사본을 만들어줍니다.
 
@@ -40,7 +42,13 @@ npm install -g github:YellowC-137/Blinder
 #### 1. `blinder init` (초기 설정)
 프로젝트 내의 시크릿을 탐지하고 `.env`로 마이그레이션하여 프로젝트 보안 기초를 다집니다.
 
-#### 2. `blinder sanitize` (AI 전송 전)
+#### 2. `blinder rollback` (원상 복구)
+`init`이나 `scan`으로 인해 적용된 "Auto-fix" 시크릿 보호 조치를 취소하고, 소스코드의 파라미터를 원래 지정된 시크릿이 있는 하드코딩된 상태로 되돌립니다. 동시에 생성된 `.env`, `.env.example`, `blinder_reports/` 파일도 일괄 정리할 수 있습니다.
+```bash
+blinder rollback
+```
+
+#### 3. `blinder sanitize` (AI 전송 전)
 AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **정화된 프로젝트 복사본**을 생성합니다.
 ```bash
 blinder sanitize
@@ -51,15 +59,23 @@ blinder sanitize
 > **프로젝트 실행**: sanitize 된 프로젝트는 정상적으로 실행되지 않습니다. 복사된 프로젝트는 AI 에이전트가 코드를 읽고 수정하는 용도로만 사용합니다. 수정 이후 restore를 한뒤에 정상적으로 실행이 가능합니다.
 
 
-#### 3. `blinder restore` (AI 작업 후)
+#### 4. `blinder restore` (AI 작업 후)
 AI 에이전트가 `.blinder_sanitized/` 폴더 내에서 수정한 **모든 코드와 새 파일**을 원본 프로젝트로 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
 ```bash
 blinder restore
 # AI의 로직 수정사항은 반영되고, 시크릿은 안전하게 다시 채워집니다.
 ```
 
-#### 4. `blinder scan --ci` (파이프라인 검증)
-CI/CD 과정에서 시크릿 유출 여부를 자동으로 체크합니다. 시크릿 발견 시 빌드를 중단시킵니다.
+#### 5. `blinder scan` (수동 스캔)
+프로젝트 내의 시크릿을 수동으로 스캔하여 확인하고 리포트를 생성합니다. (CI/CD 옵션 제공)
+```bash
+blinder scan
+blinder scan --ci # CI/CD 과정에서 시크릿 유출 자동 체크 (발견 시 빌드 실패)
+blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
+```
+
+#### 6. `blinder gitignore` (.gitignore 자동 설정)
+현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_sanitized/` 등)을 `.gitignore`에 자동으로 추가합니다. (`init` 명령어에 포함되어 있습니다.)
 
 ---
 

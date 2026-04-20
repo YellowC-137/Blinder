@@ -4,14 +4,17 @@ import logger from '../utils/logger.js';
 import inquirer from 'inquirer';
 
 export async function protectSecrets(repoPath, scanResults, options = {}) {
-  if (scanResults.length === 0) {
+  // Filter out sensitive file warnings — they are not code-level secrets to migrate
+  const codeSecrets = scanResults.filter(r => !r.isSensitiveFile);
+
+  if (codeSecrets.length === 0) {
     logger.success('No secrets found to protect!');
     return;
   }
 
   // Group results
-  const prodReady = scanResults.filter(r => !r.isTestKey);
-  const testKeys = scanResults.filter(r => r.isTestKey);
+  const prodReady = codeSecrets.filter(r => !r.isTestKey);
+  const testKeys = codeSecrets.filter(r => r.isTestKey);
 
   const envPath = path.join(repoPath, '.env');
   const envExamplePath = path.join(repoPath, '.env.example');
@@ -33,12 +36,12 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   
   const { fixMode } = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'rawlist',
       name: 'fixMode',
       message: 'Choose protection method:',
       choices: [
-        { name: '1. Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
-        { name: '2. Manual (Provide instructions for manual migration)', value: 'manual' }
+        { name: 'Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
+        { name: 'Manual (Provide instructions for manual migration)', value: 'manual' }
       ]
     }
   ]);
@@ -60,14 +63,22 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
 
   // Stage 2: Test keys (conditional)
   if (testKeys.length > 0) {
-    const { includeTests } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'includeTests',
-        message: `Found ${testKeys.length} test-related keys. Would you like to process them as well?`,
-        default: false
-      }
-    ]);
+    let includeTests = false;
+    if (isAutoMode) {
+      // Auto mode: include test keys automatically
+      logger.info(`Including ${testKeys.length} test-related keys automatically.`);
+      includeTests = true;
+    } else {
+      const answer = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'includeTests',
+          message: `Found ${testKeys.length} test-related keys. Would you like to process them as well?`,
+          default: false
+        }
+      ]);
+      includeTests = answer.includeTests;
+    }
 
     if (includeTests) {
       const results = await processSecretGroup(testKeys, envContent, envExampleContent, isAutoMode);
@@ -88,7 +99,18 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     
     if (fixMode === 'auto') {
       logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
-      await applyAutoFixes(repoPath, allSelectedSecrets, options);
+      const migrations = await applyAutoFixes(repoPath, allSelectedSecrets, options);
+      
+      if (!options.dryRun && migrations.length > 0) {
+        const metadataPath = path.join(repoPath, '.blinder_protect.json');
+        const metadata = {
+          version: '1.0',
+          createdAt: new Date().toISOString(),
+          migrations: migrations
+        };
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        logger.success('Rollback metadata saved to .blinder_protect.json');
+      }
     } else {
       logger.header('Manual Action Required');
       logger.info('Please replace the secrets in your code with environment variable calls:');
@@ -141,6 +163,7 @@ async function processSecretGroup(group, envContent, envExampleContent, autoFix 
 }
 
 async function applyAutoFixes(repoPath, secrets, options = {}) {
+  const migrations = [];
   const fileGroups = secrets.reduce((acc, s) => {
     if (!acc[s.file]) acc[s.file] = [];
     acc[s.file].push(s);
@@ -154,22 +177,30 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
 
     for (const s of fileSecrets) {
       const { match, envVarName } = s;
-      let replacement = '';
+      let accessor = '';
 
       if (ext === '.dart') {
-        replacement = match.replace(/["'].*?["']/, `String.fromEnvironment('${envVarName}')`);
+        accessor = `String.fromEnvironment('${envVarName}')`;
       } else if (ext === '.kt' || ext === '.java') {
-        replacement = match.replace(/["'].*?["']/, `BuildConfig.${envVarName}`);
+        accessor = `BuildConfig.${envVarName}`;
       } else if (ext === '.swift') {
-        replacement = match.replace(/["'].*?["']/, `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`);
+        accessor = `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`;
       } else {
-        replacement = match.replace(/["'].*?["']/, `process.env.${envVarName}`);
+        accessor = `process.env.${envVarName}`;
       }
+
+      const replacement = match.replace(/["'].*?["']/, accessor);
+
+      migrations.push({
+        file: relPath,
+        envVarName: envVarName,
+        accessor: accessor
+      });
 
       if (options.dryRun) {
         logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${replacement}`);
       } else {
-        content = content.replace(match, replacement);
+        content = content.split(match).join(replacement);
       }
     }
 
@@ -178,4 +209,5 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
       logger.success(`Updated ${relPath}`);
     }
   }
+  return migrations;
 }

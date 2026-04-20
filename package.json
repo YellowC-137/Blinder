@@ -8,7 +8,7 @@
     "blinder": "./bin/blinder.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/pattern_test.js"
   },
   "keywords": [
     "security",

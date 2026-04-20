@@ -14,6 +14,7 @@ import { protectSecrets } from '../src/commands/protect.js';
 import { loadConfig } from '../src/utils/config.js';
 import { sanitizeFiles } from '../src/commands/sanitize.js';
 import { restoreFromSanitized } from '../src/commands/restore.js';
+import { rollbackSecrets } from '../src/commands/rollback.js';
 
 const program = new Command();
 
@@ -150,43 +151,6 @@ program
   }));
 
 program
-  .command('sanitize')
-  .description('Create secure copies of files with masked secrets (for AI agents)')
-  .action(() => handleAction(async () => {
-    const globalOptions = program.opts();
-    const repoPath = path.resolve(globalOptions.path);
-    const config = loadConfig(repoPath);
-    await sanitizeFiles(repoPath, { 
-      sanitizeOutput: config.sanitizeOutput,
-      customPatterns: config.customPatterns,
-      ignore: config.ignorePaths
-    });
-  }));
-
-program
-  .command('restore')
-  .description('Apply AI agent changes from sanitized project back to original')
-  .action(() => handleAction(async () => {
-    const globalOptions = program.opts();
-    const repoPath = path.resolve(globalOptions.path);
-    const config = loadConfig(repoPath);
-    await restoreFromSanitized(repoPath, {
-      sanitizeOutput: config.sanitizeOutput,
-      dryRun: globalOptions.dryRun
-    });
-  }));
-
-program
-  .command('gitignore')
-  .description('Generate platform-specific .gitignore')
-  .action(() => handleAction(async () => {
-    const globalOptions = program.opts();
-    const repoPath = path.resolve(globalOptions.path);
-    const project = await detectProjectType(repoPath);
-    await generateGitignore(repoPath, project.platforms);
-  }));
-
-program
   .command('init')
   .description('Complete setup (Scan + Protect + Gitignore)')
   .action(() => handleAction(async () => {
@@ -222,6 +186,54 @@ program
     if (!globalOptions.dryRun) {
       logger.success('Your project is now more secure.');
     }
+  }));
+
+program
+  .command('rollback')
+  .description('Undo secret protection and restore secrets back to source code')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    await rollbackSecrets(repoPath, {
+      dryRun: globalOptions.dryRun
+    });
+  }));
+
+program
+  .command('sanitize')
+  .description('Create secure copies of files with masked secrets (for AI agents)')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
+    await sanitizeFiles(repoPath, { 
+      sanitizeOutput: config.sanitizeOutput,
+      customPatterns: config.customPatterns,
+      ignore: config.ignorePaths
+    });
+  }));
+
+program
+  .command('restore')
+  .description('Apply AI agent changes from sanitized project back to original')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    const config = loadConfig(repoPath);
+    await restoreFromSanitized(repoPath, {
+      sanitizeOutput: config.sanitizeOutput,
+      dryRun: globalOptions.dryRun
+    });
+  }));
+
+program
+  .command('gitignore')
+  .description('Generate platform-specific .gitignore')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    const project = await detectProjectType(repoPath);
+    await generateGitignore(repoPath, project.platforms);
   }));
 
 program.parse();
