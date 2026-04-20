@@ -99,6 +99,12 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/dist/**', 
     '**/.git/**',
     '**/.env',
+    '**/*.xcframework/**',
+    '**/*.framework/**',
+    '**/Carthage/**',
+    '**/DerivedData/**',
+    '**/.build/**',
+    '**/.swiftpm/**',
     ...sensitiveFiles.map(sf => sf.glob),
     ... (options.ignore || [])
   ];
@@ -115,74 +121,84 @@ export async function scanProject(repoPath, platforms, options = {}) {
     try {
       const ext = path.extname(filePath);
       const stat = fs.statSync(filePath);
-      if (stat.size > 1024 * 1024) continue;
+      if (stat.size > 2 * 1024 * 1024) continue; // Increased limit slightly for multi-line search
 
       const content = fs.readFileSync(filePath, 'utf8');
       const lines = content.split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (isCommentLine(line, ext)) continue;
-
-        for (const pattern of allPatterns) {
-          let match;
-          pattern.regex.lastIndex = 0;
-          
-          while ((match = pattern.regex.exec(line)) !== null) {
-            let matchValue = match[0];
-            for (let g = match.length - 1; g >= 1; g--) {
-              if (match[g] !== undefined) {
-                matchValue = match[g];
-                break;
-              }
+      for (const pattern of allPatterns) {
+        pattern.regex.lastIndex = 0;
+        let match;
+        
+        while ((match = pattern.regex.exec(content)) !== null) {
+          let matchValue = match[0];
+          // Support capture groups (prefer the last non-empty capture group)
+          for (let g = match.length - 1; g >= 1; g--) {
+            if (match[g] !== undefined) {
+              matchValue = match[g];
+              break;
             }
-            
-            let severity = pattern.severity;
-            const isTest = isTestKey(line, filePath, matchValue);
-            if (isTest) {
-              severity = 'LOW';
-            }
-
-            let baseEnvName = pattern.name.toUpperCase().replace(/\s+/g, '_');
-            let envVarName = baseEnvName;
-            
-            const existingValue = usedEnvNames.get(envVarName);
-            if (existingValue && existingValue !== matchValue) {
-              let counter = 1;
-              while (usedEnvNames.has(`${baseEnvName}_${counter}`) && usedEnvNames.get(`${baseEnvName}_${counter}`) !== matchValue) {
-                counter++;
-              }
-              envVarName = `${baseEnvName}_${counter}`;
-            }
-            usedEnvNames.set(envVarName, matchValue);
-
-            const result = {
-              file: path.relative(repoPath, filePath),
-              line: i + 1,
-              match: matchValue,
-              fullMatch: match[0],
-              patternName: pattern.name,
-              envVarName: envVarName,
-              severity: severity,
-              isFixable: pattern.isFixable !== false,
-              isTestKey: isTest,
-              isSensitiveFile: false,
-              content: line.trim(),
-              isLikelyExample: isFalsePositive(line, filePath)
-            };
-
-            if (result.isLikelyExample && !options.includeExamples) {
-              continue;
-            }
-
-            results.push(result);
           }
+          
+          const startLine = getLineNumber(content, match.index);
+          const currentLineText = lines[startLine - 1] || '';
+          const isComment = isCommentLine(currentLineText, ext);
+          
+          let severity = pattern.severity;
+          const isTest = isTestKey(currentLineText, filePath, matchValue);
+          if (isTest) {
+            severity = 'LOW';
+          }
+
+          let baseEnvName = pattern.name.toUpperCase().replace(/\s+/g, '_');
+          let envVarName = baseEnvName;
+          
+          const existingValue = usedEnvNames.get(envVarName);
+          if (existingValue && existingValue !== matchValue) {
+            let counter = 1;
+            while (usedEnvNames.has(`${baseEnvName}_${counter}`) && usedEnvNames.get(`${baseEnvName}_${counter}`) !== matchValue) {
+              counter++;
+            }
+            envVarName = `${baseEnvName}_${counter}`;
+          }
+          usedEnvNames.set(envVarName, matchValue);
+
+          const result = {
+            file: path.relative(repoPath, filePath),
+            line: startLine,
+            match: matchValue,
+            fullMatch: match[0],
+            patternName: pattern.name,
+            envVarName: envVarName,
+            severity: severity,
+            isFixable: pattern.isFixable !== false,
+            isTestKey: isTest,
+            isSensitiveFile: false,
+            isComment: isComment,
+            isMultiline: pattern.multiline || match[0].includes('\n'),
+            content: currentLineText.trim(),
+            isLikelyExample: isFalsePositive(currentLineText, filePath)
+          };
+
+          if (result.isLikelyExample && !options.includeExamples) {
+            continue;
+          }
+
+          results.push(result);
         }
       }
     } catch (err) {
       continue;
     }
   }
+
+/**
+ * Gets the line number of a specific index in a string.
+ */
+function getLineNumber(content, index) {
+  const prefix = content.substring(0, index);
+  return prefix.split('\n').length;
+}
 
   const fileWarnings = await scanSensitiveFiles(repoPath, platforms);
   results.push(...fileWarnings);

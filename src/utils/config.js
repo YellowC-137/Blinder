@@ -7,10 +7,11 @@ import logger from './logger.js';
  */
 export function loadConfig(repoPath) {
   const configPath = path.join(repoPath, '.blinderrc');
+  const projectName = path.basename(repoPath);
   let config = {
     customPatterns: [],
     ignorePaths: [],
-    maskOutput: '.blinder_masked'
+    maskOutput: `maskedProject_${projectName}`
   };
 
   if (fs.existsSync(configPath)) {

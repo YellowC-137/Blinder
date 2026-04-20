@@ -6,7 +6,8 @@ import inquirer from 'inquirer';
 
 export async function protectSecrets(repoPath, scanResults, options = {}) {
   // Filter out sensitive file warnings — they are not code-level secrets to migrate
-  const codeSecrets = scanResults.filter(r => !r.isSensitiveFile);
+  // Also skip secrets found inside comments; they should not be migrated to environment variables
+  const codeSecrets = scanResults.filter(r => !r.isSensitiveFile && !r.isComment);
 
   if (codeSecrets.length === 0) {
     logger.success('No secrets found to protect!');
@@ -236,10 +237,10 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         accessor = `BuildConfig.${envVarName}`;
         inlineAccessor = `" + ${accessor} + "`;
       } else if (ext === '.swift') {
-        accessor = `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`;
+        accessor = `(Bundle.main.object(forInfoDictionaryKey: "${envVarName}") as? String ?? "")`;
         inlineAccessor = `\\(${accessor})`;
       } else if (ext === '.m' || ext === '.mm' || ext === '.h') {
-        accessor = `[[[NSProcessInfo processInfo] environment] objectForKey:@"${envVarName}"]`;
+        accessor = `[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"]`;
         inlineAccessor = accessor; // String interpolation not natively aligned, safe fallback
       } else if (ext === '.plist' || ext === '.xcconfig') {
         accessor = `\$(${envVarName})`;

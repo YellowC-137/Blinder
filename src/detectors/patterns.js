@@ -67,8 +67,9 @@ export const patterns = [
   // ─── Cryptographic Material ───
   {
     name: 'Private Key',
-    regex: /-----BEGIN (RSA|EC|DSA|OPENSSH)? ?PRIVATE KEY-----/g,
-    severity: 'CRITICAL'
+    regex: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----[\s\S]*?-----END (?:[A-Z ]+ )?PRIVATE KEY-----/g,
+    severity: 'CRITICAL',
+    multiline: true
   },
 
   // ─── Database Connection Strings (보안지침 §1: 인프라 정보) ───
@@ -78,10 +79,17 @@ export const patterns = [
     severity: 'CRITICAL'
   },
 
-  // ─── Internal/Private IP Address (보안지침 §1: 인프라 정보) ───
+  // ─── IPv4 Address (보안지침 §1: 인프라 정보 - Public 및 Private 모두 포함) ───
   {
-    name: 'Private IP Address',
-    regex: /\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g,
+    name: 'IPv4 Address',
+    regex: /\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    severity: 'MEDIUM'
+  },
+
+  // ─── Network Port Configs (e.g., let icrpPt = "10500") ───
+  {
+    name: 'Network Port / Config',
+    regex: /\b[a-zA-Z0-9_]*(?:port|pt)\b\s*(?::\s*[a-zA-Z0-9_]+\s*)?=\s*["']?(\d{2,5})["']?/gi,
     severity: 'MEDIUM'
   },
 

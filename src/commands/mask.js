@@ -31,13 +31,16 @@ export async function maskFiles(repoPath, options = {}) {
   }
 
   const project = await detectProjectType(repoPath);
-  const maskDir = path.join(repoPath, options.maskOutput || '.blinder_masked');
+  const projectName = path.basename(repoPath);
+  const defaultMaskOutput = `maskedProject_${projectName}`;
+  const maskDir = path.join(repoPath, options.maskOutput || defaultMaskOutput);
+  const maskOutputDirName = options.maskOutput || defaultMaskOutput;
 
   // Exclusion patterns for full-project copy
   const excludePaths = [
     'node_modules/**',
     '.git/**',
-    '.blinder_masked/**',
+    `${maskOutputDirName}/**`,
     'blinder_reports/**',
     '.env',
     '.env.example',
@@ -110,7 +113,7 @@ export async function maskFiles(repoPath, options = {}) {
       secrets.sort((a, b) => b.match.length - a.match.length);
 
       for (const s of secrets) {
-        const mask = `<REDACTED:${s.envVarName}>`;
+        const mask = `__BLINDER_${s.envVarName}__`;
         content = content.split(s.match).join(mask);
 
         // Record mapping

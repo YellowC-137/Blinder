@@ -31,8 +31,12 @@ function getAllFilesRecursive(dirPath, arrayOfFiles = []) {
 function hasBeenModifiedByAI(relPath, maskedContent, originalContent, mapData) {
   let remasked = originalContent;
   
+  // Sort mappings by originalValue length descending to match mask.js masking order
+  const sortedMappings = Object.entries(mapData.mappings)
+    .sort((a, b) => b[1].originalValue.length - a[1].originalValue.length);
+    
   // Apply all mappings to the original content to recreate the "initial masked" state
-  for (const [varName, info] of Object.entries(mapData.mappings)) {
+  for (const [varName, info] of sortedMappings) {
     if (info.files.includes(relPath)) {
       // Use split/join for global replacement
       remasked = remasked.split(info.originalValue).join(info.redactedTag);
@@ -142,33 +146,35 @@ export async function restoreFromMasked(repoPath, options = {}) {
   logger.info(`  📊 Total: ${changes.modified.length} modified / ${changes.added.length} added / ${changes.deleted.length} deleted (${changes.unchanged} unchanged)`);
 
   // Integrity Check
-  const integrityIssues = [];
+  const missingTags = [];
   for (const f of changes.modified) {
     const content = fs.readFileSync(path.join(maskDir, f), 'utf8');
     for (const [varName, info] of Object.entries(mapData.mappings)) {
       if (info.files.includes(f) && !content.includes(info.redactedTag)) {
-        integrityIssues.push(`${f}: <REDACTED:${varName}> tag was missing or modified.`);
+        missingTags.push({ file: f, tag: info.redactedTag });
       }
     }
   }
 
-  if (integrityIssues.length > 0) {
-    logger.warn(`\n⚠️  Integrity Check Failed (${integrityIssues.length} issues):`);
-    integrityIssues.forEach(m => logger.error(`  ${m}`));
+  if (missingTags.length > 0) {
+    logger.warn(`\n⚠️  Missing Redaction Tags Detected (${missingTags.length} instances):`);
+    logger.info('These tags were present before, but AI has modified or removed them.');
+    logger.info('This is perfectly NORMAL if the AI intentionally refactored or deleted the code.');
+    missingTags.forEach(m => logger.warn(`  - ${m.file}: ${m.tag}`));
     
     let force = options.auto;
     if (!force) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
         name: 'force',
-        message: 'Some redaction tags are missing. Restoration might leave raw placeholders or break code. Proceed anyway?',
-        default: false
+        message: 'Proceed with restoration anyway? (Tags that no longer exist will just be skipped)',
+        default: true
       }]);
       force = prompt.force;
     }
     if (!force) return;
   } else {
-    logger.success('\n✔ Tag Integrity Check: All REDACTED tags are present.');
+    logger.success('\n✔ Tag Integrity Check: All BLINDER tags are present.');
   }
 
   // Calculate restored contents early
