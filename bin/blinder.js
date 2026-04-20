@@ -43,6 +43,18 @@ async function report(results, repoPath, options, skipConfirm = false) {
     fs.mkdirSync(reportDir, { recursive: true });
   }
 
+  // Ensure blinder_reports/ is in .gitignore
+  const gitignorePath = path.join(repoPath, '.gitignore');
+  const ignoreString = 'blinder_reports/';
+  let gitignoreContent = '';
+  if (fs.existsSync(gitignorePath)) {
+    gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+  }
+  if (!gitignoreContent.includes(ignoreString)) {
+    fs.appendFileSync(gitignorePath, `\n# Blinder Reports\n${ignoreString}\n`);
+    logger.info('Added blinder_reports/ to .gitignore');
+  }
+
   const projectName = path.basename(repoPath).toLowerCase().replace(/[^a-z0-9]/g, '_') || 'project';
   const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
   const reportFilename = `scan_result_${projectName}_${timestamp}.json`;

@@ -68,7 +68,8 @@ export async function rollbackSecrets(repoPath, options = {}) {
 
       let content = fs.readFileSync(absPath, 'utf8');
       if (content.includes(accessor)) {
-        const restoredValue = `"${secretValue}"`;
+        // Use replacedText if recorded, otherwise fallback to old double-quote behavior
+        const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
         content = content.split(accessor).join(restoredValue);
 
         if (!options.dryRun) {
