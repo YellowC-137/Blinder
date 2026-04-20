@@ -10,13 +10,19 @@ export function loadConfig(repoPath) {
   let config = {
     customPatterns: [],
     ignorePaths: [],
-    sanitizeOutput: '.blinder_sanitized'
+    maskOutput: '.blinder_masked'
   };
 
   if (fs.existsSync(configPath)) {
     try {
       const fileContent = fs.readFileSync(configPath, 'utf8');
       const userConfig = JSON.parse(fileContent);
+      
+      // Support legacy 'sanitizeOutput' for a smooth transition if present
+      if (userConfig.sanitizeOutput && !userConfig.maskOutput) {
+        userConfig.maskOutput = userConfig.sanitizeOutput;
+      }
+      
       config = { ...config, ...userConfig };
       logger.debug('Loaded configuration from .blinderrc');
     } catch (error) {

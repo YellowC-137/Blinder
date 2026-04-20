@@ -189,8 +189,6 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         accessor = `process.env.${envVarName}`;
       }
 
-      const replacement = match.replace(/["'].*?["']/, accessor);
-
       migrations.push({
         file: relPath,
         envVarName: envVarName,
@@ -198,9 +196,17 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
       });
 
       if (options.dryRun) {
-        logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${replacement}`);
+        logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${accessor}`);
       } else {
-        content = content.split(match).join(replacement);
+        // Attempt to replace the secret along with its surrounding quotes if present
+        if (content.includes(`"${match}"`)) {
+          content = content.split(`"${match}"`).join(accessor);
+        } else if (content.includes(`'${match}'`)) {
+          content = content.split(`'${match}'`).join(accessor);
+        } else {
+          // Fallback for unquoted secrets or secrets embedded within a larger string
+          content = content.split(match).join(accessor);
+        }
       }
     }
 

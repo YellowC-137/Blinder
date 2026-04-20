@@ -3,20 +3,21 @@ import path from 'path';
 import inquirer from 'inquirer';
 import fg from 'fast-glob';
 const { glob } = fg;
+import crypto from 'crypto';
 import logger from '../utils/logger.js';
 import { scanProject } from '../detectors/scanner.js';
 import { detectProjectType } from '../utils/detector.js';
 
 /**
- * Sanitizes files for AI agent context by masking secrets in copies.
+ * Masks files for AI agent context by replacing secrets in copies.
  * Now copies the entire project for full context.
  */
-export async function sanitizeFiles(repoPath, options = {}) {
+export async function maskFiles(repoPath, options = {}) {
   const { targetPath } = await inquirer.prompt([
     {
       type: 'input',
       name: 'targetPath',
-      message: 'Enter the path to sanitize (leave empty for entire project):',
+      message: 'Enter the path to mask (leave empty for entire project):',
       default: ''
     }
   ]);
@@ -28,13 +29,13 @@ export async function sanitizeFiles(repoPath, options = {}) {
   }
 
   const project = await detectProjectType(repoPath);
-  const sanitizeDir = path.join(repoPath, options.sanitizeOutput || '.blinder_sanitized');
+  const maskDir = path.join(repoPath, options.maskOutput || '.blinder_masked');
 
   // Exclusion patterns for full-project copy
   const excludePaths = [
     'node_modules/**',
     '.git/**',
-    '.blinder_sanitized/**',
+    '.blinder_masked/**',
     'blinder_reports/**',
     '.env',
     '.env.example',
@@ -71,6 +72,7 @@ export async function sanitizeFiles(repoPath, options = {}) {
     createdAt: new Date().toISOString(),
     projectRoot: repoPath,
     mappings: {},
+    fileHashes: {},
     allFiles: []
   };
 
@@ -81,15 +83,15 @@ export async function sanitizeFiles(repoPath, options = {}) {
     return acc;
   }, {});
 
-  if (!fs.existsSync(sanitizeDir)) {
-    fs.mkdirSync(sanitizeDir, { recursive: true });
+  if (!fs.existsSync(maskDir)) {
+    fs.mkdirSync(maskDir, { recursive: true });
   }
 
-  logger.info(`Sanitizing project into ${sanitizeDir}...`);
+  logger.info(`Masking project into ${maskDir}...`);
 
   for (const relPath of allFiles) {
     const srcPath = path.join(repoPath, relPath);
-    const destPath = path.join(sanitizeDir, relPath);
+    const destPath = path.join(maskDir, relPath);
 
     // Skip directories (glob returns files usually, but being safe)
     if (fs.statSync(srcPath).isDirectory()) continue;
@@ -128,15 +130,19 @@ export async function sanitizeFiles(repoPath, options = {}) {
       fs.copyFileSync(srcPath, destPath);
     }
 
+    // Compute hash of the destination file
+    const fileContent = fs.readFileSync(destPath);
+    mappingData.fileHashes[relPath] = crypto.createHash('sha256').update(fileContent).digest('hex');
+
     mappingData.allFiles.push(relPath);
   }
 
   // Save mapping file
-  const mapPath = path.join(sanitizeDir, '.blinder_map.json');
+  const mapPath = path.join(maskDir, '.blinder_map.json');
   fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
 
-  logger.header('Sanitization Complete');
-  logger.info(`Safe copy of project available in: ${sanitizeDir}`);
-  logger.success(`Secret mapping saved: .blinder_sanitized/.blinder_map.json`);
+  logger.header('Masking Complete');
+  logger.info(`Safe copy of project available in: ${maskDir}`);
+  logger.success(`Secret mapping saved: ${maskDir}/.blinder_map.json`);
   logger.warn('Note: These files are for AI context. Use original files for production.');
 }

@@ -4,7 +4,7 @@ export const templates = {
 .env
 .env.example
 blinder_reports/
-.blinder_sanitized/
+.blinder_masked/
 .blinder_protect.json
 *.pem
 *.key

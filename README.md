@@ -4,13 +4,13 @@
 
 **Blinder**는 AI 에이전트(Cursor, ChatGPT, Claude 등)를 사용할 때 소스 코드 속의 민감정보가 외부로 유출되는 것을 사전에 방지하는 **AI 시대의 보안 자동화 도구**입니다.
 
-모바일 개발 환경(iOS, Android, Flutter)에서 하드코딩된 API 키를 탐지하고, 이를 안전하게 `.env`로 격리하며, AI에게 코드를 넘기기 전 시크릿이 정화된 안전한 복사본을 만들어줍니다.
+모바일 개발 환경(iOS, Android, Flutter)에서 하드코딩된 API 키를 탐지하고, 이를 안전하게 `.env`로 격리하며, AI에게 코드를 넘기기 전 시크릿이 마스킹된 안전한 복사본을 만들어줍니다.
 
 ---
 
 ## ✨ 핵심 기능
 
-- **🧹 지능형 정화 (Sanitize)**: 원본 코드를 수정하지 않고, 시크릿만 `<REDACTED>`로 치환된 AI 전송용 복사본을 `.blinder_sanitized/` 폴더에 생성합니다.
+- **🧹 지능형 마스킹 (Mask)**: 원본 코드를 수정하지 않고, 시크릿만 `<REDACTED>`로 치환된 AI 전송용 복사본을 `.blinder_masked/` 폴더에 생성합니다.
 - **🔍 AI 맞춤형 스캐닝**: 주석 내의 시크릿은 무시하고 실제 코드 내의 유효한 시크릿만 탐지하여 오탐을 최소화합니다.
 - **🛡️ 자동 환경 변수 변환 (Auto-fix)**: 탐지된 시크릿을 `.env`로 옮기고, Dart/Kotlin/Swift 등 플랫폼에 맞는 환경 변수 참조 코드로 자동 교체합니다.
 - **⚙️ 엔터프라이즈 보안 지침 준수**: Google, AWS, Stripe 등 글로벌 서비스는 물론 Kakao, Naver 등 국내 SDK 키와 `.p12`, `.keystore` 등 민감 파일까지 완벽 탐지합니다.
@@ -48,19 +48,19 @@ npm install -g github:YellowC-137/Blinder
 blinder rollback
 ```
 
-#### 3. `blinder sanitize` (AI 전송 전)
-AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **정화된 프로젝트 복사본**을 생성합니다.
+#### 3. `blinder mask` (AI 전송 전)
+AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **마스킹된 프로젝트 복사본**을 생성합니다.
 ```bash
-blinder sanitize
+blinder mask
 # 프로젝트 전체가 복사되며 시크릿만 <REDACTED>로 마스킹됩니다.
 ```
 
 > [!WARNING]
-> **프로젝트 실행**: sanitize 된 프로젝트는 정상적으로 실행되지 않습니다. 복사된 프로젝트는 AI 에이전트가 코드를 읽고 수정하는 용도로만 사용합니다. 수정 이후 restore를 한뒤에 정상적으로 실행이 가능합니다.
+> **프로젝트 실행**: mask 된 프로젝트는 정상적으로 실행되지 않습니다. 복사된 프로젝트는 AI 에이전트가 코드를 읽고 수정하는 용도로만 사용합니다. 수정 이후 restore를 한뒤에 정상적으로 실행이 가능합니다.
 
 
 #### 4. `blinder restore` (AI 작업 후)
-AI 에이전트가 `.blinder_sanitized/` 폴더 내에서 수정한 **모든 코드와 새 파일**을 원본 프로젝트로 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
+AI 에이전트가 `.blinder_masked/` 폴더 내에서 수정한 **모든 코드와 새 파일**을 원본 프로젝트로 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
 ```bash
 blinder restore
 # AI의 로직 수정사항은 반영되고, 시크릿은 안전하게 다시 채워집니다.
@@ -75,7 +75,7 @@ blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
 ```
 
 #### 6. `blinder gitignore` (.gitignore 자동 설정)
-현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_sanitized/` 등)을 `.gitignore`에 자동으로 추가합니다. (`init` 명령어에 포함되어 있습니다.)
+현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_masked/` 등)을 `.gitignore`에 자동으로 추가합니다. (`init` 명령어에 포함되어 있습니다.)
 
 ---
 
@@ -89,7 +89,7 @@ blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
     { "name": "Internal API", "regex": "INTERNAL_[A-Z]{3}_KEY_[0-9a-f]{32}", "severity": "CRITICAL" }
   ],
   "ignorePaths": ["**/test/mocks/**"],
-  "sanitizeOutput": ".tmp_safe_code"
+  "maskOutput": ".tmp_safe_code"
 }
 ```
 

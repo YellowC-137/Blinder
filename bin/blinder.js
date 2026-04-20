@@ -12,8 +12,8 @@ import { generateGitignore } from '../src/commands/gitignore.js';
 import { protectSecrets } from '../src/commands/protect.js';
 
 import { loadConfig } from '../src/utils/config.js';
-import { sanitizeFiles } from '../src/commands/sanitize.js';
-import { restoreFromSanitized } from '../src/commands/restore.js';
+import { maskFiles } from '../src/commands/mask.js';
+import { restoreFromMasked } from '../src/commands/restore.js';
 import { rollbackSecrets } from '../src/commands/rollback.js';
 
 const program = new Command();
@@ -200,29 +200,35 @@ program
   }));
 
 program
-  .command('sanitize')
+  .command('mask')
   .description('Create secure copies of files with masked secrets (for AI agents)')
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    await sanitizeFiles(repoPath, { 
-      sanitizeOutput: config.sanitizeOutput,
+    await maskFiles(repoPath, { 
+      maskOutput: config.maskOutput,
       customPatterns: config.customPatterns,
       ignore: config.ignorePaths
     });
   }));
 
 program
-  .command('restore')
-  .description('Apply AI agent changes from sanitized project back to original')
-  .action(() => handleAction(async () => {
+  .command('restore [paths...]')
+  .description('Apply AI agent changes from masked project back to original')
+  .option('--diff', 'Show terminal diffs before applying changes', false)
+  .option('--auto', 'Apply changes automatically without prompting', false)
+  .action((paths) => handleAction(async () => {
     const globalOptions = program.opts();
+    const commandOptions = program.commands.find(c => c.name() === 'restore').opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    await restoreFromSanitized(repoPath, {
-      sanitizeOutput: config.sanitizeOutput,
-      dryRun: globalOptions.dryRun
+    await restoreFromMasked(repoPath, {
+      maskOutput: config.maskOutput,
+      dryRun: globalOptions.dryRun,
+      paths: paths,
+      diff: commandOptions.diff,
+      auto: commandOptions.auto
     });
   }));
 

@@ -4,13 +4,13 @@
 
 **Blinder** is an automated security tool for the AI era designed to prevent sensitive information in your source code from leaking when using AI agents (Cursor, ChatGPT, Claude, etc.).
 
-It detects hardcoded API keys in mobile development environments (iOS, Android, Flutter), safely isolates them into `.env` files, and creates a sanitized copy of your project with masked secrets before handing it over to AI agents.
+It detects hardcoded API keys in mobile development environments (iOS, Android, Flutter), safely isolates them into `.env` files, and creates a masked copy of your project with masked secrets before handing it over to AI agents.
 
 ---
 
 ## ✨ Key Features
 
-- **🧹 Intelligent Sanitization (`sanitize`)**: Creates a safe copy of your project for AI agents in the `.blinder_sanitized/` folder, replacing all secrets with `<REDACTED>` tags while leaving original code untouched.
+- **🧹 Intelligent Masking (`mask`)**: Creates a safe copy of your project for AI agents in the `.blinder_masked/` folder, replacing all secrets with `<REDACTED>` tags while leaving original code untouched.
 - **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and only detecting valid secrets in actual code.
 - **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, etc.).
 - **⚙️ Enterprise-Grade Security Guidelines**: Flawlessly detects global service keys (Google, AWS, Stripe), regional SDK keys (Kakao, Naver), and sensitive files like `.p12`, `.keystore`.
@@ -48,18 +48,18 @@ Undoes the "Auto-fix" secret protection measurements applied by `init` or `scan`
 blinder rollback
 ```
 
-#### 3. `blinder sanitize` (Before Sending to AI)
-Creates a **sanitized copy of the project** that masks secrets with `<REDACTED>` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
+#### 3. `blinder mask` (Before Sending to AI)
+Creates a **masked copy of the project** that replaces secrets with `<REDACTED>` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
 ```bash
-blinder sanitize
-# Copies the entire project and masks secrets with <REDACTED>
+blinder mask
+# Copies the entire project and replaces secrets with <REDACTED>
 ```
 
 > [!WARNING]
-> **Project Execution**: The sanitized project will not run normally. The copied project is intended solely for the AI agent to read and modify code. You can run the project normally after performing a restore following the AI's modifications.
+> **Project Execution**: The masked project will not run normally. The copied project is intended solely for the AI agent to read and modify code. You can run the project normally after performing a restore following the AI's modifications.
 
 #### 4. `blinder restore` (After AI Modifications)
-Brings **all code modifications and new files** created by the AI agent in the `.blinder_sanitized/` folder back into the original project. The masked secrets are automatically restored to their actual values.
+Brings **all code modifications and new files** created by the AI agent in the `.blinder_masked/` folder back into the original project. The masked secrets are automatically restored to their actual values.
 ```bash
 blinder restore
 # Merges the AI's logic modifications and safely re-inserts the secrets.
@@ -74,7 +74,7 @@ blinder scan -o custom_report.json # Exports the scan results to a specific file
 ```
 
 #### 6. `blinder gitignore` (Auto-setup .gitignore)
-Detects your current project environment (Android, iOS, Flutter, etc.) and automatically appends platform-specific vulnerable files and Blinder-generated files (like `.env` and `.blinder_sanitized/`) to `.gitignore`. (This command is already included under the hood in `init`.)
+Detects your current project environment (Android, iOS, Flutter, etc.) and automatically appends platform-specific vulnerable files and Blinder-generated files (like `.env` and `.blinder_masked/`) to `.gitignore`. (This command is already included under the hood in `init`.)
 
 ---
 
@@ -88,7 +88,7 @@ You can customize Blinder's behavior by creating a `.blinderrc` file in your pro
     { "name": "Internal API", "regex": "INTERNAL_[A-Z]{3}_KEY_[0-9a-f]{32}", "severity": "CRITICAL" }
   ],
   "ignorePaths": ["**/test/mocks/**"],
-  "sanitizeOutput": ".tmp_safe_code"
+  "maskOutput": ".tmp_safe_code"
 }
 ```
 
