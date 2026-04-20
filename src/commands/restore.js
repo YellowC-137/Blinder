@@ -135,10 +135,10 @@ export async function restoreFromMasked(repoPath, options = {}) {
   const changes = detectChanges(maskDir, repoPath, mapData, options);
 
   logger.divider();
-  logger.info('📋 AI 작업 결과 요약');
+  logger.info('📋 AI-Agent Work Summary:');
   if (changes.modified.length > 0) changes.modified.forEach(f => logger.success(`  ✏️  Modified: ${f}`));
   if (changes.added.length > 0) changes.added.forEach(f => logger.success(`  ➕ Added:    ${f}`));
-  if (changes.deleted.length > 0) changes.deleted.forEach(f => logger.warn(`  🗑️  Deleted:  ${f}`));
+  if (changes.deleted.length > 0) logger.warn(`  🗑️  Deleted:  ${changes.deleted.length} files`);
   logger.info(`  📊 Total: ${changes.modified.length} modified / ${changes.added.length} added / ${changes.deleted.length} deleted (${changes.unchanged} unchanged)`);
 
   // Integrity Check
@@ -168,7 +168,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     }
     if (!force) return;
   } else {
-    logger.success('\n✔ REDACTED 태그 무결성: 모든 태그 정상');
+    logger.success('\n✔ Tag Integrity Check: All REDACTED tags are present.');
   }
 
   // Calculate restored contents early
@@ -217,7 +217,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',
       name: 'confirm',
-      message: 'Apply these changes to the original project?',
+      message: 'Apply these changes to your root project?',
       default: true
     }]);
     confirm = prompt.confirm;
@@ -253,7 +253,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
         name: 'shouldDelete',
-        message: `AI deleted "${f}". Delete from original project too?`,
+        message: `File "${f}" was deleted in the masked environment. Delete from original project?`,
         default: false
       }]);
       shouldDelete = prompt.shouldDelete;
@@ -272,7 +272,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',
       name: 'cleanup',
-      message: 'Delete the masked folder (.blinder_masked)?',
+      message: 'Clean up the temporary masked directory (.blinder_masked)?',
       default: true
     }]);
     cleanup = prompt.cleanup;

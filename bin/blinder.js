@@ -95,18 +95,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
     process.exit(1);
   }
 
-  if (skipConfirm) return true;
-
-  const { proceed } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'proceed',
-      message: 'Would you like to proceed with secret protection (Auto-fix or Manual)?',
-      default: true
-    }
-  ]);
-
-  return proceed;
+  return results.length > 0;
 }
 
 program
@@ -144,10 +133,7 @@ program
     });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
-    const proceed = await report(results, repoPath, options);
-    if (proceed) {
-      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
-    }
+    await report(results, repoPath, options);
   }));
 
 program
@@ -177,14 +163,35 @@ program
     });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
-    const proceed = await report(results, repoPath, {}, true);
-    if (proceed) {
-      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
+    const hasSecrets = await report(results, repoPath, {});
+    
+    if (hasSecrets) {
+      const { choice } = await inquirer.prompt([
+        {
+          type: 'rawlist',
+          name: 'choice',
+          message: 'Choose how to proceed with secret protection:',
+          choices: [
+            { name: 'Auto-fix (Recommended: Automatically replace secrets with environment variable calls)', value: 'auto' },
+            { name: 'Manual (Generate .env but perform code migration manually)', value: 'manual' },
+            { name: 'Exit (Do nothing and exit)', value: 'exit' }
+          ]
+        }
+      ]);
+
+      if (choice === 'auto' || choice === 'manual') {
+        await protectSecrets(repoPath, results, { 
+          dryRun: globalOptions.dryRun,
+          mode: choice
+        });
+      } else {
+        logger.info('Operation skipped by user.');
+      }
     }
     
     logger.header('Process Finished!');
     if (!globalOptions.dryRun) {
-      logger.success('Your project is now more secure.');
+      logger.success('Your project initialization is complete.');
     }
   }));
 

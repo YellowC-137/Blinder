@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import chalk from 'chalk';
 import logger from '../utils/logger.js';
 import inquirer from 'inquirer';
 
@@ -34,17 +35,22 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     logger.warn('RUNNING IN DRY-RUN MODE: No files will be modified.');
   }
   
-  const { fixMode } = await inquirer.prompt([
-    {
-      type: 'rawlist',
-      name: 'fixMode',
-      message: 'Choose protection method:',
-      choices: [
-        { name: 'Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
-        { name: 'Manual (Provide instructions for manual migration)', value: 'manual' }
-      ]
-    }
-  ]);
+  let fixMode = options.mode;
+
+  if (!fixMode) {
+    const answer = await inquirer.prompt([
+      {
+        type: 'rawlist',
+        name: 'fixMode',
+        message: 'Choose protection method:',
+        choices: [
+          { name: 'Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
+          { name: 'Manual (Provide instructions for manual migration)', value: 'manual' }
+        ]
+      }
+    ]);
+    fixMode = answer.fixMode;
+  }
 
   const isAutoMode = fixMode === 'auto';
   let allSelectedSecrets = [];
@@ -113,10 +119,15 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
       }
     } else {
       logger.header('Manual Action Required');
-      logger.info('Please replace the secrets in your code with environment variable calls:');
-      logger.info('- Flutter: String.fromEnvironment(\'VAR_NAME\')');
-      logger.info('- iOS: Use xcconfig or ProcessInfo.processInfo.environment["VAR_NAME"]');
-      logger.info('- Android: Use BuildConfig.VAR_NAME');
+      logger.info('To complete the migration, please replace the hardcoded secrets in your source code with environment variable lookups:');
+      logger.divider();
+      logger.info(chalk.bold('Implementation Examples:'));
+      logger.info(`- ${chalk.yellow('Flutter')}:   String.fromEnvironment('VAR_NAME')`);
+      logger.info(`- ${chalk.yellow('iOS')}:       Use xcconfig or ProcessInfo.processInfo.environment["VAR_NAME"]`);
+      logger.info(`- ${chalk.yellow('Android')}:   Use BuildConfig.VAR_NAME`);
+      logger.info(`- ${chalk.yellow('Node.js')}:   process.env.VAR_NAME`);
+      logger.divider();
+      logger.success('The .env file has been updated with your secrets. You can now use these variables.');
     }
   } else {
     logger.info('No secrets selected for migration.');
@@ -142,7 +153,7 @@ async function processSecretGroup(group, envContent, envExampleContent, autoFix 
         {
           type: 'confirm',
           name: 'confirm',
-          message: `${label} Migrate secret "${logger.maskSecret(secretValue)}" found in ${file}:${line} to ${envVarName}?`,
+          message: `${label} Found secret "${logger.maskSecret(secretValue)}" in ${file}:${line}. Migrate to ${envVarName}?`,
           default: !isTestKey
         }
       ]);

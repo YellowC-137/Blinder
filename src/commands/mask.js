@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import chalk from 'chalk';
 import inquirer from 'inquirer';
 import fg from 'fast-glob';
 const { glob } = fg;
@@ -17,8 +18,9 @@ export async function maskFiles(repoPath, options = {}) {
     {
       type: 'input',
       name: 'targetPath',
-      message: 'Enter the path to mask (leave empty for entire project):',
-      default: ''
+      message: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
+      default: '',
+      suffix: chalk.gray(' (e.g., src/features/login)')
     }
   ]);
 

@@ -122,8 +122,6 @@ Scan Results
 ℹ    Match: glpa...ghij
 ⚠ [TEST KEY] test/mocks.dart:2 - Generic API Key
 ℹ    Match: test...1234
-
-? Would you like to proceed with secret protection (Auto-fix or Manual)? (Y/n)
 ```
 
 ---
