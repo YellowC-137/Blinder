@@ -134,7 +134,8 @@ program
     const spinner = ora('Detecting project type...').start();
     const project = await detectProjectType(repoPath);
     spinner.succeed(`Project root: ${repoPath}`);
-    spinner.succeed(`Detected platforms: ${project.platforms.join(', ') || 'None (Generic Scan)'}`);
+    const platformNames = project.platforms.map(p => p.name).join(', ');
+    spinner.succeed(`Detected platforms: ${platformNames}`);
 
     const scanSpinner = ora('Scanning for secrets...').start();
     const results = await scanProject(repoPath, project.platforms, {
@@ -146,7 +147,7 @@ program
 
     const proceed = await report(results, repoPath, options);
     if (proceed) {
-      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
+      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun, platforms: project.platforms });
     }
   }));
 
@@ -164,7 +165,8 @@ program
     }
 
     const project = await detectProjectType(repoPath);
-    logger.info(`Target Platforms: ${project.platforms.join(', ')}`);
+    const platformNames = project.platforms.map(p => p.name).join(', ');
+    logger.info(`Target Platforms: ${platformNames}`);
     
     if (!globalOptions.dryRun) {
       await generateGitignore(repoPath, project.platforms);
@@ -179,7 +181,7 @@ program
 
     const proceed = await report(results, repoPath, {}, true);
     if (proceed) {
-      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun });
+      await protectSecrets(repoPath, results, { dryRun: globalOptions.dryRun, platforms: project.platforms });
     }
     
     logger.header('Process Finished!');

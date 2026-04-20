@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 const { glob } = fg;
-import { patterns, platformExtensions, sensitiveFiles } from './patterns.js';
+import { patterns } from './patterns.js';
 
 /**
  * Heuristic to detect if a match is likely a false positive.
@@ -27,33 +27,13 @@ function isTestKey(line, filePath, matchValue) {
 }
 
 /**
- * Heuristic to detect if a line is a comment.
- */
-function isCommentLine(line, ext) {
-  const trimmed = line.trim();
-  if (ext === '.swift' || ext === '.kt' || ext === '.java' || ext === '.dart') {
-    return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
-  }
-  if (ext === '.yaml' || ext === '.gradle' || ext === '.properties' || ext === '.py' || ext === '.sh') {
-    return trimmed.startsWith('#');
-  }
-  if (ext === '.xml' || ext === '.plist') {
-    return trimmed.startsWith('<!--');
-  }
-  return false;
-}
-
-/**
  * Scans for sensitive files that should never be committed.
  */
 async function scanSensitiveFiles(repoPath, platforms) {
   const warnings = [];
+  const sensitiveFiles = platforms.flatMap(p => p.sensitiveFiles || []);
 
   for (const sf of sensitiveFiles) {
-    if (platforms.length > 0 && !platforms.includes(sf.platform) && !platforms.includes('flutter')) {
-      continue;
-    }
-
     const found = await glob(sf.glob, {
       cwd: repoPath,
       ignore: ['**/node_modules/**', '**/Pods/**', '**/.git/**'],
@@ -85,13 +65,14 @@ export async function scanProject(repoPath, platforms, options = {}) {
   const usedEnvNames = new Map();
   
   platforms.forEach(p => {
-    (platformExtensions[p] || []).forEach(ext => extensions.add(ext));
+    (p.commonExtensions || []).forEach(ext => extensions.add(ext));
   });
 
   if (extensions.size === 0) {
     ['.swift', '.kt', '.dart', '.xml', '.plist', '.json', '.env', '.properties', '.gradle'].forEach(ext => extensions.add(ext));
   }
 
+  const platformIgnores = platforms.flatMap(p => p.ignorePaths || []);
   const ignorePatterns = [
     '**/node_modules/**', 
     '**/Pods/**', 
@@ -99,7 +80,8 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/dist/**', 
     '**/.git/**',
     '**/.env',
-    ... (options.ignore || [])
+    ...platformIgnores,
+    ...(options.ignore || [])
   ];
 
   const files = await glob(`**/*{${Array.from(extensions).join(',')}}`, {
@@ -121,7 +103,15 @@ export async function scanProject(repoPath, platforms, options = {}) {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (isCommentLine(line, ext)) continue;
+        
+        let isComment = false;
+        for (const p of platforms) {
+          if (p.commentRegex && p.commentRegex.test(line)) {
+            isComment = true;
+            break;
+          }
+        }
+        if (isComment) continue;
 
         for (const pattern of allPatterns) {
           let match;

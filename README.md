@@ -106,6 +106,14 @@ blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
 
 ---
 
+## 🧩 플랫폼 확장 및 오픈소스 기여 (Custom Platforms)
+
+Blinder는 완벽하게 분리된 **플러그인 아키텍처**를 가지고 있어 세상의 어떤 언어나 프레임워크도 1개의 단일 JS 객체 파일만으로 쉽게 추가할 수 있습니다. 
+
+새로운 언어나 프레임워크(예: React, Python, Spring 등)를 추가하여 기여하고 싶다면 `src/platforms/` 하위 폴더 내에 `IPlatform` 규격을 준수하는 구조체를 작성하고 `index.js`에 등록해 주시면 됩니다! 세부 명세서는 [platform.md](./platform.md)의 기여자 가이드를 확인해 주세요.
+
+---
+
 ## 스캔 리포트 예시 (Terminal Output)
 
 ```text

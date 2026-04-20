@@ -177,16 +177,14 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
 
     for (const s of fileSecrets) {
       const { match, envVarName } = s;
-      let accessor = '';
-
-      if (ext === '.dart') {
-        accessor = `String.fromEnvironment('${envVarName}')`;
-      } else if (ext === '.kt' || ext === '.java') {
-        accessor = `BuildConfig.${envVarName}`;
-      } else if (ext === '.swift') {
-        accessor = `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`;
-      } else {
-        accessor = `process.env.${envVarName}`;
+      let accessor = `process.env.${envVarName}`; // Default fallback
+      if (options.platforms) {
+        for (const p of options.platforms) {
+          if (p.commonExtensions && p.commonExtensions.includes(ext) && p.getAutoFixReplacement) {
+            accessor = p.getAutoFixReplacement(match, envVarName, ext, {});
+            break;
+          }
+        }
       }
 
       migrations.push({

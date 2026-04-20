@@ -104,6 +104,14 @@ You can customize Blinder's behavior by creating a `.blinderrc` file in your pro
 
 ---
 
+## 🧩 Extension & Open Source Contributions (Custom Platforms)
+
+Blinder features a fully decoupled **Plugin Architecture**, meaning you can seamlessly add support for any language or framework in the world by providing just a single JS object file.
+
+Want to contribute a new framework (e.g., React, Python, Java, Go)? Simply create an object that conforms to the `IPlatform` interface within a sub-folder under `src/platforms/`, and register it in `index.js`! For the complete technical guidelines, please refer to the [platform.md](./platform.md) contributor guide.
+
+---
+
 ## Scan Report Example (Terminal Output)
 
 ```text

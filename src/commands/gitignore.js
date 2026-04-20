@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger.js';
-import { templates } from '../generators/gitignore-templates.js';
 
 export async function generateGitignore(repoPath, platforms) {
   const gitignorePath = path.join(repoPath, '.gitignore');
@@ -12,12 +11,14 @@ export async function generateGitignore(repoPath, platforms) {
   }
 
   let newContent = currentContent;
-  const sectionsToAdd = ['common', ...platforms];
 
-  for (const section of sectionsToAdd) {
-    const template = templates[section];
+  for (const platform of platforms) {
+    if (!platform.getGitignoreTemplate) continue;
+    
+    const template = platform.getGitignoreTemplate();
     if (!template) continue;
 
+    const section = platform.id;
     const marker = `# --- BLINDER ${section.toUpperCase()} ---`;
     if (newContent.includes(marker)) {
       logger.info(`.gitignore already contains ${section} section. Skipping.`);

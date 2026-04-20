@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
-const { glob } = fg;
+import { platforms } from '../platforms/index.js';
 
 /**
- * Detects the project type (iOS, Android, Flutter) in the given directory.
+ * Detects the project type using the dynamically loaded platform plugins.
+ * Returns an object containing the matching platform objects and the repo root.
  */
 export async function detectProjectType(repoPath) {
   const result = {
@@ -12,34 +12,15 @@ export async function detectProjectType(repoPath) {
     root: repoPath
   };
 
-  // 1. Check for Flutter
-  if (fs.existsSync(path.join(repoPath, 'pubspec.yaml'))) {
-    result.platforms.push('flutter');
+  for (const platform of platforms) {
+    try {
+      if (await platform.detect(repoPath)) {
+        result.platforms.push(platform);
+      }
+    } catch (err) {
+      // Ignore detection errors, simply skip the platform
+    }
   }
-
-  // Check for Android
-  const hasAndroidDir = fs.existsSync(path.join(repoPath, 'android'));
-  const hasBuildGradle = fs.existsSync(path.join(repoPath, 'build.gradle')) || 
-                        fs.existsSync(path.join(repoPath, 'app/build.gradle'));
-  
-  if (hasAndroidDir || hasBuildGradle) {
-    result.platforms.push('android');
-  }
-
-  // Check for iOS
-  const hasIosDir = fs.existsSync(path.join(repoPath, 'ios'));
-  const xcodeProjects = await glob(['**/*.xcodeproj', '**/*.xcworkspace'], { 
-    cwd: repoPath, 
-    deep: 3,
-    ignore: ['**/node_modules/**', '**/Pods/**']
-  });
-
-  if (hasIosDir || xcodeProjects.length > 0) {
-    result.platforms.push('ios');
-  }
-
-  // Remove duplicates
-  result.platforms = [...new Set(result.platforms)];
 
   return result;
 }
