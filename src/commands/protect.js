@@ -273,16 +273,7 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
                lineContent = lineContent.substring(0, matchIndex) + accessor + lineContent.substring(matchIndex + match.length);
              }
           } else {
-             // Fallback if the word boundary regex failed for some reason
-             const rawIndex = lineContent.indexOf(match);
-             if (rawIndex !== -1) {
-               replacedText = match;
-               if (isInsideQuotes(lineContent, rawIndex)) {
-                 lineContent = lineContent.substring(0, rawIndex) + inlineAccessor + lineContent.substring(rawIndex + match.length);
-               } else {
-                 lineContent = lineContent.substring(0, rawIndex) + accessor + lineContent.substring(rawIndex + match.length);
-               }
-             }
+             logger.warn(`Could not safely replace "${match}" on line ${lineIdx + 1} in ${relPath}. (No word boundary or valid structural match found). Skipping.`);
           }
         }
       }

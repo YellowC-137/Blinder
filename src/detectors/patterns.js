@@ -81,7 +81,7 @@ export const patterns = [
   // ─── Internal/Private IP Address (보안지침 §1: 인프라 정보) ───
   {
     name: 'Private IP Address',
-    regex: /\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g,
+    regex: /\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g,
     severity: 'MEDIUM'
   },
 
@@ -138,7 +138,7 @@ export const patterns = [
   },
   {
     name: 'iOS Keychain Identifier',
-    regex: /\b(kSecAttr(Service|Account|AccessGroup|Generic))\b/g,
+    regex: /\b(kSecAttr(?:Service|Account|AccessGroup|Generic)|kSecClass(?:GenericPassword)?|kSecValueData|kSecReturnData|kSecMatchLimit(?:One)?|kSecAttrAccessible)\b/g,
     severity: 'LOW'
   },
   {
