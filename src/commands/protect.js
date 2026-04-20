@@ -173,6 +173,31 @@ async function processSecretGroup(group, envContent, envExampleContent, autoFix 
   return { selected, envContent, envExampleContent };
 }
 
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isInsideQuotes(lineContent, matchIndex) {
+  let inDouble = false;
+  let inSingle = false;
+  let escape = false;
+  for (let i = 0; i < matchIndex; i++) {
+    const char = lineContent[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+    } else if (char === '"' && !inSingle) {
+      inDouble = !inDouble;
+    } else if (char === "'" && !inDouble) {
+      inSingle = !inSingle;
+    }
+  }
+  return inDouble || inSingle;
+}
+
 async function applyAutoFixes(repoPath, secrets, options = {}) {
   const migrations = [];
   const fileGroups = secrets.reduce((acc, s) => {
@@ -183,36 +208,82 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
 
   for (const [relPath, fileSecrets] of Object.entries(fileGroups)) {
     const absPath = path.join(repoPath, relPath);
-    let content = fs.readFileSync(absPath, 'utf8');
+    const contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
     const ext = path.extname(relPath);
 
     for (const s of fileSecrets) {
-      const { match, envVarName } = s;
+      const { match, envVarName, line } = s;
+      const lineIdx = line - 1;
+      
+      if (lineIdx < 0 || lineIdx >= contentLines.length) continue;
+
       let accessor = '';
+      let inlineAccessor = '';
 
       if (ext === '.dart') {
         accessor = `String.fromEnvironment('${envVarName}')`;
-      } else if (ext === '.kt' || ext === '.java') {
+        inlineAccessor = "$" + `{${accessor}}`;
+      } else if (ext === '.kt') {
         accessor = `BuildConfig.${envVarName}`;
+        inlineAccessor = "$" + `{${accessor}}`;
+      } else if (ext === '.java') {
+        accessor = `BuildConfig.${envVarName}`;
+        inlineAccessor = `" + ${accessor} + "`;
       } else if (ext === '.swift') {
         accessor = `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`;
+        inlineAccessor = `\\(${accessor})`;
+      } else if (ext === '.plist' || ext === '.xcconfig' || ext === '.xml') {
+        accessor = `\$(${envVarName})`;
+        inlineAccessor = accessor;
       } else {
         accessor = `process.env.${envVarName}`;
+        inlineAccessor = "$" + `{${accessor}}`; // Fallback for JS/others using template literal
       }
 
+      let lineContent = contentLines[lineIdx];
       let replacedText = match;
-      if (!options.dryRun) {
-        // Attempt to replace the secret along with its surrounding quotes if present
-        if (content.includes(`"${match}"`)) {
-          replacedText = `"${match}"`;
-          content = content.split(`"${match}"`).join(accessor);
-        } else if (content.includes(`'${match}'`)) {
-          replacedText = `'${match}'`;
-          content = content.split(`'${match}'`).join(accessor);
+
+      if (!options.dryRun && lineContent) {
+        const exactDouble = `"${match}"`;
+        const exactSingle = `'${match}'`;
+
+        // We only want to replace the FIRST occurrence on this line that matches our rules,
+        // because we don't want to replace all occurrences if only one was intended.
+        // Actually, replacing all occurrences *on this single line* is usually safe if it's the exact same secret.
+        
+        if (lineContent.includes(exactDouble)) {
+          replacedText = exactDouble;
+          lineContent = lineContent.replace(exactDouble, accessor);
+        } else if (lineContent.includes(exactSingle)) {
+          replacedText = exactSingle;
+          lineContent = lineContent.replace(exactSingle, accessor);
         } else {
-          replacedText = match;
-          // Fallback for unquoted secrets or secrets embedded within a larger string
-          content = content.split(match).join(accessor);
+          // It's either embedded in a string, or an unquoted identifier / literal
+          const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
+          const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));
+          
+          const regexMatch = lineContent.match(regex);
+          if (regexMatch) {
+             const matchIndex = regexMatch.index;
+             if (isInsideQuotes(lineContent, matchIndex)) {
+               replacedText = match;
+               lineContent = lineContent.substring(0, matchIndex) + inlineAccessor + lineContent.substring(matchIndex + match.length);
+             } else {
+               replacedText = match;
+               lineContent = lineContent.substring(0, matchIndex) + accessor + lineContent.substring(matchIndex + match.length);
+             }
+          } else {
+             // Fallback if the word boundary regex failed for some reason
+             const rawIndex = lineContent.indexOf(match);
+             if (rawIndex !== -1) {
+               replacedText = match;
+               if (isInsideQuotes(lineContent, rawIndex)) {
+                 lineContent = lineContent.substring(0, rawIndex) + inlineAccessor + lineContent.substring(rawIndex + match.length);
+               } else {
+                 lineContent = lineContent.substring(0, rawIndex) + accessor + lineContent.substring(rawIndex + match.length);
+               }
+             }
+          }
         }
       }
 
@@ -223,13 +294,15 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         replacedText: replacedText
       });
 
-      if (options.dryRun) {
+      if (!options.dryRun) {
+        contentLines[lineIdx] = lineContent;
+      } else {
         logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${accessor}`);
       }
     }
 
     if (!options.dryRun) {
-      fs.writeFileSync(absPath, content);
+      fs.writeFileSync(absPath, contentLines.join('\n'));
       logger.success(`Updated ${relPath}`);
     }
   }
