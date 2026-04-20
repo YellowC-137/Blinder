@@ -85,6 +85,13 @@ export const patterns = [
     severity: 'MEDIUM'
   },
 
+  // ─── Endpoint & Server URLs ───
+  {
+    name: 'Endpoint URL',
+    regex: /(https?:\/\/(?!schemas\.android\.com|www\.w3\.org|apple\.com|developer\.apple)(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>]*))/gi,
+    severity: 'MEDIUM'
+  },
+
   // ─── Hardcoded Passwords (보안지침 §1: 인증 정보) ───
   {
     name: 'Hardcoded Password',
