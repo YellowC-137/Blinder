@@ -39,11 +39,11 @@ npm install -g github:YellowC-137/Blinder
 
 ### 필수 명령어
 
-#### 1. `blinder init` (초기 설정)
+#### 1. `blinder blind` (초기 설정)
 프로젝트 내의 시크릿을 탐지하고 `.env`로 마이그레이션하여 프로젝트 보안 기초를 다집니다.
 
 #### 2. `blinder rollback` (원상 복구)
-`init`이나 `scan`으로 인해 적용된 "Auto-fix" 시크릿 보호 조치를 취소하고, 소스코드의 파라미터를 원래 지정된 시크릿이 있는 하드코딩된 상태로 되돌립니다. 동시에 생성된 `.env`, `.env.example`, `blinder_reports/` 파일도 일괄 정리할 수 있습니다.
+`blind`나 `scan`으로 인해 적용된 "Auto-fix" 시크릿 보호 조치를 취소하고, 소스코드의 파라미터를 원래 지정된 시크릿이 있는 하드코딩된 상태로 되돌립니다. 동시에 생성된 `.env`, `.env.example`, `blinder_reports/` 파일도 일괄 정리할 수 있습니다.
 ```bash
 blinder rollback
 ```
@@ -75,7 +75,7 @@ blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
 ```
 
 #### 6. `blinder gitignore` (.gitignore 자동 설정)
-현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_masked/` 등)을 `.gitignore`에 자동으로 추가합니다. (`init` 명령어에 포함되어 있습니다.)
+현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_masked/` 등)을 `.gitignore`에 자동으로 추가합니다. (`blind` 명령어에 포함되어 있습니다.)
 
 ---
 

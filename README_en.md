@@ -39,11 +39,11 @@ npm install -g github:YellowC-137/Blinder
 
 ### Essential Commands
 
-#### 1. `blinder init` (Initial Setup)
+#### 1. `blinder blind` (Initial Setup)
 Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security.
 
 #### 2. `blinder rollback` (Undo Protection)
-Undoes the "Auto-fix" secret protection measurements applied by `init` or `scan`, restoring the source code parameters back to their original hardcoded state with the actual secrets. It also cleans up related generated files like `.env`, `.env.example`, and `blinder_reports/`.
+Undoes the "Auto-fix" secret protection measurements applied by `blind` or `scan`, restoring the source code parameters back to their original hardcoded state with the actual secrets. It also cleans up related generated files like `.env`, `.env.example`, and `blinder_reports/`.
 ```bash
 blinder rollback
 ```
@@ -74,7 +74,7 @@ blinder scan -o custom_report.json # Exports the scan results to a specific file
 ```
 
 #### 6. `blinder gitignore` (Auto-setup .gitignore)
-Detects your current project environment (Android, iOS, Flutter, etc.) and automatically appends platform-specific vulnerable files and Blinder-generated files (like `.env` and `.blinder_masked/`) to `.gitignore`. (This command is already included under the hood in `init`.)
+Detects your current project environment (Android, iOS, Flutter, etc.) and automatically appends platform-specific vulnerable files and Blinder-generated files (like `.env` and `.blinder_masked/`) to `.gitignore`. (This command is already included under the hood in `blind`.)
 
 ---
 

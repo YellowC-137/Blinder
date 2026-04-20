@@ -149,13 +149,13 @@ program
   }));
 
 program
-  .command('init')
+  .command('blind')
   .description('Complete setup (Scan + Protect + Gitignore)')
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    logger.header('Blinder Initialization');
+    logger.header('Blinder - Blind Protection');
     
     if (globalOptions.dryRun) {
       logger.warn('RUNNING IN DRY-RUN MODE: No files will be modified.');
@@ -203,7 +203,7 @@ program
     
     logger.header('Process Finished!');
     if (!globalOptions.dryRun) {
-      logger.success('Your project initialization is complete.');
+      logger.success('Blinder protection is now active.');
     }
   }));
 

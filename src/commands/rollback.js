@@ -22,7 +22,7 @@ function parseEnv(content) {
 }
 
 /**
- * Rollback all protection changes made by blinder init/scan.
+ * Rollback all protection changes made by blinder blind.
  * - If .blinder_protect.json exists: restore accessors → hardcoded secrets in source
  * - Clean up .env, .env.example, .blinder_protect.json, blinder_reports/
  */
