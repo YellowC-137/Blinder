@@ -14,8 +14,14 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   }
 
   // Group results
-  const prodReady = codeSecrets.filter(r => !r.isTestKey);
-  const testKeys = codeSecrets.filter(r => r.isTestKey);
+  const fixableSecrets = codeSecrets.filter(r => r.isFixable !== false);
+  const prodReady = fixableSecrets.filter(r => !r.isTestKey);
+  const testKeys = fixableSecrets.filter(r => r.isTestKey);
+
+  if (fixableSecrets.length === 0) {
+    logger.success('No fixable secrets found. Generating reports only.');
+    return;
+  }
 
   const envPath = path.join(repoPath, '.env');
   const envExamplePath = path.join(repoPath, '.env.example');
@@ -232,8 +238,20 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
       } else if (ext === '.swift') {
         accessor = `ProcessInfo.processInfo.environment["${envVarName}"] ?? ""`;
         inlineAccessor = `\\(${accessor})`;
-      } else if (ext === '.plist' || ext === '.xcconfig' || ext === '.xml') {
+      } else if (ext === '.m' || ext === '.mm' || ext === '.h') {
+        accessor = `[[[NSProcessInfo processInfo] environment] objectForKey:@"${envVarName}"]`;
+        inlineAccessor = accessor; // String interpolation not natively aligned, safe fallback
+      } else if (ext === '.plist' || ext === '.xcconfig') {
         accessor = `\$(${envVarName})`;
+        inlineAccessor = accessor;
+      } else if (ext === '.xml') {
+        accessor = "$" + `{${envVarName}}`; // Android Manifest or values placeholders
+        inlineAccessor = accessor;
+      } else if (ext === '.gradle') {
+        accessor = `System.getenv('${envVarName}') ?: ""`;
+        inlineAccessor = "$" + `{System.getenv('${envVarName}') ?: ""}`;
+      } else if (ext === '.json') {
+        accessor = `process.env.${envVarName}`;
         inlineAccessor = accessor;
       } else {
         accessor = `process.env.${envVarName}`;

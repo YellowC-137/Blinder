@@ -139,12 +139,14 @@ export const patterns = [
   {
     name: 'iOS Keychain Identifier',
     regex: /\b(kSecAttr(?:Service|Account|AccessGroup|Generic)|kSecClass(?:GenericPassword)?|kSecValueData|kSecReturnData|kSecMatchLimit(?:One)?|kSecAttrAccessible)\b/g,
-    severity: 'LOW'
+    severity: 'LOW',
+    isFixable: false
   },
   {
     name: 'Apple Team ID',
     regex: /\b(?:DEVELOPMENT_TEAM|TeamID|TEAM_ID)\s*[:=]\s*["']?([A-Z0-9]{10})["']?/gi,
-    severity: 'LOW'
+    severity: 'LOW',
+    isFixable: false
   },
 
   // ─── Generic patterns (catch-all) ───

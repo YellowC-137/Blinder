@@ -163,6 +163,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
               patternName: pattern.name,
               envVarName: envVarName,
               severity: severity,
+              isFixable: pattern.isFixable !== false,
               isTestKey: isTest,
               isSensitiveFile: false,
               content: line.trim(),
