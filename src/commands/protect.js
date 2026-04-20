@@ -260,23 +260,21 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
 
       let lineContent = contentLines[lineIdx];
       let replacedText = match;
+      let injectedText = accessor;
 
       if (!options.dryRun && lineContent) {
         const exactDouble = `"${match}"`;
         const exactSingle = `'${match}'`;
 
-        // We only want to replace the FIRST occurrence on this line that matches our rules,
-        // because we don't want to replace all occurrences if only one was intended.
-        // Actually, replacing all occurrences *on this single line* is usually safe if it's the exact same secret.
-        
         if (lineContent.includes(exactDouble)) {
           replacedText = exactDouble;
-          lineContent = lineContent.replace(exactDouble, accessor);
+          injectedText = accessor;
+          lineContent = lineContent.replace(exactDouble, injectedText);
         } else if (lineContent.includes(exactSingle)) {
           replacedText = exactSingle;
-          lineContent = lineContent.replace(exactSingle, accessor);
+          injectedText = accessor;
+          lineContent = lineContent.replace(exactSingle, injectedText);
         } else {
-          // It's either embedded in a string, or an unquoted identifier / literal
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));
           
@@ -285,10 +283,12 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
              const matchIndex = regexMatch.index;
              if (isInsideQuotes(lineContent, matchIndex)) {
                replacedText = match;
-               lineContent = lineContent.substring(0, matchIndex) + inlineAccessor + lineContent.substring(matchIndex + match.length);
+               injectedText = inlineAccessor;
+               lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
              } else {
                replacedText = match;
-               lineContent = lineContent.substring(0, matchIndex) + accessor + lineContent.substring(matchIndex + match.length);
+               injectedText = accessor;
+               lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
              }
           } else {
              logger.warn(`Could not safely replace "${match}" on line ${lineIdx + 1} in ${relPath}. (No word boundary or valid structural match found). Skipping.`);
@@ -300,6 +300,7 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         file: relPath,
         envVarName: envVarName,
         accessor: accessor,
+        injectedText: injectedText,
         replacedText: replacedText
       });
 

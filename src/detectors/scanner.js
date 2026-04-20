@@ -99,6 +99,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/dist/**', 
     '**/.git/**',
     '**/.env',
+    ...sensitiveFiles.map(sf => sf.glob),
     ... (options.ignore || [])
   ];
 
