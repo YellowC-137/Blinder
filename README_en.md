@@ -41,41 +41,33 @@ npm install -g github:YellowC-137/Blinder
 ### Essential Commands
 
 #### 1. `blinder blind` (Initial Setup)
-Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security.
+Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security. It performs `scan` + `protect` + `gitignore` in a single workflow.
 
-#### 2. `blinder rollback` (Undo Protection)
-Undoes the "Auto-fix" secret protection measurements applied by `blind` or `scan`, restoring the source code parameters back to their original hardcoded state with the actual secrets. It also cleans up related generated files like `.env`, `.env.example`, and `blinder_reports/`.
-```bash
-blinder rollback
-```
+#### 2. `blinder bridge` (Native Integration)
+Automates build settings so that the contents of the generated `.env` file are automatically recognized by Android (`BuildConfig`), iOS (`Info.plist`), and Flutter (`--dart-define`) systems.
+- **Android**: Automatically injects an environment variable loading script into `build.gradle`.
+- **iOS**: Generates a guide script (`blinder-ios-setup.sh`) that can be injected into the Xcode build phase.
+- **Flutter**: Automatically adds environment variable flags to IDE (VS Code, IntelliJ) execution settings.
 
 #### 3. `blinder mask` (Before Sending to AI)
-Creates a **masked copy of the project** that replaces secrets with `<REDACTED>` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
-```bash
-blinder mask
-# Copies the entire project and replaces secrets with <REDACTED>
-```
-
-> [!WARNING]
-> **Project Execution**: The masked project will not run normally. The copied project is intended solely for the AI agent to read and modify code. You can run the project normally after performing a restore following the AI's modifications.
+Creates a **masked copy of the project** that replaces secrets with `__BLINDER_VAR__` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
 
 #### 4. `blinder restore` (After AI Modifications)
-Brings **all code modifications and new files** created by the AI agent in the `.blinder_masked/` folder back into the original project. The masked secrets are automatically restored to their actual values.
-```bash
-blinder restore
-# Merges the AI's logic modifications and safely re-inserts the secrets.
-```
+Safely brings **all code modifications and new files** created by the AI agent in the masked folder back into the original project. Masked secrets are automatically restored to their actual values.
 
 #### 5. `blinder scan` (Manual Scan)
-Manually scans the project for sensitive information and generates a report. Supports pipeline integration via the `--ci` flag.
-```bash
-blinder scan
-blinder scan --ci # Automatically checks for secret leaks and aborts the build if found
-blinder scan -o custom_report.json # Exports the scan results to a specific file
-```
+Manually detects secrets in the project and generates a detailed report.
+- `--ci`: Fails the build if secrets are found to prevent security incidents in the CI pipeline.
+- `-o <file>`: Exports the scan results to a specific JSON file.
 
-#### 6. `blinder gitignore` (Auto-setup .gitignore)
-Detects your current project environment (Android, iOS, Flutter, etc.) and automatically appends platform-specific vulnerable files and Blinder-generated files (like `.env` and `.blinder_masked/`) to `.gitignore`. (This command is already included under the hood in `blind`.)
+#### 6. `blinder rollback` (Undo Protection)
+Undoes the source code migration (accessor replacement) applied by `blind` or `protect`, restoring it to the original hardcoded state. Also allows for bulk deletion of generated security files.
+
+#### 7. `blinder gitignore` (Auto-setup .gitignore)
+Automatically appends platform-specific vulnerable files and Blinder-generated files to `.gitignore` according to the current project platform (iOS, Android, Flutter).
+
+#### 8. `blinder help` (Help)
+Displays help information for all available commands and detailed option descriptions in the terminal.
 
 ---
 

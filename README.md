@@ -41,42 +41,33 @@ npm install -g github:YellowC-137/Blinder
 ### 필수 명령어
 
 #### 1. `blinder blind` (초기 설정)
-프로젝트 내의 시크릿을 탐지하고 `.env`로 마이그레이션하여 프로젝트 보안 기초를 다집니다.
+프로젝트 내의 시크릿을 탐지하고 `.env`로 마이그레이션하여 프로젝트 보안 기초를 다집니다. `scan` + `protect` + `gitignore` 과정을 한 번에 수행합니다.
 
-#### 2. `blinder rollback` (원상 복구)
-`blind`나 `scan`으로 인해 적용된 "Auto-fix" 시크릿 보호 조치를 취소하고, 소스코드의 파라미터를 원래 지정된 시크릿이 있는 하드코딩된 상태로 되돌립니다. 동시에 생성된 `.env`, `.env.example`, `blinder_reports/` 파일도 일괄 정리할 수 있습니다.
-```bash
-blinder rollback
-```
+#### 2. `blinder bridge` (네이티브 연동)
+생성된 `.env` 파일의 내용이 안드로이드(`BuildConfig`), iOS(`Info.plist`), Flutter(`--dart-define`) 시스템에서 자동으로 인식되도록 빌드 설정을 자동화합니다.
+- **Android**: `build.gradle`에 환경 변수 로딩 스크립트 자동 주입.
+- **iOS**: Xcode 빌드 단계에 주입할 수 있는 가이드 스크립트(`blinder-ios-setup.sh`) 생성.
+- **Flutter**: IDE(VS Code, IntelliJ) 실행 설정에 환경 변수 플래그 자동 추가.
 
 #### 3. `blinder mask` (AI 전송 전)
-AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **마스킹된 프로젝트 복사본**을 생성합니다.
-```bash
-blinder mask
-# 프로젝트 전체가 복사되며 시크릿만 <REDACTED>로 마스킹됩니다.
-```
-
-> [!WARNING]
-> **프로젝트 실행**: mask 된 프로젝트는 정상적으로 실행되지 않습니다. 복사된 프로젝트는 AI 에이전트가 코드를 읽고 수정하는 용도로만 사용합니다. 수정 이후 restore를 한뒤에 정상적으로 실행이 가능합니다.
-
+AI 에이전트(Cursor 등)에게 프로젝트 전체의 맥락을 제공하면서도 시크릿은 유출되지 않도록 **마스킹된 프로젝트 복사본**을 생성합니다. 모든 시크릿은 `__BLINDER_VAR__` 태그로 치환됩니다.
 
 #### 4. `blinder restore` (AI 작업 후)
-AI 에이전트가 `.blinder_masked/` 폴더 내에서 수정한 **모든 코드와 새 파일**을 원본 프로젝트로 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
-```bash
-blinder restore
-# AI의 로직 수정사항은 반영되고, 시크릿은 안전하게 다시 채워집니다.
-```
+AI 에이전트가 마스킹된 폴더에서 작업한 **모든 코드와 새 파일**을 원본 프로젝트로 안전하게 가져옵니다. 이때 마스킹되었던 시크릿은 자동으로 실제 값으로 복원됩니다.
 
 #### 5. `blinder scan` (수동 스캔)
-프로젝트 내의 시크릿을 수동으로 스캔하여 확인하고 리포트를 생성합니다. (CI/CD 옵션 제공)
-```bash
-blinder scan
-blinder scan --ci # CI/CD 과정에서 시크릿 유출 자동 체크 (발견 시 빌드 실패)
-blinder scan -o custom_report.json # 리포트 지정된 위치로 추출
-```
+프로젝트 내의 시크릿을 수동으로 탐지하고 상세 리포트를 생성합니다.
+- `--ci`: 시크릿 발견 시 빌드를 실패시켜 CI 파이프라인 보안 사고를 예방합니다.
+- `-o <file>`: 스캔 결과를 특정 JSON 파일로 추출합니다.
 
-#### 6. `blinder gitignore` (.gitignore 자동 설정)
-현재 프로젝트 환경(Android, iOS, Flutter 등)을 감지하고, 플랫폼별로 유출되기 쉬운 필수 보안 파일과 Blinder 생성 파일(`.env`, `.blinder_masked/` 등)을 `.gitignore`에 자동으로 추가합니다. (`blind` 명령어에 포함되어 있습니다.)
+#### 6. `blinder rollback` (원상 복구)
+`blind`나 `protect`로 인해 적용된 소스코드의 마이그레이션(접근자 치환)을 취소하고, 하드코딩된 원본 상태로 되돌립니다. 생성된 보안 관련 파일들도 일괄 삭제할 수 있습니다.
+
+#### 7. `blinder gitignore` (.gitignore 설정)
+현재 프로젝트 플랫폼(iOS, Android, Flutter)에 맞춰 유출되기 쉬운 파일들과 Blinder 생성 파일을 `.gitignore`에 자동으로 추가합니다.
+
+#### 8. `blinder help` (도움말)
+사용 가능한 모든 명령어와 상세 옵션 설명을 터미널에 출력합니다.
 
 ---
 

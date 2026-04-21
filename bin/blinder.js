@@ -305,4 +305,11 @@ program
     await generateGitignore(repoPath, project.platforms);
   }));
 
+program
+  .command('help')
+  .description('Display help information for all commands')
+  .action(() => {
+    program.help();
+  });
+
 program.parse();
