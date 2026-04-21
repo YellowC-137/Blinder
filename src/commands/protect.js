@@ -262,7 +262,28 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
       let replacedText = match;
       let injectedText = accessor;
 
-      if (!options.dryRun && lineContent) {
+      const isObjcFile = ext === '.m' || ext === '.h' || ext === '.mm';
+      const objcConstRegex = /(?:NSString\s*\*\s*const|const\s+NSString\s*\*)\s+([a-zA-Z0-9_]+)\s*=\s*@?["'][^"']+["']\s*;/i;
+      const objcConstMatch = isObjcFile ? lineContent.match(objcConstRegex) : null;
+
+      if (objcConstMatch && !s.isComment) {
+        const varName = objcConstMatch[1];
+        const constructorFix = `NSString * const ${varName} = nil;
+__attribute__((constructor)) static void _blinder_init_${varName}(void) {
+    NSString * __strong *mutablePtr = (NSString * __strong *)&${varName};
+    *mutablePtr = ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"]);
+}`;
+        replacedText = lineContent.trim();
+        injectedText = constructorFix;
+        lineContent = constructorFix;
+      } else if (s.patternName === 'Objective-C Macro String' && match.includes('#define') && !s.isComment) {
+        const macroParts = lineContent.trim().split(/\s+/);
+        const varName = macroParts[1] || 'SECRET';
+        const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
+        replacedText = lineContent.trim();
+        injectedText = macro;
+        lineContent = macro;
+      } else if (!options.dryRun && lineContent) {
         const exactObjc = `@"${match}"`;
         const exactDouble = `"${match}"`;
         const exactSingle = `'${match}'`;

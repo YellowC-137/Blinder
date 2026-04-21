@@ -116,7 +116,8 @@ program
   .description('Blinder - AI-Agent Security & Secret Protection for Mobile Projects')
   .version('1.0.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
-  .option('--dry-run', 'Show what would be done without modifying files', false);
+  .option('--dry-run', 'Show what would be done without modifying files', false)
+  .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false);
 
 program
   .command('scan')
@@ -186,35 +187,80 @@ program
       logger.warn('   Please ensure you have committed all changes to Git before proceeding.');
       logger.divider();
       
-      const { confirmSafety } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmSafety',
-          message: 'Have you committed your current changes and are you ready to proceed?',
-          default: false
-        }
-      ]);
+      let confirmSafety = globalOptions.yes;
+      if (!confirmSafety) {
+        const response = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirmSafety',
+            message: 'Have you committed your current changes and are you ready to proceed?',
+            default: false
+          }
+        ]);
+        confirmSafety = response.confirmSafety;
+      }
 
       if (!confirmSafety) {
         logger.info('Operation cancelled by user for safety.');
         return;
       }
 
-      const { choice } = await inquirer.prompt([
-        {
-          type: 'rawlist',
-          name: 'choice',
-          message: 'Choose how to proceed with secret protection:',
-          choices: [
-            { name: 'Auto-fix (Recommended: Automatically replace secrets with environment variable calls)', value: 'auto' },
-            { name: 'Manual (Generate .env but perform code migration manually)', value: 'manual' },
-            { name: 'Exit (Do nothing and exit)', value: 'exit' }
-          ]
+      // --- New: File Review & Interactive Ignore Phase ---
+      let currentResults = results;
+      const uniqueFiles = [...new Set(currentResults.map(r => r.file))];
+      logger.info(`\nThe following files are targeted for Auto-fix:\n${uniqueFiles.map(f => `  - ${f}`).join('\n')}`);
+      
+      let additionalIgnores = '';
+      if (!globalOptions.yes) {
+        const response = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'additionalIgnores',
+            message: 'Are there any folders or files you want to EXCLUDE? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
+            default: ''
+          }
+        ]);
+        additionalIgnores = response.additionalIgnores;
+      }
+
+      if (additionalIgnores.trim()) {
+        const ignoreList = additionalIgnores.split(',').map(p => p.trim());
+        logger.info(`Applying additional filters: ${ignoreList.join(', ')}...`);
+        
+        const scanSpinner = ora('Re-scanning with new filters...').start();
+        const { scanProject } = await import('../src/detectors/scanner.js');
+        currentResults = await scanProject(repoPath, project.platforms, {
+          customPatterns: config.customPatterns,
+          ignore: [...(config.ignorePaths || []), ...ignoreList]
+        });
+        scanSpinner.succeed(`Scan updated. Remaining secrets to fix: ${currentResults.length}`);
+        
+        if (currentResults.length === 0) {
+          logger.info('No secrets remaining after filtering. Exiting.');
+          return;
         }
-      ]);
+      }
+      // ----------------------------------------------------
+
+      let choice = globalOptions.yes ? 'auto' : null;
+      if (!choice) {
+        const response = await inquirer.prompt([
+          {
+            type: 'rawlist',
+            name: 'choice',
+            message: 'Choose how to proceed with secret protection:',
+            choices: [
+              { name: 'Auto-fix (Recommended: Automatically replace secrets with environment variable calls)', value: 'auto' },
+              { name: 'Manual (Generate .env but perform code migration manually)', value: 'manual' },
+              { name: 'Exit (Do nothing and exit)', value: 'exit' }
+            ]
+          }
+        ]);
+        choice = response.choice;
+      }
 
       if (choice === 'auto' || choice === 'manual') {
-        await protectSecrets(repoPath, results, { 
+        await protectSecrets(repoPath, currentResults, { 
           dryRun: globalOptions.dryRun,
           mode: choice
         });
@@ -227,14 +273,18 @@ program
     if (!globalOptions.dryRun) {
       logger.success('Blinder protection is now active.');
       
-      const { runBridge } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'runBridge',
-          message: 'Would you like to run "blinder bridge" now to automate .env integration with native builds?',
-          default: true
-        }
-      ]);
+      let runBridge = globalOptions.yes;
+      if (!runBridge) {
+        const response = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'runBridge',
+            message: 'Would you like to run "blinder bridge" now to automate .env integration with native builds?',
+            default: true
+          }
+        ]);
+        runBridge = response.runBridge;
+      }
 
       if (runBridge) {
         await bridgeProject(repoPath, { dryRun: globalOptions.dryRun });
@@ -253,45 +303,43 @@ program
 
 program
   .command('rollback')
-  .description('Undo secret protection and restore secrets back to source code')
+  .description('Rollback all protection changes')
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    await rollbackSecrets(repoPath, {
-      dryRun: globalOptions.dryRun
+    const { rollbackSecrets } = await import('../src/commands/rollback.js');
+    await rollbackSecrets(repoPath, { 
+      dryRun: globalOptions.dryRun,
+      yes: globalOptions.yes 
     });
   }));
 
 program
   .command('mask')
-  .description('Create secure copies of files with masked secrets (for AI agents)')
-  .action(() => handleAction(async () => {
+  .description('Mask secrets for AI-agent work')
+  .option('-o, --output <dir>', 'Masked output directory')
+  .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    await maskFiles(repoPath, { 
-      maskOutput: config.maskOutput,
-      customPatterns: config.customPatterns,
-      ignore: config.ignorePaths
-    });
+    const { maskFiles } = await import('../src/commands/mask.js');
+    await maskFiles(repoPath, { ...options, ...globalOptions, ...config, maskOutput: options.output });
   }));
 
 program
-  .command('restore [paths...]')
-  .description('Apply AI agent changes from masked project back to original')
-  .option('--diff', 'Show terminal diffs before applying changes', false)
-  .option('--auto', 'Apply changes automatically without prompting', false)
-  .action((paths) => handleAction(async () => {
+  .command('restore')
+  .description('Restore AI changes to original project')
+  .option('-o, --output <dir>', 'Masked output directory', '.blinder_masked')
+  .option('--diff', 'Show diffs before applying changes', false)
+  .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
-    const commandOptions = program.commands.find(c => c.name() === 'restore').opts();
     const repoPath = path.resolve(globalOptions.path);
-    const config = loadConfig(repoPath);
-    await restoreFromMasked(repoPath, {
-      maskOutput: config.maskOutput,
-      dryRun: globalOptions.dryRun,
-      paths: paths,
-      diff: commandOptions.diff,
-      auto: commandOptions.auto
+    const { restoreFromMasked } = await import('../src/commands/restore.js');
+    await restoreFromMasked(repoPath, { 
+      ...options, 
+      maskOutput: options.output,
+      yes: globalOptions.yes,
+      dryRun: globalOptions.dryRun 
     });
   }));
 

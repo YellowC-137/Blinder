@@ -14,15 +14,19 @@ import { detectProjectType } from '../utils/detector.js';
  * Now copies the entire project for full context.
  */
 export async function maskFiles(repoPath, options = {}) {
-  const { targetPath } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'targetPath',
-      message: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
-      default: '',
-      suffix: chalk.gray(' (e.g., src/features/login)')
-    }
-  ]);
+  let targetPath = '';
+  if (!options.yes) {
+    const response = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'targetPath',
+        message: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
+        default: '',
+        suffix: chalk.gray(' (e.g., src/features/login)')
+      }
+    ]);
+    targetPath = response.targetPath;
+  }
 
   const absoluteTarget = targetPath ? path.resolve(repoPath, targetPath) : repoPath;
   if (!fs.existsSync(absoluteTarget)) {

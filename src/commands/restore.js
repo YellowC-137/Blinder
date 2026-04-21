@@ -162,7 +162,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     logger.info('This is perfectly NORMAL if the AI intentionally refactored or deleted the code.');
     missingTags.forEach(m => logger.warn(`  - ${m.file}: ${m.tag}`));
     
-    let force = options.auto;
+    let force = options.auto || options.yes;
     if (!force) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
@@ -221,7 +221,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     return;
   }
 
-  let confirm = options.auto;
+  let confirm = options.auto || options.yes;
   if (!confirm) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',
@@ -257,7 +257,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     const destPath = path.join(repoPath, f);
     if (!fs.existsSync(destPath)) continue;
 
-    let shouldDelete = options.auto;
+    let shouldDelete = options.auto || options.yes;
     if (!shouldDelete) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
@@ -276,7 +276,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
 
   logger.header('Restore Complete');
   
-  let cleanup = options.auto;
+  let cleanup = options.auto || options.yes;
   if (!cleanup) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',

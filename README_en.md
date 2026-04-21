@@ -10,12 +10,12 @@ It detects hardcoded API keys in mobile development environments (iOS, Android, 
 
 ## ✨ Key Features
 
-- **🧹 Intelligent Masking (`mask`)**: Creates a safe copy of your project for AI agents in the `.blinder_masked/` folder, replacing all secrets with `__BLINDER_VAR__` tags. (1:1 restoration guaranteed)
-- **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and automatically filtering out test code (`*Tests*`, `test/`) and example data.
-- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, Obj-C, etc.).
+- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, Obj-C, etc.). (Now supports intelligent macro migration for Objective-C compile-time constants).
+- **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and automatically filtering out non-secret numeric data (error codes, ports, etc.) and test code (`*Tests*`, `test/`).
+- **🛡️ Rock-Solid Default Ignores**: Automatically blocks common framework dependency folders (`Pods`, `build`, `.gradle`, `.dart_tool`, etc.) to prevent accidental modification of third-party libraries on the first run.
 - **📜 Multi-line Secret Detection**: Flawlessly detects and processes multi-line sensitive data such as PEM Private Keys and certificates.
-- **⚙️ Enterprise-Grade & Regional Optimization**: Comprehensive detection for global service keys (Google, AWS, Stripe), regional SDK keys (Kakao, Naver), IPv4 infrastructure addresses, and DB connection strings.
-- **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/` on every run, and provides a `--ci` mode to preemptively block security incidents in your pipeline.
+- **⚙️ Enterprise-Grade Optimization**: Comprehensive detection for global services (Google, AWS, Stripe), regional SDKs (Kakao, Naver), IPv4 infrastructure addresses, and DB connection strings.
+- **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/` on every run, and provides `--ci` or `-y` (yes) modes to preemptively block security incidents in your pipeline.
 
 ---
 
@@ -42,6 +42,8 @@ npm install -g github:YellowC-137/Blinder
 
 #### 1. `blinder blind` (Initial Setup)
 Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security. It performs `scan` + `protect` + `gitignore` in a single workflow.
+- **Secure Workflow**: Provides an interactive phase to review targeted files and prompt for **additional folder exclusions (e.g., ExtLib)** before modification.
+- `-y, --yes`: Automatically answers 'yes' to all interactive prompts, suitable for CI/CD pipelines.
 
 #### 2. `blinder bridge` (Native Integration)
 Automates build settings so that the contents of the generated `.env` file are automatically recognized by Android (`BuildConfig`), iOS (`Info.plist`), and Flutter (`--dart-define`) systems.
@@ -93,16 +95,17 @@ You can customize Blinder's behavior by creating a `.blinderrc` file in your pro
 | :--- | :--- | :--- |
 | **Flutter** | `"AIza...123"` | `String.fromEnvironment('GOOGLE_API_KEY')` |
 | **Android** | `"sk_live...456"` | `BuildConfig.STRIPE_LIVE_SECRET_KEY` |
-| **iOS** | `"glpat...789"` | `ProcessInfo.processInfo.environment["GITLAB_TOKEN"] ?? ""` |
+| **iOS (Swift)** | `"glpat...789"` | `ProcessInfo.processInfo.environment["GITLAB_TOKEN"] ?? ""` |
+| **iOS (Obj-C)** | `NSString *const API_URL = @"..."` | `#define API_URL [[NSBundle mainBundle] ...]` |
 
 ### ⚠️ Platform-Specific Auto-fix Caveats
 
 When applying `blinder protect` (Auto-fix), there are specific considerations for each platform due to language constraints and build systems. (`blinder mask` works 100% across all languages since it only replaces string values.)
 
 #### 🍎 iOS (Objective-C)
-* **Global Constant Constraint**: Global constants like `NSString *const API_KEY = @"..."` cannot be initialized with runtime functions like `[[NSBundle mainBundle] ...]`. (Applying this results in the `Initializer element is not a compile-time constant` build error.)
-* **Blinder Handling**: To prevent build breakage, Objective-C global constants are automatically marked as `isFixable: false` and skipped during Auto-fix.
-* **Solution**: To enable Auto-fix for these constants, refactor them into **Macros (`#define API_KEY @"..."`)**, which are fully supported.
+* **Global Constant Migration**: Global constants like `NSString *const API_KEY = @"..."` cannot be initialized with runtime functions due to C-level compile-time constraints.
+* **Blinder Handling**: Blinder detects these declarations and automatically migrates them into **Macros (`#define API_KEY [[NSBundle mainBundle] ...]`)** which evaluate at runtime.
+* **Note**: Primitive numeric constants (e.g., `int`, `double`) are currently excluded from Auto-fix to prevent build breakage. It is recommended to handle them manually or convert them into string constants if needed.
 
 #### 🍏 iOS (Swift)
 * Swift supports runtime evaluation for global or static variables. Injecting `Bundle.main.infoDictionary?...` works without syntax errors.

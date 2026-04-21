@@ -115,12 +115,16 @@ export async function rollbackSecrets(repoPath, options = {}) {
   logger.info(`\n📋 Files to clean up:`);
   filesToClean.forEach(f => logger.info(`  • ${f.label}`));
 
-  const { confirmCleanup } = await inquirer.prompt([{
-    type: 'confirm',
-    name: 'confirmCleanup',
-    message: 'Delete these files to fully rollback?',
-    default: true
-  }]);
+  let confirmCleanup = options.yes;
+  if (!confirmCleanup) {
+    const response = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'confirmCleanup',
+      message: 'Delete these files to fully rollback?',
+      default: true
+    }]);
+    confirmCleanup = response.confirmCleanup;
+  }
 
   if (!confirmCleanup) {
     logger.info('Cleanup cancelled.');

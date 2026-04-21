@@ -3,6 +3,18 @@
  * Covers: Auth/Keys, Infrastructure, DB credentials, SDK keys, and crypto artifacts.
  */
 export const patterns = [
+  // ─── Objective-C Specific Patterns (Catch all config variables) ───
+  {
+    name: 'Objective-C Config String',
+    regex: /(?:NSString\s*\*\s*const|const\s+NSString\s*\*)\s+([a-zA-Z0-9_]+)\s*=\s*@?["']([^"']+)["']\s*;/gi,
+    severity: 'HIGH'
+  },
+  {
+    name: 'Objective-C Macro String',
+    regex: /#define\s+[a-zA-Z0-9_]+\s+@?["']([^"']+)["']/gi,
+    severity: 'HIGH'
+  },
+
   // ─── Platform-specific API Keys ───
   {
     name: 'Google API Key',
@@ -83,7 +95,8 @@ export const patterns = [
   {
     name: 'IPv4 Address',
     regex: /\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
-    severity: 'MEDIUM'
+    severity: 'MEDIUM',
+    isFixable: false
   },
 
   // ─── Network Host / Domain Configs ───
@@ -97,7 +110,8 @@ export const patterns = [
   {
     name: 'Network Port / Config',
     regex: /\b[a-zA-Z0-9_]*(?:port|pt)\b\s*(?::\s*[a-zA-Z0-9_]+\s*)?=\s*["']?(\d{2,5})["']?/gi,
-    severity: 'MEDIUM'
+    severity: 'MEDIUM',
+    isFixable: false
   },
 
   // ─── Endpoint & Server URLs ───
@@ -150,30 +164,6 @@ export const patterns = [
     name: 'Android Manifest API Key',
     regex: /android:value\s*=\s*"([A-Za-z0-9_\-]{20,})"/g,
     severity: 'HIGH'
-  },
-
-  // ─── Objective-C Specific Patterns (Catch all config variables) ───
-  {
-    name: 'Objective-C Config String',
-    regex: /NSString\s*\*\s*const\s+[a-zA-Z0-9_]+\s*=\s*@?["']([^"']+)["']/gi,
-    severity: 'HIGH',
-    isFixable: false
-  },
-  {
-    name: 'Objective-C Config Number',
-    regex: /\b(?:int|double|float|NSInteger|CGFloat|long|short)\s+const\s+[a-zA-Z0-9_]+\s*=\s*([0-9\.]+)/gi,
-    severity: 'MEDIUM',
-    isFixable: false
-  },
-  {
-    name: 'Objective-C Macro String',
-    regex: /#define\s+[a-zA-Z0-9_]+\s+@?["']([^"']+)["']/gi,
-    severity: 'HIGH'
-  },
-  {
-    name: 'Objective-C Macro Number',
-    regex: /#define\s+[a-zA-Z0-9_]+\s+([0-9\.]+)/gi,
-    severity: 'MEDIUM'
   },
 
   // ─── Mobile Specific Identifiers (보안지침 §2: iOS/Android) ───
