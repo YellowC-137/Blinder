@@ -10,10 +10,11 @@ It detects hardcoded API keys in mobile development environments (iOS, Android, 
 
 ## ✨ Key Features
 
-- **🧹 Intelligent Masking (`mask`)**: Creates a safe copy of your project for AI agents in the `.blinder_masked/` folder, replacing all secrets with `<REDACTED>` tags while leaving original code untouched.
-- **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and only detecting valid secrets in actual code.
-- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, etc.).
-- **⚙️ Enterprise-Grade Security Guidelines**: Flawlessly detects global service keys (Google, AWS, Stripe), regional SDK keys (Kakao, Naver), and sensitive files like `.p12`, `.keystore`.
+- **🧹 Intelligent Masking (`mask`)**: Creates a safe copy of your project for AI agents in the `.blinder_masked/` folder, replacing all secrets with `__BLINDER_VAR__` tags. (1:1 restoration guaranteed)
+- **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and automatically filtering out test code (`*Tests*`, `test/`) and example data.
+- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, Obj-C, etc.).
+- **📜 Multi-line Secret Detection**: Flawlessly detects and processes multi-line sensitive data such as PEM Private Keys and certificates.
+- **⚙️ Enterprise-Grade & Regional Optimization**: Comprehensive detection for global service keys (Google, AWS, Stripe), regional SDK keys (Kakao, Naver), IPv4 infrastructure addresses, and DB connection strings.
 - **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/` on every run, and provides a `--ci` mode to preemptively block security incidents in your pipeline.
 
 ---
@@ -101,6 +102,28 @@ You can customize Blinder's behavior by creating a `.blinderrc` file in your pro
 | **Flutter** | `"AIza...123"` | `String.fromEnvironment('GOOGLE_API_KEY')` |
 | **Android** | `"sk_live...456"` | `BuildConfig.STRIPE_LIVE_SECRET_KEY` |
 | **iOS** | `"glpat...789"` | `ProcessInfo.processInfo.environment["GITLAB_TOKEN"] ?? ""` |
+
+### ⚠️ Platform-Specific Auto-fix Caveats
+
+When applying `blinder protect` (Auto-fix), there are specific considerations for each platform due to language constraints and build systems. (`blinder mask` works 100% across all languages since it only replaces string values.)
+
+#### 🍎 iOS (Objective-C)
+* **Global Constant Constraint**: Global constants like `NSString *const API_KEY = @"..."` cannot be initialized with runtime functions like `[[NSBundle mainBundle] ...]`. (Applying this results in the `Initializer element is not a compile-time constant` build error.)
+* **Blinder Handling**: To prevent build breakage, Objective-C global constants are automatically marked as `isFixable: false` and skipped during Auto-fix.
+* **Solution**: To enable Auto-fix for these constants, refactor them into **Macros (`#define API_KEY @"..."`)**, which are fully supported.
+
+#### 🍏 iOS (Swift)
+* Swift supports runtime evaluation for global or static variables. Injecting `Bundle.main.infoDictionary?...` works without syntax errors.
+* **Note**: For the injected variables to have actual values at runtime, you must manually sync your `.xcconfig` and `Info.plist` to read from the `.env` file.
+
+#### 🤖 Android (Kotlin / Java)
+* **BuildConfig Integration**: Auto-fix replaces hardcoded strings with `BuildConfig.VARIABLE_NAME`.
+* **Note**: To ensure the project compiles, your `build.gradle` (or `build.gradle.kts`) must be configured to read the `.env` file and generate BuildConfig fields. Failing to do so will result in `Unresolved reference: BuildConfig`.
+* For `.xml` files (e.g., `AndroidManifest.xml`), secrets are replaced with `@string/VARIABLE_NAME`, requiring corresponding entries in `strings.xml`.
+
+#### 🦋 Flutter (Dart)
+* **dart-define Constraint**: Dart code is replaced with `String.fromEnvironment('VAR')`.
+* **Note**: You must explicitly pass the environment variables during build or run using the `--dart-define-from-file=.env` flag (e.g., `flutter run --dart-define-from-file=.env`). Otherwise, all replaced values will return as empty strings (`""`).
 
 ---
 

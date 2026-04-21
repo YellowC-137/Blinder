@@ -49,6 +49,12 @@ export async function rollbackSecrets(repoPath, options = {}) {
     let restoreCount = 0;
     let skipCount = 0;
 
+    migrations.sort((a, b) => {
+      const targetA = a.injectedText || a.accessor;
+      const targetB = b.injectedText || b.accessor;
+      return targetB.length - targetA.length;
+    });
+
     for (const mig of migrations) {
       const { file, envVarName, accessor } = mig;
       const absPath = path.join(repoPath, file);

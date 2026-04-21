@@ -54,6 +54,11 @@ export async function maskFiles(repoPath, options = {}) {
     '**/*.keystore',
     '**/*.p12',
     '**/*.mobileprovision',
+    '**/*Tests/**',
+    '**/*Test/**',
+    '**/*.xctest/**',
+    '**/test/**',
+    '**/androidTest/**',
     ...(options.ignore || [])
   ];
 

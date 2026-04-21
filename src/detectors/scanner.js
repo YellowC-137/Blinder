@@ -31,7 +31,7 @@ function isTestKey(line, filePath, matchValue) {
  */
 function isCommentLine(line, ext) {
   const trimmed = line.trim();
-  if (ext === '.swift' || ext === '.kt' || ext === '.java' || ext === '.dart') {
+  if (ext === '.swift' || ext === '.kt' || ext === '.java' || ext === '.dart' || ext === '.m' || ext === '.h' || ext === '.mm' || ext === '.c' || ext === '.cpp') {
     return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
   }
   if (ext === '.yaml' || ext === '.gradle' || ext === '.properties' || ext === '.py' || ext === '.sh') {
@@ -105,6 +105,18 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/DerivedData/**',
     '**/.build/**',
     '**/.swiftpm/**',
+    '**/Package.swift',
+    '**/Project.swift',
+    '**/Dependencies.swift',
+    '**/Workspace.swift',
+    '**/Podfile',
+    '**/Cartfile',
+    '**/*.pbxproj',
+    '**/*Tests/**',
+    '**/*Test/**',
+    '**/*.xctest/**',
+    '**/test/**',
+    '**/androidTest/**',
     ...sensitiveFiles.map(sf => sf.glob),
     ... (options.ignore || [])
   ];

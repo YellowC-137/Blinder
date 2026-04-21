@@ -30,11 +30,18 @@ export async function detectProjectType(repoPath) {
   const hasIosDir = fs.existsSync(path.join(repoPath, 'ios'));
   const xcodeProjects = await glob(['**/*.xcodeproj', '**/*.xcworkspace'], { 
     cwd: repoPath, 
-    deep: 3,
-    ignore: ['**/node_modules/**', '**/Pods/**']
+    deep: 5,
+    ignore: ['**/node_modules/**', '**/Pods/**', '**/Carthage/**', '**/DerivedData/**']
   });
 
-  if (hasIosDir || xcodeProjects.length > 0) {
+  // Fallback: check for common iOS source files if no project file is found
+  const hasIosFiles = (await glob(['**/*.{swift,m,h,mm,plist}'], {
+    cwd: repoPath,
+    deep: 3,
+    ignore: ['**/node_modules/**', '**/Pods/**']
+  })).length > 0;
+
+  if (hasIosDir || xcodeProjects.length > 0 || hasIosFiles) {
     result.platforms.push('ios');
   }
 

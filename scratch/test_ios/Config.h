@@ -1,0 +1,1 @@
+#define MY_MACRO @"sk_live_1234567890123456789012"

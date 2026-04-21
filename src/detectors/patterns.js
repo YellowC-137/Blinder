@@ -86,6 +86,13 @@ export const patterns = [
     severity: 'MEDIUM'
   },
 
+  // ─── Network Host / Domain Configs ───
+  {
+    name: 'Network Host / Domain',
+    regex: /\b[a-zA-Z0-9_]*(?:ip|host|domain|addr)\b\s*[:=]\s*@?["']([a-zA-Z0-9.\-]{4,})["']/gi,
+    severity: 'MEDIUM'
+  },
+  
   // ─── Network Port Configs (e.g., let icrpPt = "10500") ───
   {
     name: 'Network Port / Config',
@@ -96,14 +103,14 @@ export const patterns = [
   // ─── Endpoint & Server URLs ───
   {
     name: 'Endpoint URL',
-    regex: /(https?:\/\/(?!schemas\.android\.com|www\.w3\.org|apple\.com|developer\.apple)(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>]*))/gi,
+    regex: /(https?:\/\/(?!schemas\.android\.com|www\.w3\.org|apple\.com|developer\.apple|github\.com|gitlab\.com|bitbucket\.org)(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>]*))/gi,
     severity: 'MEDIUM'
   },
 
   // ─── Hardcoded Passwords (보안지침 §1: 인증 정보) ───
   {
     name: 'Hardcoded Password',
-    regex: /\b(password|passwd|db_password|dbpassword|storePassword|keyPassword|key_password)\s*[:=]\s*["']([^"']{6,})["']/gi,
+    regex: /\b(password|passwd|db_password|dbpassword|storePassword|keyPassword|key_password)\s*[:=]\s*@?["']([^"']{6,})["']/gi,
     severity: 'CRITICAL'
   },
   {
@@ -115,26 +122,26 @@ export const patterns = [
   // ─── OAuth Client Secret ───
   {
     name: 'OAuth Client Secret',
-    regex: /\b(client[_-]?secret|clientsecret)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
+    regex: /\b(client[_-]?secret|clientsecret)\s*[:=]\s*@?["']([A-Za-z0-9_\-]{16,})["']/gi,
     severity: 'HIGH'
   },
 
   // ─── Korean SDK Keys (보안지침 §2: iOS Info.plist, AppDelegate) ───
   {
     name: 'Kakao SDK App Key',
-    regex: /\b(kakao[_-]?(app[_-]?key|native[_-]?key|api[_-]?key))\s*[:=]\s*["']([A-Za-z0-9]{20,})["']/gi,
+    regex: /\b(kakao[_-]?(app[_-]?key|native[_-]?key|api[_-]?key))\s*[:=]\s*@?["']([A-Za-z0-9]{20,})["']/gi,
     severity: 'HIGH'
   },
   {
     name: 'Naver SDK Client ID/Secret',
-    regex: /\b(naver[_-]?(client[_-]?id|client[_-]?secret|api[_-]?key))\s*[:=]\s*["']([A-Za-z0-9_\-]{10,})["']/gi,
+    regex: /\b(naver[_-]?(client[_-]?id|client[_-]?secret|api[_-]?key))\s*[:=]\s*@?["']([A-Za-z0-9_\-]{10,})["']/gi,
     severity: 'HIGH'
   },
 
   // ─── Crypto Salt / IV (보안지침 §4: 암복호화 로직) ───
   {
     name: 'Hardcoded Crypto Salt/IV',
-    regex: /\b(salt|iv|initialization[_-]?vector)\s*[:=]\s*["']([A-Za-z0-9+/=]{8,})["']/gi,
+    regex: /\b(salt|iv|initialization[_-]?vector)\s*[:=]\s*@?["']([A-Za-z0-9+/=]{8,})["']/gi,
     severity: 'HIGH'
   },
 
@@ -145,10 +152,34 @@ export const patterns = [
     severity: 'HIGH'
   },
 
+  // ─── Objective-C Specific Patterns (Catch all config variables) ───
+  {
+    name: 'Objective-C Config String',
+    regex: /NSString\s*\*\s*const\s+[a-zA-Z0-9_]+\s*=\s*@?["']([^"']+)["']/gi,
+    severity: 'HIGH',
+    isFixable: false
+  },
+  {
+    name: 'Objective-C Config Number',
+    regex: /\b(?:int|double|float|NSInteger|CGFloat|long|short)\s+const\s+[a-zA-Z0-9_]+\s*=\s*([0-9\.]+)/gi,
+    severity: 'MEDIUM',
+    isFixable: false
+  },
+  {
+    name: 'Objective-C Macro String',
+    regex: /#define\s+[a-zA-Z0-9_]+\s+@?["']([^"']+)["']/gi,
+    severity: 'HIGH'
+  },
+  {
+    name: 'Objective-C Macro Number',
+    regex: /#define\s+[a-zA-Z0-9_]+\s+([0-9\.]+)/gi,
+    severity: 'MEDIUM'
+  },
+
   // ─── Mobile Specific Identifiers (보안지침 §2: iOS/Android) ───
   {
     name: 'Facebook App ID / Client Token',
-    regex: /\b(facebook[_-]?(app[_-]?id|client[_-]?token))\s*[:=]\s*["']([A-Za-z0-9]{15,})["']/gi,
+    regex: /\b(facebook[_-]?(app[_-]?id|client[_-]?token))\s*[:=]\s*@?["']([A-Za-z0-9]{15,})["']/gi,
     severity: 'MEDIUM'
   },
   {
@@ -159,7 +190,7 @@ export const patterns = [
   },
   {
     name: 'Apple Team ID',
-    regex: /\b(?:DEVELOPMENT_TEAM|TeamID|TEAM_ID)\s*[:=]\s*["']?([A-Z0-9]{10})["']?/gi,
+    regex: /\b(?:DEVELOPMENT_TEAM|TeamID|TEAM_ID)\s*[:=]\s*@?["']?([A-Z0-9]{10})["']?/gi,
     severity: 'LOW',
     isFixable: false
   },
@@ -167,24 +198,24 @@ export const patterns = [
   // ─── Generic patterns (catch-all) ───
   {
     name: 'Generic API Key',
-    regex: /\b(api[_-]?key|apikey)\s*[:=]\s*["']([A-Za-z0-9_\-]{20,})["']/gi,
+    regex: /\b([a-zA-Z0-9_]*key)\s*[:=]\s*@?["']([A-Za-z0-9_\-\.]{20,})["']/gi,
     severity: 'HIGH'
   },
   {
     name: 'Generic Secret',
-    regex: /\b(secret|api[_-]?secret)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
+    regex: /\b([a-zA-Z0-9_]*secret)\s*[:=]\s*@?["']([A-Za-z0-9_\-\.]{16,})["']/gi,
     severity: 'HIGH'
   },
   {
     name: 'Generic Token',
-    regex: /\b(token|auth[_-]?token|authtoken|access[_-]?token|session[_-]?token)\s*[:=]\s*["']([A-Za-z0-9_\-\.]{20,})["']/gi,
+    regex: /\b([a-zA-Z0-9_]*token)\s*[:=]\s*@?["']([A-Za-z0-9_\-\.]{20,})["']/gi,
     severity: 'HIGH'
   },
 ];
 
 export const platformExtensions = {
   flutter: ['.dart', '.yaml', '.xml', '.plist'],
-  ios: ['.swift', '.m', '.h', '.plist', '.xcconfig'],
+  ios: ['.swift', '.m', '.h', '.mm', '.plist', '.xcconfig'],
   android: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json']
 };
 

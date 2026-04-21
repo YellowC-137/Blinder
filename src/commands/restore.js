@@ -183,7 +183,10 @@ export async function restoreFromMasked(repoPath, options = {}) {
     const srcPath = path.join(maskDir, f);
     let content = fs.readFileSync(srcPath, 'utf8');
     // Restore secrets
-    for (const [varName, info] of Object.entries(mapData.mappings)) {
+    const sortedMappings = Object.entries(mapData.mappings)
+      .sort((a, b) => b[1].redactedTag.length - a[1].redactedTag.length);
+      
+    for (const [varName, info] of sortedMappings) {
       content = content.split(info.redactedTag).join(info.originalValue);
     }
     plannedModifications.push({ file: f, newContent: content });

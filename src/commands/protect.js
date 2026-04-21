@@ -6,8 +6,7 @@ import inquirer from 'inquirer';
 
 export async function protectSecrets(repoPath, scanResults, options = {}) {
   // Filter out sensitive file warnings — they are not code-level secrets to migrate
-  // Also skip secrets found inside comments; they should not be migrated to environment variables
-  const codeSecrets = scanResults.filter(r => !r.isSensitiveFile && !r.isComment);
+  const codeSecrets = scanResults.filter(r => !r.isSensitiveFile);
 
   if (codeSecrets.length === 0) {
     logger.success('No secrets found to protect!');
@@ -264,10 +263,15 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
       let injectedText = accessor;
 
       if (!options.dryRun && lineContent) {
+        const exactObjc = `@"${match}"`;
         const exactDouble = `"${match}"`;
         const exactSingle = `'${match}'`;
 
-        if (lineContent.includes(exactDouble)) {
+        if (lineContent.includes(exactObjc)) {
+          replacedText = exactObjc;
+          injectedText = accessor;
+          lineContent = lineContent.replace(exactObjc, injectedText);
+        } else if (lineContent.includes(exactDouble)) {
           replacedText = exactDouble;
           injectedText = accessor;
           lineContent = lineContent.replace(exactDouble, injectedText);
