@@ -149,6 +149,9 @@ Scan Results
 
 ## Precautions
 
+> [!CAUTION]
+> **Build Configuration Modification**: Blinder's `blind` (Auto-fix) and `bridge` features directly modify core build files (e.g., `build.gradle`, `.pbxproj`, `Info.plist`). Always ensure all changes are **committed to Git** before execution to maintain a recoverable state.
+
 > [!IMPORTANT]
 > **Backup before Auto-fix**: Blinder directly modifies actual source code files. It is highly recommended to run it on a clean working tree (after a `git commit`) so you can easily review the changes.
 

@@ -1,0 +1,67 @@
+import fs from 'fs';
+import path from 'path';
+import logger from './logger.js';
+
+const IOS_SETUP_SCRIPT = `#!/bin/bash
+# Blinder iOS Setup Script
+# This script helps integrate .env into your Xcode project.
+
+ENV_FILE=".env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env file not found. Please run 'blinder blind' first."
+    exit 1
+fi
+
+echo "🛡️ Blinder - Integrating .env with Xcode Info.plist"
+
+# 1. Check for PlistBuddy
+if ! command -v /usr/libexec/PlistBuddy &> /dev/null; then
+    echo "❌ PlistBuddy not found. This script requires macOS."
+    exit 1
+fi
+
+# 2. Instructions
+echo ""
+echo "To automatically load .env into your app, follow these steps in Xcode:"
+echo "1. Open your project in Xcode."
+echo "2. Select your Target -> Build Phases -> + -> New Run Script Phase."
+echo "3. Name it 'Blinder Env Loader' and move it BEFORE 'Compile Sources'."
+echo "4. Paste the following script into the phase:"
+echo ""
+echo "----------------------------------------------------------------"
+cat << 'EOF'
+# --- Blinder Run Script Start ---
+ENV_FILE="\${SRCROOT}/.env"
+PLIST_PATH="\${BUILT_PRODUCTS_DIR}/\${INFOPLIST_PATH}"
+
+if [ -f "\$ENV_FILE" ]; then
+    echo "Loading .env from \$ENV_FILE"
+    while read -r line || [[ -n "\$line" ]]; do
+        if [[ ! "\$line" =~ ^# ]] && [[ "\$line" =~ = ]]; then
+            key=\${line%%=*}
+            value=\${line#*=}
+            # Remove quotes if present
+            value=\$(echo \$value | sed -e 's/^"//' -e 's/"\$//' -e "s/^'//" -e "s/'\$//")
+            
+            /usr/libexec/PlistBuddy -c "Set :\$key \$value" "\$PLIST_PATH" 2>/dev/null || \\
+            /usr/libexec/PlistBuddy -c "Add :\$key string \$value" "\$PLIST_PATH"
+        fi
+    done < "\$ENV_FILE"
+    echo "✅ Info.plist updated with .env values."
+else
+    echo "⚠️ .env file not found at \$ENV_FILE. Skipping injection."
+fi
+# --- Blinder Run Script End ---
+EOF
+echo "----------------------------------------------------------------"
+echo ""
+echo "✅ Setup script generated. Follow the instructions above to finalize."
+`;
+
+export async function setupIosBridge(repoPath) {
+  const scriptPath = path.join(repoPath, 'blinder-ios-setup.sh');
+  fs.writeFileSync(scriptPath, IOS_SETUP_SCRIPT, { mode: 0o755 });
+  
+  logger.success('iOS integration script generated: blinder-ios-setup.sh');
+  logger.info('Please run "sh blinder-ios-setup.sh" and follow the instructions to link the build phase.');
+}

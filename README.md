@@ -151,6 +151,9 @@ Scan Results
 
 ## 주의사항
 
+> [!CAUTION]
+> **빌드 설정 파일 수정**: Blinder의 `blind` (Auto-fix) 및 `bridge` 기능은 프로젝트의 핵심 빌드 파일(`build.gradle`, `.pbxproj`, `Info.plist` 등)을 직접 수정합니다. 실행 전 반드시 모든 변경 사항을 **Git에 커밋**하여 복구가 가능한 상태를 유지하세요.
+
 > [!IMPORTANT]
 > **Auto-fix 전 백업 필수**: Blinder는 실제 소스 코드를 수정합니다. `git commit`이 완료된 상태에서 실행하여 변경 사항을 쉽게 검토하세요.
 

@@ -10,6 +10,7 @@ import { detectProjectType } from '../src/utils/detector.js';
 import { scanProject } from '../src/detectors/scanner.js';
 import { generateGitignore } from '../src/commands/gitignore.js';
 import { protectSecrets } from '../src/commands/protect.js';
+import { bridgeProject } from '../src/commands/bridge.js';
 
 import { loadConfig } from '../src/utils/config.js';
 import { maskFiles } from '../src/commands/mask.js';
@@ -178,6 +179,27 @@ program
     const hasSecrets = await report(results, repoPath, {});
     
     if (hasSecrets) {
+      logger.divider();
+      logger.warn('⚠️  CAUTION: Build Configuration Modification');
+      logger.info('   This tool may modify your project\'s core build files (build.gradle, .pbxproj, etc.)');
+      logger.info('   when performing auto-fixes or environment bridging.');
+      logger.warn('   Please ensure you have committed all changes to Git before proceeding.');
+      logger.divider();
+      
+      const { confirmSafety } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirmSafety',
+          message: 'Have you committed your current changes and are you ready to proceed?',
+          default: false
+        }
+      ]);
+
+      if (!confirmSafety) {
+        logger.info('Operation cancelled by user for safety.');
+        return;
+      }
+
       const { choice } = await inquirer.prompt([
         {
           type: 'rawlist',
@@ -204,7 +226,29 @@ program
     logger.header('Process Finished!');
     if (!globalOptions.dryRun) {
       logger.success('Blinder protection is now active.');
+      
+      const { runBridge } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'runBridge',
+          message: 'Would you like to run "blinder bridge" now to automate .env integration with native builds?',
+          default: true
+        }
+      ]);
+
+      if (runBridge) {
+        await bridgeProject(repoPath, { dryRun: globalOptions.dryRun });
+      }
     }
+  }));
+
+program
+  .command('bridge')
+  .description('Automate .env integration with native build systems (Android, iOS, Flutter)')
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    await bridgeProject(repoPath, { dryRun: globalOptions.dryRun });
   }));
 
 program

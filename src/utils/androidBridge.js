@@ -1,0 +1,102 @@
+import fs from 'fs';
+import path from 'path';
+import logger from './logger.js';
+import fg from 'fast-glob';
+
+const { glob } = fg;
+
+const GROOVY_BRIDGE = `
+// [Blinder Start] Auto-generated bridge to load .env into BuildConfig
+def loadDotenv = {
+    def envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.eachLine { line ->
+            def matcher = (line =~ /^\\s*([\\w.-]+)\\s*=\\s*(.*)?\\s*$/)
+            if (matcher.find()) {
+                def key = matcher.group(1)
+                def value = matcher.group(2)
+                if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length() - 1)
+                else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length() - 1)
+                buildConfigField "String", key, "\\"\${value}\\""
+            }
+        }
+    }
+}
+// [Blinder End]
+`;
+
+const KTS_BRIDGE = `
+// [Blinder Start] Auto-generated bridge to load .env into BuildConfig
+fun loadDotenv() {
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.forEachLine { line ->
+            val match = Regex("^\\\\s*([\\\\w.-]+)\\\\s*=\\\\s*(.*)?\\\\s*$").find(line)
+            if (match != null) {
+                val key = match.groupValues[1]
+                var value = match.groupValues[2]
+                if (value.startsWith("\\"") && value.endsWith("\\"")) value = value.substring(1, value.length - 1)
+                else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length - 1)
+                buildConfigField("String", key, "\\"\\"$value\\"\\"")
+            }
+        }
+    }
+}
+// [Blinder End]
+`;
+
+export async function setupAndroidBridge(repoPath) {
+  const gradleFiles = await glob(['**/app/build.gradle', '**/app/build.gradle.kts'], { 
+    cwd: repoPath,
+    ignore: ['**/node_modules/**', '**/build/**']
+  });
+
+  if (gradleFiles.length === 0) {
+    logger.warn('No Android app build.gradle found. Skipping Android bridge.');
+    return;
+  }
+
+  for (const relPath of gradleFiles) {
+    const absPath = path.join(repoPath, relPath);
+    let content = fs.readFileSync(absPath, 'utf8');
+
+    if (content.includes('[Blinder Start]')) {
+      logger.info(`Bridge already exists in ${relPath}. Updating...`);
+      // Update logic could be added here if bridge template changes
+      continue;
+    }
+
+    const isKts = absPath.endsWith('.kts');
+    const bridgeCode = isKts ? KTS_BRIDGE : GROOVY_BRIDGE;
+    
+    // Inject at the top of the file (safest for functions)
+    content = bridgeCode + '\n' + content;
+
+    // Call the function inside android.defaultConfig
+    const configPattern = /defaultConfig\s*\{/;
+    if (configPattern.test(content)) {
+        const callCode = isKts ? '\n        loadDotenv()' : '\n        loadDotenv()';
+        content = content.replace(configPattern, `defaultConfig {${callCode}`);
+        
+        // Also ensure buildConfig is enabled (AGP 8.0+)
+        if (!content.includes('buildConfig = true') && !content.includes('buildConfig true')) {
+            const buildFeaturesPattern = /buildFeatures\s*\{/;
+            if (buildFeaturesPattern.test(content)) {
+                const setting = isKts ? '\n        buildConfig = true' : '\n        buildConfig true';
+                content = content.replace(buildFeaturesPattern, `buildFeatures {${setting}`);
+            } else {
+                const featuresBlock = isKts ? 
+                    '\n    buildFeatures {\n        buildConfig = true\n    }' :
+                    '\n    buildFeatures {\n        buildConfig true\n    }';
+                const androidBlock = /android\s*\{/;
+                content = content.replace(androidBlock, `android {${featuresBlock}`);
+            }
+        }
+
+        fs.writeFileSync(absPath, content);
+        logger.success(`Android bridge injected into ${relPath}`);
+    } else {
+        logger.error(`Could not find defaultConfig block in ${relPath}. Manual setup required.`);
+    }
+  }
+}
