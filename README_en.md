@@ -42,13 +42,15 @@ npm install -g github:YellowC-137/Blinder
 
 #### 1. `blinder blind` (Initial Setup)
 Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security. It performs `scan` + `protect` + `gitignore` in a single workflow.
-- **Secure Workflow**: Provides an interactive phase to review targeted files and prompt for **additional folder exclusions (e.g., ExtLib)** before modification.
+- **Secure Workflow**: Provides an interactive phase to review targeted files and prompt for **additional folder exclusions (e.g., User Custom Library)** before modification.
 - `-y, --yes`: Automatically answers 'yes' to all interactive prompts, suitable for CI/CD pipelines.
 
 #### 2. `blinder bridge` (Native Integration)
 Automates build settings so that the contents of the generated `.env` file are automatically recognized by Android (`BuildConfig`), iOS (`Info.plist`), and Flutter (`--dart-define`) systems.
 - **Android**: Automatically injects an environment variable loading script into `build.gradle`.
-- **iOS**: Generates a guide script (`blinder-ios-setup.sh`) that can be injected into the Xcode build phase.
+- **iOS (Native & Flutter)**: Automatically appends an environment variable injection hook (`post_install`) to the `Podfile`.
+  - Running `pod install` will automatically configure the 'Blinder Env Loader' in the Xcode Build Phases.
+  - **🚨 If no Podfile is found (Manual Setup Required)**: You must manually register the script in Xcode's `Build Phases` following the `blinder-ios-setup.sh` guide. It is mandatory to **uncheck 'Based on dependency analysis'** and set **'User Script Sandboxing' to NO**.
 - **Flutter**: Automatically adds environment variable flags to IDE (VS Code, IntelliJ) execution settings.
 
 #### 3. `blinder mask` (Before Sending to AI)
@@ -73,19 +75,32 @@ Displays help information for all available commands and detailed option descrip
 
 ---
 
-## 🛠️ Project Configuration (`.blinderrc`)
+## 🛠️ Project Configuration (`.blinderSettings`)
 
-You can customize Blinder's behavior by creating a `.blinderrc` file in your project root.
+You can customize Blinder's behavior by creating a `.blinderSettings` file (JSON format) in your project root. This is particularly useful for excluding third-party SDKs or proprietary security libraries from the scanning and migration process.
 
+### Configuration Options
+- `ignorePaths`: Array of glob patterns for files or folders to skip during scanning and Auto-fix.
+- `customPatterns`: Add project-specific secret patterns (Regex support).
+- `maskOutput`: Default folder name for the result of the `blinder mask` command.
+
+### Example (`.blinderSettings`)
 ```json
 {
+  "ignorePaths": [
+    "Library/RSKSW/**",
+    "Library/mVaccine/**",
+    "**/test/mocks/**"
+  ],
   "customPatterns": [
     { "name": "Internal API", "regex": "INTERNAL_[A-Z]{3}_KEY_[0-9a-f]{32}", "severity": "CRITICAL" }
   ],
-  "ignorePaths": ["**/test/mocks/**"],
-  "maskOutput": ".tmp_safe_code"
+  "maskOutput": ".blinder_masked_project"
 }
 ```
+
+> [!TIP]
+> **Intelligent Heuristic Protection**: Even without a configuration file, Blinder automatically detects and skips files containing `Copyright`, `SDK`, or `Third-party` keywords in the first 10 lines to prevent corruption of external libraries.
 
 ---
 

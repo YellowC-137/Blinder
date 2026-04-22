@@ -3,10 +3,10 @@ import path from 'path';
 import logger from './logger.js';
 
 /**
- * Loads configuration from .blinderrc in the project root.
+ * Loads configuration from .blinderSettings in the project root.
  */
 export function loadConfig(repoPath) {
-  const configPath = path.join(repoPath, '.blinderrc');
+  const configPath = path.join(repoPath, '.blinderSettings');
   const projectName = path.basename(repoPath);
   let config = {
     customPatterns: [],
@@ -25,9 +25,9 @@ export function loadConfig(repoPath) {
       }
       
       config = { ...config, ...userConfig };
-      logger.debug('Loaded configuration from .blinderrc');
+      logger.debug('Loaded configuration from .blinderSettings');
     } catch (error) {
-      logger.warn(`Failed to parse .blinderrc: ${error.message}. Using defaults.`);
+      logger.warn(`Failed to parse .blinderSettings: ${error.message}. Using defaults.`);
     }
   }
 

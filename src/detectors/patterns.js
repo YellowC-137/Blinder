@@ -6,12 +6,12 @@ export const patterns = [
   // ─── Objective-C Specific Patterns (Catch all config variables) ───
   {
     name: 'Objective-C Config String',
-    regex: /(?:NSString\s*\*\s*const|const\s+NSString\s*\*)\s+([a-zA-Z0-9_]+)\s*=\s*@?["']([^"']+)["']\s*;/gi,
+    regex: /(?:NSString\s*\*\s*const|const\s+NSString\s*\*|extern\s+NSString\s*\*|NSString\s*\*)\s+([a-zA-Z0-9_]+)\s*=\s*@?["']([\s\S]*?)["']\s*;/gi,
     severity: 'HIGH'
   },
   {
     name: 'Objective-C Macro String',
-    regex: /#define\s+[a-zA-Z0-9_]+\s+@?["']([^"']+)["']/gi,
+    regex: /#define\s+([a-zA-Z0-9_]+)\s+@?["']([\s\S]*?)["'](?:\s*\/\/.*)?/gi,
     severity: 'HIGH'
   },
 
@@ -87,7 +87,7 @@ export const patterns = [
   // ─── Database Connection Strings (보안지침 §1: 인프라 정보) ───
   {
     name: 'Database Connection String',
-    regex: /\b(mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>]{10,}/gi,
+    regex: /\b((?:mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>]{10,})/gi,
     severity: 'CRITICAL'
   },
 
@@ -117,7 +117,8 @@ export const patterns = [
   // ─── Endpoint & Server URLs ───
   {
     name: 'Endpoint URL',
-    regex: /(https?:\/\/(?!schemas\.android\.com|www\.w3\.org|apple\.com|developer\.apple|github\.com|gitlab\.com|bitbucket\.org)(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>]*))/gi,
+    // Captures full URL, skips public schemas, and excludes URLs with string interpolation ($, \(, ${) to avoid matching non-static secrets.
+    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com))(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;]*[^\s"'<>;.,])?)/gi,
     severity: 'MEDIUM'
   },
 

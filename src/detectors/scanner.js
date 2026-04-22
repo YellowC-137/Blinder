@@ -86,7 +86,7 @@ function isLowConfidenceMatch(matchValue, patternName, varName = '') {
   // 1. Blacklisted Keywords: Variable names that are unlikely to hold secrets
   // Apply to ALL patterns if a variable name is detected in the context.
   if (varName) {
-    const blacklist = /(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE|TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT)/i;
+    const blacklist = /(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE|TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT|STR_KEY|PARAM_|FIELD_|ATTR_|PROP_|VAL_)/i;
     if (blacklist.test(varName)) {
       return true;
     }
@@ -151,10 +151,25 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/*Test/**',
     '**/*.xctest/**',
     '**/test/**',
-    '**/androidTest/**',
+    '**/android/androidTest/**',
+    '**/GoogleService-Info.plist',
+    '**/google-services.json',
     ...sensitiveFiles.map(sf => sf.glob),
     ... (options.ignore || [])
   ];
+
+  // Load custom ignore paths from .blinderSettings if it exists
+  const rcPath = path.join(repoPath, '.blinderSettings');
+  if (fs.existsSync(rcPath)) {
+    try {
+      const rcContent = JSON.parse(fs.readFileSync(rcPath, 'utf8'));
+      if (Array.isArray(rcContent.ignorePaths)) {
+        ignorePatterns.push(...rcContent.ignorePaths);
+      }
+    } catch (err) {
+      logger.warn('Failed to parse .blinderSettings. Skipping custom ignore paths.');
+    }
+  }
 
   const files = await glob(`**/*{${Array.from(extensions).join(',')}}`, {
     cwd: repoPath,
@@ -173,6 +188,14 @@ export async function scanProject(repoPath, platforms, options = {}) {
       const content = fs.readFileSync(filePath, 'utf8');
       const lines = content.split('\n');
 
+      // Heuristic: Skip files that look like third-party SDKs or legacy libraries
+      const firstTenLines = lines.slice(0, 10).join('\n').toLowerCase();
+      const sdkKeywords = ['copyright', 'third-party', 'licensed to', 'all rights reserved', 'sdk', 'original author'];
+      if (sdkKeywords.some(kw => firstTenLines.includes(kw))) {
+        // Skip this file to prevent corruption of external libraries
+        continue;
+      }
+
       for (const pattern of allPatterns) {
         pattern.regex.lastIndex = 0;
         let match;
@@ -185,10 +208,9 @@ export async function scanProject(repoPath, platforms, options = {}) {
           if (pattern.name === 'Objective-C Config String' && match[1]) {
             varName = match[1];
             matchValue = match[2];
-          } else if (pattern.name === 'Objective-C Macro String' && match[0]) {
-            const macroParts = match[0].split(/\s+/);
-            varName = macroParts[1] || '';
-            matchValue = match[1];
+          } else if (pattern.name === 'Objective-C Macro String' && match[1]) {
+            varName = match[1];
+            matchValue = match[2];
           } else {
             for (let g = match.length - 1; g >= 1; g--) {
               if (match[g] !== undefined) {
@@ -227,7 +249,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
 
           let baseEnvName = pattern.name.toUpperCase().replace(/\s+/g, '_');
 
-          if (pattern.name === 'Objective-C Config String' && varName) {
+          if ((pattern.name === 'Objective-C Config String' || pattern.name === 'Objective-C Macro String') && varName) {
             baseEnvName = varName.toUpperCase();
           } else if (pattern.name === 'Objective-C Config Number' && match[2]) {
             baseEnvName = match[2].toUpperCase();

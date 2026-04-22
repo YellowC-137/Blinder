@@ -1,0 +1,65 @@
+platform :ios, '13.0'
+
+post_install do |installer|
+  blinder_post_install(installer)
+  flutter_additional_ios_build_settings(installer)
+end
+
+# --- Blinder Hook Start ---
+def blinder_post_install(installer)
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    end
+  end
+
+  # Find the main application project
+  project = installer.aggregate_targets.first.user_project
+  project.targets.each do |target|
+    # Only target application targets (Native or Flutter Runner)
+    next unless target.product_type == 'com.apple.product-type.application'
+    
+    phase_name = 'Blinder Env Loader'
+    if target.shell_script_build_phases.none? { |p| p.name == phase_name }
+      puts "  [Blinder] Adding Run Script to #{target.name}"
+      phase = target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~'SCRIPT'
+# --- Blinder Run Script Start ---
+# Support both Native iOS and Flutter project structures
+if [ -f "${SRCROOT}/.env" ]; then
+    ENV_FILE="${SRCROOT}/.env"
+elif [ -f "${SRCROOT}/../.env" ]; then
+    ENV_FILE="${SRCROOT}/../.env"
+else
+    echo "⚠️ Blinder: .env file not found at ${SRCROOT}/.env or ${SRCROOT}/../.env. Skipping injection."
+    exit 0
+fi
+
+PLIST_PATH="${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+
+echo "🛡️ Blinder: Loading .env from $ENV_FILE"
+while read -r line || [[ -n "$line" ]]; do
+    if [[ ! "$line" =~ ^# ]] && [[ "$line" =~ = ]]; then
+        key=$(echo "${line%%=*}" | xargs)
+        value=$(echo "${line#*=}" | xargs)
+        
+        value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+        
+        if [ -n "$key" ]; then
+            /usr/libexec/PlistBuddy -c "Set :$key \"$value\"" "$PLIST_PATH" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :$key string \"$value\"" "$PLIST_PATH"
+        fi
+    fi
+done < "$ENV_FILE"
+echo "✅ Blinder: Info.plist updated successfully."
+# --- Blinder Run Script End ---
+SCRIPT
+    end
+
+    target.build_configurations.each do |config|
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    end
+  end
+  project.save
+end
+# --- Blinder Hook End ---

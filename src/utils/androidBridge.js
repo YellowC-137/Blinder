@@ -18,6 +18,7 @@ def loadDotenv = {
                 if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length() - 1)
                 else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length() - 1)
                 buildConfigField "String", key, "\\"\${value}\\""
+                manifestPlaceholders += [ (key): value ]
             }
         }
     }
@@ -27,8 +28,8 @@ def loadDotenv = {
 
 const KTS_BRIDGE = `
 // [Blinder Start] Auto-generated bridge to load .env into BuildConfig
-fun loadDotenv() {
-    val envFile = rootProject.file(".env")
+fun Any.loadDotenv() {
+    val envFile = project.rootProject.file(".env")
     if (envFile.exists()) {
         envFile.forEachLine { line ->
             val match = Regex("^\\\\s*([\\\\w.-]+)\\\\s*=\\\\s*(.*)?\\\\s*$").find(line)
@@ -37,7 +38,10 @@ fun loadDotenv() {
                 var value = match.groupValues[2]
                 if (value.startsWith("\\"") && value.endsWith("\\"")) value = value.substring(1, value.length - 1)
                 else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length - 1)
-                buildConfigField("String", key, "\\"\\"$value\\"\\"")
+                
+                val project = this as? com.android.build.api.variant.VariantDimension ?: return@forEachLine
+                project.buildConfigField("String", key, "\\\"\$value\\\"")
+                project.manifestPlaceholders[key] = value
             }
         }
     }

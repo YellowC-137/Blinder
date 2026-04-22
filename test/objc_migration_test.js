@@ -1,109 +1,116 @@
 import { scanProject } from '../src/detectors/scanner.js';
 import { protectSecrets } from '../src/commands/protect.js';
+import { rollbackSecrets } from '../src/commands/rollback.js';
 import fs from 'fs';
 import path from 'path';
 
 /**
- * Test script to verify Objective-C macro migration.
+ * Test script to verify Objective-C Public vs Private constant handling.
  */
 async function runTests() {
-  console.log('Running Objective-C Macro Migration Tests...\n');
+  console.log('Running Objective-C Dual-Strategy Migration Tests...\n');
 
   const testDir = path.resolve('./test_objc_workspace');
   if (!fs.existsSync(testDir)) fs.mkdirSync(testDir);
 
-  const testFile = path.join(testDir, 'Config.m');
-  const originalContent = `
-#import "Config.h"
+  const hFile = path.join(testDir, 'Config.h');
+  const mFile = path.join(testDir, 'Config.m');
 
-@implementation Config
-
-NSString *const SERVER_ADDR = @"https://api.real-api.com";
-// NSString *const STAGING_SERVER = @"https://stg-api.real-api.com";
-NSString *const SECRET_API_ENDPOINT = @"https://my-api.com";
-NSString *const GET_CODE_GUARD = @"https://mobisr.yessign.or.kr/mSR3/CodeGuard/check.jsp";
-NSString *const CMD_RSP_3100 = @"3100";
-#define MSG_NET_ERR @"Connection Error"
-int const ICRP_PORT = 9060;
-double const TIME_OUT = 60.0;
-
+  const hContent = `
+#import <Foundation/Foundation.h>
+extern NSString *const PUBLIC_SERVER;
+// PRIVATE_KEY is NOT declared here
+@interface Config : NSObject
 @end
 `;
-  fs.writeFileSync(testFile, originalContent);
+
+  const mContent = `
+#import "Config.h"
+@implementation Config
+NSString *const PUBLIC_SERVER = @"https://api.public.com";
+NSString *const STR_KEY_APPVER = @"app_version";
+NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
+@end
+`;
+
+  fs.writeFileSync(hFile, hContent);
+  fs.writeFileSync(mFile, mContent);
 
   // 1. Scan
   const results = await scanProject(testDir, ['ios']);
-  console.log(`Found ${results.length} secrets in Obj-C file.`);
-  results.forEach(r => console.log(`  - [${r.patternName}] ${r.file}:${r.line} Match: ${r.match}`));
+  console.log(`Found ${results.length} secrets in Obj-C project.`);
+
+  // 1.5 Simulate .gitignore update
+  const gitignoreFile = path.join(testDir, '.gitignore');
+  fs.writeFileSync(gitignoreFile, 'node_modules/\n# --- BLINDER COMMON ---\n.env\n.blinder_protect.json\n');
 
   // 2. Protect (Auto-fix mode)
   await protectSecrets(testDir, results, { mode: 'auto', dryRun: false });
 
-  // 2.5 Verify .env
-  console.log('--- .env content ---');
-  if (fs.existsSync(path.join(testDir, '.env'))) {
-    console.log(fs.readFileSync(path.join(testDir, '.env'), 'utf8'));
+  // 3. Verify Files
+  const updatedM = fs.readFileSync(mFile, 'utf8');
+  const updatedH = fs.readFileSync(hFile, 'utf8');
+  const updatedGitignore = fs.readFileSync(gitignoreFile, 'utf8');
+
+  console.log('--- Updated .m Content ---');
+  console.log(updatedM);
+  console.log('--- Updated .h Content ---');
+  console.log(updatedH);
+  console.log('--- Updated .gitignore ---');
+  console.log(updatedGitignore);
+
+  const isPublicMCleaned = updatedM.includes('// Protected by Blinder: PUBLIC_SERVER');
+  const isPublicHMacroed = updatedH.includes('#define PUBLIC_SERVER ((NSString *)[[NSBundle mainBundle]');
+  const isPrivateMMacroed = updatedM.includes('#define PRIVATE_KEY ((NSString *)[[NSBundle mainBundle]');
+  const isKeyIgnored = updatedM.includes('NSString *const STR_KEY_APPVER = @"app_version";');
+
+  if (isPublicMCleaned && isPublicHMacroed) {
+    console.log('✅ Public constant: Synchronized correctly (Header macro + Implementation comment)');
+  } else {
+    console.error('❌ Public constant: Sync logic failed!');
   }
-  console.log('--------------------');
 
-  // 3. Verify
-  const updatedContent = fs.readFileSync(testFile, 'utf8');
-  console.log('--- Updated Content ---');
-  console.log(updatedContent);
-  console.log('-----------------------');
+  if (isPrivateMMacroed && !updatedM.includes('// Protected by Blinder: PRIVATE_KEY')) {
+    console.log('✅ Private constant: Fallback correctly (Direct macro replacement in .m)');
+  } else {
+    console.error('❌ Private constant: Fallback logic failed!');
+  }
 
-  const hasConstructor = updatedContent.includes('NSString * const SERVER_ADDR = nil;');
-  const hasConstructorFunc = updatedContent.includes('_blinder_init_SERVER_ADDR(void)');
-  const hasStrongPtr = updatedContent.includes('NSString * __strong *mutablePtr = (NSString * __strong *)&SERVER_ADDR;');
-  const hasSecretEndpointConstructor = updatedContent.includes('NSString * const SECRET_API_ENDPOINT = nil;');
-  const hasCodeGuardConstructor = updatedContent.includes('NSString * const GET_CODE_GUARD = nil;');
-  const hasStagingServerMaskedInComment = updatedContent.includes('// NSString *const STAGING_SERVER = [[NSBundle mainBundle] objectForInfoDictionaryKey:');
-  const hasCmdRspOriginal = updatedContent.includes('NSString *const CMD_RSP_3100 = @"3100";');
-  const hasMsgErrMacro = updatedContent.includes('#define MSG_NET_ERR ((NSString *)[[NSBundle mainBundle]');
-  const hasIntOriginal = updatedContent.includes('int const ICRP_PORT = 9060;');
-  const hasDoubleOriginal = updatedContent.includes('double const TIME_OUT = 60.0;');
+  if (isKeyIgnored) {
+    console.log('✅ Key/Param constant (STR_KEY_APPVER): Correctly ignored (Heuristic match)');
+  } else {
+    console.error('❌ Key/Param constant was unexpectedly converted!');
+  }
 
-  if (hasConstructor && hasConstructorFunc && hasStrongPtr) console.log('✅ SERVER_ADDR converted to Constructor (Symbol & ARC Maintained)');
-  else console.error('❌ SERVER_ADDR NOT converted correctly (Check ARC or (void) prototype)');
+  // 4. Test Rollback
+  console.log('\nTesting Rollback...');
+  await rollbackSecrets(testDir, { yes: true, dryRun: false });
 
-  if (hasSecretEndpointConstructor) console.log('✅ SECRET_API_ENDPOINT converted to Constructor');
-  else console.error('❌ SECRET_API_ENDPOINT NOT converted correctly');
+  const restoredM = fs.readFileSync(mFile, 'utf8');
+  const restoredH = fs.readFileSync(hFile, 'utf8');
+  const restoredGitignore = fs.readFileSync(gitignoreFile, 'utf8');
 
-  if (hasCodeGuardConstructor) console.log('✅ GET_CODE_GUARD (now caught) converted to Constructor');
-  else console.error('❌ GET_CODE_GUARD was NOT caught');
+  if (restoredM.trim() === mContent.trim()) console.log('✅ .m file: Rollback restored successfully');
+  else console.error('❌ .m file: Rollback failed!');
 
-  if (hasStagingServerMaskedInComment) console.log('✅ STAGING_SERVER (commented) masked inline (Preserving comment)');
-  else console.error('❌ STAGING_SERVER in comment was NOT masked');
+  if (restoredH.trim() === hContent.trim()) console.log('✅ .h file: Rollback restored successfully');
+  else console.error('❌ .h file: Rollback failed!');
 
-  if (hasCmdRspOriginal) console.log('✅ CMD_RSP_3100 (short/numeric/blacklisted name) correctly ignored');
-  else console.error('❌ CMD_RSP_3100 was unexpectedly converted');
+  if (restoredGitignore.trim() === 'node_modules/') console.log('✅ .gitignore: Blinder sections removed successfully');
+  else {
+    console.error('❌ .gitignore: Rollback failed!');
+    console.log('Got:', restoredGitignore);
+  }
 
-  if (!hasMsgErrMacro) console.log('✅ MSG_NET_ERR (blacklisted name) correctly ignored');
-  else console.error('❌ MSG_NET_ERR was unexpectedly converted');
-
-  if (hasIntOriginal) console.log('✅ int constant kept as original (correctly ignored)');
-  else console.error('❌ int constant was unexpectedly modified');
-
-  if (hasDoubleOriginal) console.log('✅ double constant kept as original (correctly ignored)');
-  else console.error('❌ double constant was unexpectedly modified');
-
-  // Cleanup
-  fs.unlinkSync(testFile);
+  // Cleanup workspace
+  [hFile, mFile].forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
   if (fs.existsSync(path.join(testDir, '.env'))) fs.unlinkSync(path.join(testDir, '.env'));
   if (fs.existsSync(path.join(testDir, '.env.example'))) fs.unlinkSync(path.join(testDir, '.env.example'));
   if (fs.existsSync(path.join(testDir, '.blinder_protect.json'))) fs.unlinkSync(path.join(testDir, '.blinder_protect.json'));
   if (fs.existsSync(path.join(testDir, '.gitignore'))) fs.unlinkSync(path.join(testDir, '.gitignore'));
-  const reportFiles = fs.readdirSync(testDir).filter(f => f.startsWith('scan_result_'));
-  // (Wait, report() might create blinder_reports dir)
-  if (fs.existsSync(path.join(testDir, 'blinder_reports'))) {
-      const reports = fs.readdirSync(path.join(testDir, 'blinder_reports'));
-      reports.forEach(f => fs.unlinkSync(path.join(testDir, 'blinder_reports', f)));
-      fs.rmdirSync(path.join(testDir, 'blinder_reports'));
-  }
-
   fs.rmdirSync(testDir);
 
-  console.log('\nResult: OBJ-C MIGRATION TESTS PASSED! 🎉');
+  console.log('\nResult: OBJ-C DUAL-STRATEGY TESTS COMPLETE! 🎉');
   process.exit(0);
 }
 

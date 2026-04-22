@@ -1,0 +1,27 @@
+
+// [Blinder Start] Auto-generated bridge to load .env into BuildConfig
+def loadDotenv = {
+    def envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.eachLine { line ->
+            def matcher = (line =~ /^\s*([\w.-]+)\s*=\s*(.*)?\s*$/)
+            if (matcher.find()) {
+                def key = matcher.group(1)
+                def value = matcher.group(2)
+                if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length() - 1)
+                else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length() - 1)
+                buildConfigField "String", key, "\"${value}\""
+            }
+        }
+    }
+}
+// [Blinder End]
+
+android {
+    buildFeatures {
+        buildConfig true
+    }
+    defaultConfig {
+        loadDotenv()
+    }
+}

@@ -1,0 +1,928 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1012D4BB2D51AC3E002513B1 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = 1012D4BA2D51AC3E002513B1 /* .swiftlint.yml */; };
+		101D96E22DFEDB9800F0C456 /* libiconv.2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 101D96E12DFEDB9800F0C456 /* libiconv.2.tbd */; };
+		10633FCF2D51AF980067EB22 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FCE2D51AF980067EB22 /* AudioToolbox.framework */; };
+		10633FD12D51AF9E0067EB22 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FD02D51AF9E0067EB22 /* AVFoundation.framework */; };
+		10633FD32D51AFA50067EB22 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FD22D51AFA50067EB22 /* CoreGraphics.framework */; };
+		10633FD52D51AFAD0067EB22 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FD42D51AFAD0067EB22 /* CoreMedia.framework */; };
+		10633FD72D51AFB40067EB22 /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FD62D51AFB40067EB22 /* LocalAuthentication.framework */; };
+		10633FD92D51AFBA0067EB22 /* Photos.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10633FD82D51AFBA0067EB22 /* Photos.framework */; };
+		1063404D2D51B2830067EB22 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1063404C2D51B2830067EB22 /* WebKit.framework */; };
+		10A9FBAF2D59C39300E616F4 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 10A9FBAE2D59C39300E616F4 /* ComposableArchitecture */; };
+		10B183072DD57DFF00C8ECDD /* SwiftyJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 10B183062DD57DFF00C8ECDD /* SwiftyJSON */; };
+		10C118E92D880ACA00DF8675 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 10C118E82D880ACA00DF8675 /* Lottie */; };
+		10C42C652D62D54D009EDFF0 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 10C42C642D62D54D009EDFF0 /* FirebaseCore */; };
+		10C42C672D62D54D009EDFF0 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 10C42C662D62D54D009EDFF0 /* FirebaseMessaging */; };
+		10C42C692D62D631009EDFF0 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 10C42C682D62D631009EDFF0 /* FirebaseAnalytics */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1012D4542D51A915002513B1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1012D4362D51A913002513B1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1012D43D2D51A913002513B1;
+			remoteInfo = SmartCertRenewal;
+		};
+		1012D45E2D51A915002513B1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1012D4362D51A913002513B1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1012D43D2D51A913002513B1;
+			remoteInfo = SmartCertRenewal;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		106340592D51B7ED0067EB22 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1012D43E2D51A913002513B1 /* SmartCertRenewal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartCertRenewal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1012D4532D51A915002513B1 /* SmartCertRenewalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SmartCertRenewalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1012D45D2D51A915002513B1 /* SmartCertRenewalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SmartCertRenewalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1012D4BA2D51AC3E002513B1 /* .swiftlint.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = .swiftlint.yml; sourceTree = "<group>"; };
+		101D96E12DFEDB9800F0C456 /* libiconv.2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libiconv.2.tbd; path = usr/lib/libiconv.2.tbd; sourceTree = SDKROOT; };
+		10633FCE2D51AF980067EB22 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		10633FD02D51AF9E0067EB22 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		10633FD22D51AFA50067EB22 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		10633FD42D51AFAD0067EB22 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		10633FD62D51AFB40067EB22 /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
+		10633FD82D51AFBA0067EB22 /* Photos.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Photos.framework; path = System/Library/Frameworks/Photos.framework; sourceTree = SDKROOT; };
+		1063404C2D51B2830067EB22 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1012D4AF2D51AB7F002513B1 /* Exceptions for "SmartCertRenewal" folder in "SmartCertRenewal" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Library/mTransKey/Library/libMTransKey_Ar_v4.6.x.113.a,
+				"Library/RSKSW/libRSKSW2/@libRSKSW2.a",
+				Library/RSKSW/RSKSW2.framework,
+				"Preview Content/Preview Assets.xcassets",
+				Resources/WebPages/AdTermsContents.rtf,
+				Resources/WebPages/GrepPrivacy.rtf,
+				Resources/WebPages/KT3rdTerms.rtf,
+				Resources/WebPages/PrivacyContents_KT.rtf,
+				Resources/WebPages/PrivacyContents_LGU.rtf,
+				Resources/WebPages/PrivacyContents_SKT.rtf,
+			);
+			target = 1012D43D2D51A913002513B1 /* SmartCertRenewal */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		1063405A2D51B7ED0067EB22 /* Exceptions for "SmartCertRenewal" folder in "Embed Frameworks" phase from "SmartCertRenewal" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			attributesByRelativePath = {
+				Library/RSLicenseSDK.xcframework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
+				Library/mTransKey/Framework/mTransKeyFramework.xcframework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
+			};
+			buildPhase = 106340592D51B7ED0067EB22 /* Embed Frameworks */;
+			membershipExceptions = (
+				Library/mTransKey/Framework/mTransKeyFramework.xcframework,
+				Library/RSLicenseSDK.xcframework,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		1012D4562D51A915002513B1 /* SmartCertRenewalTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SmartCertRenewalTests;
+			sourceTree = "<group>";
+		};
+		1012D4602D51A915002513B1 /* SmartCertRenewalUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SmartCertRenewalUITests;
+			sourceTree = "<group>";
+		};
+		1012D4A52D51AB7F002513B1 /* SmartCertRenewal */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1012D4AF2D51AB7F002513B1 /* Exceptions for "SmartCertRenewal" folder in "SmartCertRenewal" target */,
+				1063405A2D51B7ED0067EB22 /* Exceptions for "SmartCertRenewal" folder in "Embed Frameworks" phase from "SmartCertRenewal" target */,
+			);
+			path = SmartCertRenewal;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1012D43B2D51A913002513B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				101D96E22DFEDB9800F0C456 /* libiconv.2.tbd in Frameworks */,
+				10B183072DD57DFF00C8ECDD /* SwiftyJSON in Frameworks */,
+				1063404D2D51B2830067EB22 /* WebKit.framework in Frameworks */,
+				10633FD52D51AFAD0067EB22 /* CoreMedia.framework in Frameworks */,
+				10633FD32D51AFA50067EB22 /* CoreGraphics.framework in Frameworks */,
+				10633FD12D51AF9E0067EB22 /* AVFoundation.framework in Frameworks */,
+				10633FD72D51AFB40067EB22 /* LocalAuthentication.framework in Frameworks */,
+				10633FCF2D51AF980067EB22 /* AudioToolbox.framework in Frameworks */,
+				10C118E92D880ACA00DF8675 /* Lottie in Frameworks */,
+				10C42C672D62D54D009EDFF0 /* FirebaseMessaging in Frameworks */,
+				10A9FBAF2D59C39300E616F4 /* ComposableArchitecture in Frameworks */,
+				10633FD92D51AFBA0067EB22 /* Photos.framework in Frameworks */,
+				10C42C652D62D54D009EDFF0 /* FirebaseCore in Frameworks */,
+				10C42C692D62D631009EDFF0 /* FirebaseAnalytics in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D4502D51A915002513B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D45A2D51A915002513B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1012D4352D51A913002513B1 = {
+			isa = PBXGroup;
+			children = (
+				1012D4BA2D51AC3E002513B1 /* .swiftlint.yml */,
+				1012D4A52D51AB7F002513B1 /* SmartCertRenewal */,
+				1012D4562D51A915002513B1 /* SmartCertRenewalTests */,
+				1012D4602D51A915002513B1 /* SmartCertRenewalUITests */,
+				10633FCD2D51AF980067EB22 /* Frameworks */,
+				1012D43F2D51A913002513B1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1012D43F2D51A913002513B1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1012D43E2D51A913002513B1 /* SmartCertRenewal.app */,
+				1012D4532D51A915002513B1 /* SmartCertRenewalTests.xctest */,
+				1012D45D2D51A915002513B1 /* SmartCertRenewalUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		10633FCD2D51AF980067EB22 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				101D96E12DFEDB9800F0C456 /* libiconv.2.tbd */,
+				1063404C2D51B2830067EB22 /* WebKit.framework */,
+				10633FD82D51AFBA0067EB22 /* Photos.framework */,
+				10633FD62D51AFB40067EB22 /* LocalAuthentication.framework */,
+				10633FD42D51AFAD0067EB22 /* CoreMedia.framework */,
+				10633FD22D51AFA50067EB22 /* CoreGraphics.framework */,
+				10633FD02D51AF9E0067EB22 /* AVFoundation.framework */,
+				10633FCE2D51AF980067EB22 /* AudioToolbox.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1012D43D2D51A913002513B1 /* SmartCertRenewal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1012D4672D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewal" */;
+			buildPhases = (
+				10B0D6AF2DCD8CB100A913A8 /* Lint Script */,
+				1063404E2D51B48B0067EB22 /* ShellScript */,
+				1012D43A2D51A913002513B1 /* Sources */,
+				1012D43B2D51A913002513B1 /* Frameworks */,
+				1012D43C2D51A913002513B1 /* Resources */,
+				106340592D51B7ED0067EB22 /* Embed Frameworks */,
+				109F40E12E1BB8490098EA50 /* FireBase Crashlytics */,
+							BL1N00000000000000000001 /* Blinder Env Loader */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1012D4A52D51AB7F002513B1 /* SmartCertRenewal */,
+			);
+			name = SmartCertRenewal;
+			packageProductDependencies = (
+				10A9FBAE2D59C39300E616F4 /* ComposableArchitecture */,
+				10C42C642D62D54D009EDFF0 /* FirebaseCore */,
+				10C42C662D62D54D009EDFF0 /* FirebaseMessaging */,
+				10C42C682D62D631009EDFF0 /* FirebaseAnalytics */,
+				10C118E82D880ACA00DF8675 /* Lottie */,
+				10B183062DD57DFF00C8ECDD /* SwiftyJSON */,
+			);
+			productName = SmartCertRenewal;
+			productReference = 1012D43E2D51A913002513B1 /* SmartCertRenewal.app */;
+			productType = "com.apple.product-type.application";
+		};
+		1012D4522D51A915002513B1 /* SmartCertRenewalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1012D46A2D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewalTests" */;
+			buildPhases = (
+				1012D44F2D51A915002513B1 /* Sources */,
+				1012D4502D51A915002513B1 /* Frameworks */,
+				1012D4512D51A915002513B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1012D4552D51A915002513B1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1012D4562D51A915002513B1 /* SmartCertRenewalTests */,
+			);
+			name = SmartCertRenewalTests;
+			productName = SmartCertRenewalTests;
+			productReference = 1012D4532D51A915002513B1 /* SmartCertRenewalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		1012D45C2D51A915002513B1 /* SmartCertRenewalUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1012D46D2D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewalUITests" */;
+			buildPhases = (
+				1012D4592D51A915002513B1 /* Sources */,
+				1012D45A2D51A915002513B1 /* Frameworks */,
+				1012D45B2D51A915002513B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1012D45F2D51A915002513B1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1012D4602D51A915002513B1 /* SmartCertRenewalUITests */,
+			);
+			name = SmartCertRenewalUITests;
+			productName = SmartCertRenewalUITests;
+			productReference = 1012D45D2D51A915002513B1 /* SmartCertRenewalUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1012D4362D51A913002513B1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1610;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					1012D43D2D51A913002513B1 = {
+						CreatedOnToolsVersion = 16.1;
+					};
+					1012D4522D51A915002513B1 = {
+						CreatedOnToolsVersion = 16.1;
+						TestTargetID = 1012D43D2D51A913002513B1;
+					};
+					1012D45C2D51A915002513B1 = {
+						CreatedOnToolsVersion = 16.1;
+						TestTargetID = 1012D43D2D51A913002513B1;
+					};
+				};
+			};
+			buildConfigurationList = 1012D4392D51A913002513B1 /* Build configuration list for PBXProject "SmartCertRenewal" */;
+			developmentRegion = ko;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ko,
+				en,
+			);
+			mainGroup = 1012D4352D51A913002513B1;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				1012D4732D51A9CE002513B1 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				1012D4742D51A9EA002513B1 /* XCRemoteSwiftPackageReference "SwiftLint" */,
+				1012D4772D51AA39002513B1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				10C118E72D880ACA00DF8675 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				10B183052DD572EC00C8ECDD /* XCRemoteSwiftPackageReference "SwiftyJSON" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1012D43F2D51A913002513B1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1012D43D2D51A913002513B1 /* SmartCertRenewal */,
+				1012D4522D51A915002513B1 /* SmartCertRenewalTests */,
+				1012D45C2D51A915002513B1 /* SmartCertRenewalUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1012D43C2D51A913002513B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1012D4BB2D51AC3E002513B1 /* .swiftlint.yml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D4512D51A915002513B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D45B2D51A915002513B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		BL1N00000000000000000001 /* Blinder Env Loader */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Blinder Env Loader";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# --- Blinder Run Script Start ---\n# Support both Native iOS and Flutter project structures\nif [ -f \"${SRCROOT}/.env\" ]; then\n    ENV_FILE=\"${SRCROOT}/.env\"\nelif [ -f \"${SRCROOT}/../.env\" ]; then\n    ENV_FILE=\"${SRCROOT}/../.env\"\nelse\n    echo \"⚠️ Blinder: .env file not found at ${SRCROOT}/.env or ${SRCROOT}/../.env. Skipping injection.\"\n    exit 0\nfi\n\nPLIST_PATH=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n\necho \"🛡️ Blinder: Loading .env from $ENV_FILE\"\nwhile read -r line || [[ -n \"$line\" ]]; do\n    if [[ ! \"$line\" =~ ^# ]] && [[ \"$line\" =~ = ]]; then\n        key=$(echo \"${line%%=*}\" | xargs)\n        value=$(echo \"${line#*=}\" | xargs)\n        \n        value=$(echo \"$value\" | sed -e 's/^\"//' -e 's/\"$//' -e \"s/^'//\" -e \"s/'$//\")\n        \n        if [ -n \"$key\" ]; then\n            /usr/libexec/PlistBuddy -c \"Set :$key \\"$value\\"\" \"$PLIST_PATH\" 2>/dev/null || \\n            /usr/libexec/PlistBuddy -c \"Add :$key string \\"$value\\"\" \"$PLIST_PATH\"\n        fi\n    fi\ndone < \"$ENV_FILE\"\necho \"✅ Blinder: Info.plist updated successfully.\"\n# --- Blinder Run Script End ---";
+		};
+		1063404E2D51B48B0067EB22 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"PROJECT_DIR: $PROJECT_DIR\"\necho \"SRCROOT: $SRCROOT\"\n";
+		};
+		109F40E12E1BB8490098EA50 /* FireBase Crashlytics */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "FireBase Crashlytics";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+		};
+		10B0D6AF2DCD8CB100A913A8 /* Lint Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Lint Script";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -x \"/opt/homebrew/bin/swiftlint\" ]; then\n    echo \"Running SwiftLint...\"\n    /opt/homebrew/bin/swiftlint lint --fix --no-cache || true\n    /opt/homebrew/bin/swiftlint lint || true\nelse\n    echo \"warning: SwiftLint not installed, install with 'brew install swiftlint'\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1012D43A2D51A913002513B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D44F2D51A915002513B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1012D4592D51A915002513B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1012D4552D51A915002513B1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1012D43D2D51A913002513B1 /* SmartCertRenewal */;
+			targetProxy = 1012D4542D51A915002513B1 /* PBXContainerItemProxy */;
+		};
+		1012D45F2D51A915002513B1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1012D43D2D51A913002513B1 /* SmartCertRenewal */;
+			targetProxy = 1012D45E2D51A915002513B1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1012D4652D51A915002513B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		1012D4662D51A915002513B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		1012D4682D51A915002513B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SmartCertRenewal/SmartCertRenewal.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_ASSET_PATHS = "\"SmartCertRenewal/Preview Content\"";
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/SmartCertRenewal/Library",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Framework",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/KeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/SmartCertRenewal/Library/**";
+				INFOPLIST_FILE = SmartCertRenewal/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "USIM 스마트인증";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "QR코드 스캔에 사용합니다.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "스마트인증 서명에 사용됩니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "QR코드 스캔에 사용합니다.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/**",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/mTransKey/Library",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Lib",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/KeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Framework",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/mVaccine",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/libKeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert/libKeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/libKeySharpCrypto",
+				);
+				MARKETING_VERSION = 3.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/SmartCertRenewal/Library/SmartCert-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		1012D4692D51A915002513B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SmartCertRenewal/SmartCertRenewal.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_ASSET_PATHS = "\"SmartCertRenewal/Preview Content\"";
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/SmartCertRenewal/Library",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Framework",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/KeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/SmartCertRenewal/Library/**";
+				INFOPLIST_FILE = SmartCertRenewal/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "USIM 스마트인증";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "QR코드 스캔에 사용합니다.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "스마트인증 서명에 사용됩니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "QR코드 스캔에 사용합니다.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/**",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/mTransKey/Library",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Lib",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/KeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/Framework",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/mVaccine",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/libKeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/Cert/libKeySharpCrypto",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/libRSKSW2",
+					"$(PROJECT_DIR)/SmartCertRenewal/Library/RSKSW/libKeySharpCrypto",
+				);
+				MARKETING_VERSION = 3.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/SmartCertRenewal/Library/SmartCert-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		1012D46B2D51A915002513B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS.SmartCertRenewalTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SmartCertRenewal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SmartCertRenewal";
+			};
+			name = Debug;
+		};
+		1012D46C2D51A915002513B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS.SmartCertRenewalTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SmartCertRenewal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SmartCertRenewal";
+			};
+			name = Release;
+		};
+		1012D46E2D51A915002513B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS.SmartCertRenewalUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = SmartCertRenewal;
+			};
+			name = Debug;
+		};
+		1012D46F2D51A915002513B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GZZD25P96B;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raonsecure.smartCertiOS.SmartCertRenewalUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = SmartCertRenewal;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1012D4392D51A913002513B1 /* Build configuration list for PBXProject "SmartCertRenewal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1012D4652D51A915002513B1 /* Debug */,
+				1012D4662D51A915002513B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1012D4672D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1012D4682D51A915002513B1 /* Debug */,
+				1012D4692D51A915002513B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1012D46A2D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1012D46B2D51A915002513B1 /* Debug */,
+				1012D46C2D51A915002513B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1012D46D2D51A915002513B1 /* Build configuration list for PBXNativeTarget "SmartCertRenewalUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1012D46E2D51A915002513B1 /* Debug */,
+				1012D46F2D51A915002513B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		1012D4732D51A9CE002513B1 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = exactVersion;
+				version = 1.18.0;
+			};
+		};
+		1012D4742D51A9EA002513B1 /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/realm/SwiftLint";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.58.2;
+			};
+		};
+		1012D4772D51AA39002513B1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.8.0;
+			};
+		};
+		10B183052DD572EC00C8ECDD /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SwiftyJSON/SwiftyJSON";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.2;
+			};
+		};
+		10C118E72D880ACA00DF8675 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		10A9FBAE2D59C39300E616F4 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1012D4732D51A9CE002513B1 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		10B183062DD57DFF00C8ECDD /* SwiftyJSON */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10B183052DD572EC00C8ECDD /* XCRemoteSwiftPackageReference "SwiftyJSON" */;
+			productName = SwiftyJSON;
+		};
+		10C118E82D880ACA00DF8675 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10C118E72D880ACA00DF8675 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+		10C42C642D62D54D009EDFF0 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1012D4772D51AA39002513B1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		10C42C662D62D54D009EDFF0 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1012D4772D51AA39002513B1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		10C42C682D62D631009EDFF0 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1012D4772D51AA39002513B1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 1012D4362D51A913002513B1 /* Project object */;
+}

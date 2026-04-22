@@ -180,6 +180,7 @@ program
     const hasSecrets = await report(results, repoPath, {});
     
     if (hasSecrets) {
+      logger.info('\n💡 TIP: Use a ".blinderSettings" file in your project root to ignore specific folders (e.g., third-party SDKs).');
       logger.divider();
       logger.warn('⚠️  CAUTION: Build Configuration Modification');
       logger.info('   This tool may modify your project\'s core build files (build.gradle, .pbxproj, etc.)');
@@ -323,6 +324,7 @@ program
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
     const { maskFiles } = await import('../src/commands/mask.js');
+    logger.info('\n💡 TIP: You can customize masked output paths via ".blinderSettings" file.');
     await maskFiles(repoPath, { ...options, ...globalOptions, ...config, maskOutput: options.output });
   }));
 

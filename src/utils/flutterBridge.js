@@ -59,8 +59,27 @@ export async function setupFlutterBridge(repoPath) {
 
   if (!updated) {
     logger.info('No IDE configurations found to automate Flutter .env loading.');
-    logger.info('Manual Tip: Run with "flutter run --dart-define-from-file=.env"');
   } else {
     logger.success('Flutter .env automation applied to IDE configurations.');
+  }
+
+  // 3. Command Line Wrapper: f.sh
+  const wrapperPath = path.join(repoPath, 'f.sh');
+  const wrapperContent = `#!/bin/bash
+# Blinder Flutter CLI Wrapper
+# Usage: ./f.sh run, ./f.sh build apk, etc.
+flutter "$@" --dart-define-from-file=.env
+`;
+
+  try {
+    fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
+    logger.success('Flutter CLI wrapper generated: f.sh');
+    updated = true;
+  } catch (err) {
+    logger.warn('Failed to create f.sh wrapper.');
+  }
+
+  if (updated) {
+    logger.info('Manual Tip: Use "./f.sh run" to ensure .env is loaded in terminal.');
   }
 }

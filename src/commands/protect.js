@@ -3,6 +3,8 @@ import path from 'path';
 import chalk from 'chalk';
 import logger from '../utils/logger.js';
 import inquirer from 'inquirer';
+import fg from 'fast-glob';
+const { glob } = fg;
 
 export async function protectSecrets(repoPath, scanResults, options = {}) {
   // Filter out sensitive file warnings — they are not code-level secrets to migrate
@@ -145,7 +147,8 @@ async function processSecretGroup(group, envContent, envExampleContent, autoFix 
   for (const res of group) {
     const { match, patternName, file, line, isTestKey } = res;
     let secretValue = match;
-    if (match.includes('=') || match.includes(':')) {
+    // Skip splitting if it looks like a URL/Endpoint to preserve protocol (https://)
+    if ((match.includes('=') || match.includes(':')) && !match.includes('://')) {
       const parts = match.split(/[=:]/);
       secretValue = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
     }
@@ -204,6 +207,52 @@ function isInsideQuotes(lineContent, matchIndex) {
   return inDouble || inSingle;
 }
 
+/**
+ * Ensures a key exists in the main Info.plist as a placeholder.
+ */
+async function syncIosInfoPlist(repoPath, envVarName, options = {}) {
+  if (options.dryRun) return;
+  
+  const plistFiles = await glob('**/Info.plist', {
+    cwd: repoPath,
+    ignore: ['**/Pods/**', '**/build/**', '**/DerivedData/**', '**/node_modules/**', '**/maskedProject*/**'],
+    absolute: true
+  });
+  
+  // Prioritize Runner/Info.plist (Flutter) or generic non-pod plists
+  const mainPlist = plistFiles.find(p => p.includes('Runner/Info.plist')) || 
+                    plistFiles.find(p => !p.includes('.framework') && !p.includes('Pods'));
+  
+  if (!mainPlist) return;
+
+  try {
+    let content = fs.readFileSync(mainPlist, 'utf8');
+    
+    // Safety check: Don't modify if already present or if it's not a standard plist
+    if (content.includes(`<key>${envVarName}</key>`) || !content.includes('<dict>')) return;
+
+    const dictStartIdx = content.indexOf('<dict>');
+    const firstKeyIdx = content.indexOf('<key>', dictStartIdx);
+    
+    const injection = `\t<key>${envVarName}</key>\n\t<string>$(${envVarName})</string>\n`;
+    
+    let newContent;
+    if (firstKeyIdx !== -1) {
+      // Insert at the beginning of the dictionary for visibility
+      newContent = content.substring(0, firstKeyIdx) + injection + content.substring(firstKeyIdx);
+    } else {
+      // Empty dict? Insert before closing tag
+      const dictEndIdx = content.lastIndexOf('</dict>');
+      newContent = content.substring(0, dictEndIdx) + injection + content.substring(dictEndIdx);
+    }
+    
+    fs.writeFileSync(mainPlist, newContent);
+    // logger.success(`Added ${envVarName} placeholder to Info.plist`);
+  } catch (err) {
+    // Silent fail for sync
+  }
+}
+
 async function applyAutoFixes(repoPath, secrets, options = {}) {
   const migrations = [];
   const fileGroups = secrets.reduce((acc, s) => {
@@ -258,7 +307,19 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         inlineAccessor = "$" + `{${accessor}}`; // Fallback for JS/others using template literal
       }
 
+      // iOS specific: Ensure the key is in Info.plist
+      if (ext === '.swift' || ext === '.m' || ext === '.mm' || ext === '.h') {
+        await syncIosInfoPlist(repoPath, envVarName, options);
+      }
+
       let lineContent = contentLines[lineIdx];
+
+      // Safeguard: Skip DOCTYPE/DTD declarations in XML/Plist
+      if ((ext === '.plist' || ext === '.xml') && 
+          (lineContent.includes('DOCTYPE') || lineContent.includes('DTD'))) {
+        continue;
+      }
+
       let replacedText = match;
       let injectedText = accessor;
 
@@ -268,14 +329,55 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
 
       if (objcConstMatch && !s.isComment) {
         const varName = objcConstMatch[1];
-        const constructorFix = `NSString * const ${varName} = nil;
-__attribute__((constructor)) static void _blinder_init_${varName}(void) {
-    NSString * __strong *mutablePtr = (NSString * __strong *)&${varName};
-    *mutablePtr = ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"]);
-}`;
-        replacedText = lineContent.trim();
-        injectedText = constructorFix;
-        lineContent = constructorFix;
+        const hFileName = relPath.replace(/\.m(m|)$/, '.h');
+        const hAbsPath = path.join(repoPath, hFileName);
+        
+        let headerExternFound = false;
+
+        // Strategy A: Synchronize with Header (Public Constant)
+        if (fs.existsSync(hAbsPath)) {
+          let hContent = fs.readFileSync(hAbsPath, 'utf8');
+          const externRegex = new RegExp(`extern\\s+NSString\\s*\\*\\s*const\\s+${varName}\\s*;`, 'i');
+          const externMatch = hContent.match(externRegex);
+          
+          if (externMatch) {
+            headerExternFound = true;
+            const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
+            const headerReplacedText = externMatch[0];
+            
+            if (!options.dryRun) {
+              hContent = hContent.replace(externRegex, macro);
+              fs.writeFileSync(hAbsPath, hContent);
+              logger.success(`Updated header (Public): ${hFileName}`);
+            }
+
+            // Record migration for the header file for rollback support
+            migrations.push({
+              file: hFileName,
+              envVarName: envVarName,
+              accessor: macro,
+              injectedText: macro,
+              replacedText: headerReplacedText
+            });
+          }
+        }
+
+        if (headerExternFound) {
+          // Public: Comment out the .m definition (already handled by macro in .h)
+          const placeholder = `// Protected by Blinder: ${varName} moved to macro in header`;
+          replacedText = contentLines[lineIdx]; 
+          injectedText = placeholder;
+          lineContent = placeholder;
+        } else {
+          // Strategy B: Inline replacement (Private/Internal Constant)
+          const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
+          replacedText = contentLines[lineIdx];
+          injectedText = macro;
+          lineContent = macro;
+          if (!options.dryRun) {
+            // logger.success(`Updated implementation (Private): ${relPath}`);
+          }
+        }
       } else if (s.patternName === 'Objective-C Macro String' && match.includes('#define') && !s.isComment) {
         const macroParts = lineContent.trim().split(/\s+/);
         const varName = macroParts[1] || 'SECRET';

@@ -140,6 +140,22 @@ export async function rollbackSecrets(repoPath, options = {}) {
       }
       logger.success(`Deleted: ${f.label}`);
     }
+
+    // Restore .gitignore
+    const gitignorePath = path.join(repoPath, '.gitignore');
+    if (fs.existsSync(gitignorePath)) {
+      let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+      const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
+      const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
+
+      if (blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent)) {
+        gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
+        gitignoreContent = gitignoreContent.trim() + '\n';
+        
+        fs.writeFileSync(gitignorePath, gitignoreContent);
+        logger.success('Restored: .gitignore (Removed Blinder sections)');
+      }
+    }
   } else {
     logger.info('[Dry-Run] No files were actually deleted.');
   }
