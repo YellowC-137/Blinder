@@ -76,29 +76,34 @@ export async function setupAndroidBridge(repoPath) {
     // Inject at the top of the file (safest for functions)
     content = bridgeCode + '\n' + content;
 
-    // Call the function inside android.defaultConfig
+    // 1. Call the function inside android.defaultConfig
     const configPattern = /defaultConfig\s*\{/;
     if (configPattern.test(content)) {
         const callCode = isKts ? '\n        loadDotenv()' : '\n        loadDotenv()';
         content = content.replace(configPattern, `defaultConfig {${callCode}`);
         
-        // Also ensure buildConfig is enabled (AGP 8.0+)
+        // 2. Ensure buildConfig is enabled (AGP 8.0+)
+        // We look for buildFeatures block within android { ... }
         if (!content.includes('buildConfig = true') && !content.includes('buildConfig true')) {
             const buildFeaturesPattern = /buildFeatures\s*\{/;
             if (buildFeaturesPattern.test(content)) {
                 const setting = isKts ? '\n        buildConfig = true' : '\n        buildConfig true';
                 content = content.replace(buildFeaturesPattern, `buildFeatures {${setting}`);
             } else {
+                // If buildFeatures block doesn't exist, create it inside android block
+                const androidBlock = /android\s*\{/;
                 const featuresBlock = isKts ? 
                     '\n    buildFeatures {\n        buildConfig = true\n    }' :
                     '\n    buildFeatures {\n        buildConfig true\n    }';
-                const androidBlock = /android\s*\{/;
                 content = content.replace(androidBlock, `android {${featuresBlock}`);
             }
         }
 
         fs.writeFileSync(absPath, content);
         logger.success(`Android bridge injected into ${relPath}`);
+        
+        // 3. Inform about Proguard/R8 if necessary
+        logger.info('   Note: If using Proguard/R8, ensure BuildConfig is not obfuscated if you read it via reflection.');
     } else {
         logger.error(`Could not find defaultConfig block in ${relPath}. Manual setup required.`);
     }

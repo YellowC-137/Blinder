@@ -178,22 +178,21 @@ export async function setupIosBridge(repoPath) {
   const autoInjected = await injectToPodfile(repoPath);
 
   if (!autoInjected) {
+    try {
+      execSync(`sh "${scriptPath}"`, { stdio: 'inherit', cwd: repoPath });
+    } catch (err) {
+      // Ignore execution errors
+    }
+
     logger.header('⚠️ IMPORTANT: Manual Xcode Setup Required');
     logger.warn('No Podfile found. You MUST manually configure Xcode to load environment variables.');
-    logger.info('\nFollow these steps to finalize integration:');
+    logger.info('\nFollow these steps to finalize integration (Essential for Xcode 15+):');
     logger.info('1. Open your project in Xcode.');
     logger.info('2. Go to Target -> Build Phases -> + -> New Run Script Phase.');
     logger.info('3. Name it "Blinder Env Loader" and move it to the VERY BOTTOM.');
     logger.error('4. 🚨 CRUCIAL: Uncheck "Based on dependency analysis".');
-    logger.error('5. 🚨 CRUCIAL: Set "User Script Sandboxing" to "NO" in Build Settings.');
-    logger.info('6. Run the generated setup script for the script content:');
-    logger.success('\n   👉 Run: sh blinder-ios-setup.sh\n');
-    
-    try {
-      execSync(`sh "${scriptPath}"`, { stdio: 'inherit', cwd: repoPath });
-    } catch (err) {
-      // Ignore execution errors, the instructions are already shown
-    }
+    logger.error('5. 🚨 CRUCIAL (Xcode 15+): Go to Build Settings -> Search "Sandboxing" -> Set "User Script Sandboxing" to "NO".');
+    logger.info('6. The code to paste was displayed above (or find it in blinder-ios-setup.sh).\n');
   } else {
     logger.success('Successfully injected Blinder hooks into Podfile.');
     logger.info('🚨 IMPORTANT: Run "pod install" in your iOS directory to apply changes to Xcode.');

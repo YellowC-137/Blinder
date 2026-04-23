@@ -20,11 +20,18 @@ export async function setupFlutterBridge(repoPath) {
       const defineArg = '--dart-define-from-file=.env';
       
       if (!content.includes(defineArg)) {
-          // Add to args array in all flutter configurations
-          // This is a naive regex approach; a real JSON parser might be safer but more complex for comments in JSON
-          content = content.replace(/"toolArgs":\s*\[/g, `"toolArgs": ["${defineArg}", `);
-          // If toolArgs doesn't exist, we should ideally add it, but adding to "configurations" is safer
-          content = content.replace(/"args":\s*\[/g, `"args": ["${defineArg}", `);
+          // 1. If toolArgs exists, prepend to it
+          if (content.includes('"toolArgs"')) {
+              content = content.replace(/"toolArgs":\s*\[/g, `"toolArgs": ["${defineArg}", `);
+          } 
+          // 2. If args exists, prepend to it
+          else if (content.includes('"args"')) {
+              content = content.replace(/"args":\s*\[/g, `"args": ["${defineArg}", `);
+          }
+          // 3. Fallback: Add toolArgs to all configurations that look like Flutter
+          else {
+              content = content.replace(/"name":\s*"(.*?)"/g, `"name": "$1",\n            "toolArgs": ["${defineArg}"]`);
+          }
           
           fs.writeFileSync(launchJsonPath, content);
           logger.success('VS Code launch.json updated with --dart-define-from-file');
