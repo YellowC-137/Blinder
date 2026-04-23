@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { setupFlutterBridge } from '../../utils/flutterBridge.js';
+import { definePlatform } from '../definePlatform.js';
 
-export default {
+export default definePlatform({
   id: 'flutter',
   name: 'Flutter',
   category: 'mobile',
@@ -69,4 +70,4 @@ export default {
       envVarName: 'API_KEY'
     }
   ]
-};
+});

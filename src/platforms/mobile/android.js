@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { setupAndroidBridge } from '../../utils/androidBridge.js';
+import { definePlatform } from '../definePlatform.js';
 
-export default {
+export default definePlatform({
   id: 'android',
   name: 'Android',
   category: 'mobile',
@@ -104,4 +105,4 @@ google-services.json
       envVarName: 'API_KEY'
     }
   ]
-};
+});

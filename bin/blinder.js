@@ -113,7 +113,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
 
 program
   .name('blinder')
-  .description('Blinder - AI-Agent Security & Secret Protection for Mobile Projects')
+  .description('Blinder - AI-Agent Security & Secret Protection with Plugin Architecture')
   .version('1.0.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)

@@ -1,21 +1,25 @@
 {
   "name": "blinder",
   "version": "1.0.0",
-  "description": "Blinder - Automated security tool for mobile projects",
+  "description": "Blinder - AI-Agent Security & Secret Protection with Plugin Architecture",
   "main": "index.js",
   "type": "module",
   "bin": {
     "blinder": "./bin/blinder.js"
   },
   "scripts": {
-    "test": "node test/pattern_test.js"
+    "test": "node test/pattern_test.js",
+    "generate-plugin": "node scripts/generate-plugin.js"
   },
   "keywords": [
     "security",
+    "secret-scanning",
+    "ai-agent",
     "ios",
     "android",
     "flutter",
-    "secret-scanning"
+    "plugin-architecture",
+    "env-protection"
   ],
   "author": "",
   "license": "ISC",

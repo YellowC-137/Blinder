@@ -4,7 +4,9 @@
  * Base platform that always applies. Provides common extensions (.env, .json),
  * core gitignore templates, and a default auto-fix replacement.
  */
-export default {
+import { definePlatform } from './definePlatform.js';
+
+export default definePlatform({
   id: 'common',
   name: 'Common Environment',
   category: 'core',
@@ -49,9 +51,6 @@ credentials/
     return `process.env.${envVarName}`;
   },
 
-  /**
-   * Test cases for plugin validation
-   */
   testCases: [
     {
       input: '"my-secret-value-12345"',
@@ -60,4 +59,4 @@ credentials/
       envVarName: 'MY_SECRET'
     }
   ]
-};
+});

@@ -3,8 +3,9 @@ import path from 'path';
 import fg from 'fast-glob';
 const { glob } = fg;
 import { setupIosBridge } from '../../utils/iosBridge.js';
+import { definePlatform } from '../definePlatform.js';
 
-export default {
+export default definePlatform({
   id: 'ios',
   name: 'iOS',
   category: 'mobile',
@@ -267,4 +268,4 @@ GoogleService-Info.plist
       envVarName: 'API_KEY'
     }
   ]
-};
+});
