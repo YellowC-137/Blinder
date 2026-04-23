@@ -133,7 +133,12 @@ export async function scanProject(repoPath, platforms, options = {}) {
     }
   }
 
-  const files = await glob(`**/*{${Array.from(extensions).join(',')}}`, {
+  const extList = Array.from(extensions);
+  const globPattern = extList.length > 1 
+    ? `**/*.{${extList.map(e => e.replace(/^\./, '')).join(',')}}`
+    : `**/*.${extList[0].replace(/^\./, '')}`;
+
+  const files = await glob(globPattern, {
     cwd: repoPath,
     ignore: ignorePatterns,
     absolute: true

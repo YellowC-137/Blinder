@@ -99,27 +99,29 @@ export const patterns = [
     isFixable: false
   },
 
+  // ─── Endpoint & Server URLs ───
+  {
+    name: 'Endpoint URL',
+    // Captures full URL, skips public schemas, and excludes URLs with string interpolation ($, \(, ${) to avoid matching non-static secrets.
+    // Improved boundary to ensure it doesn't leave trailing slashes or colons in some edge cases.
+    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com))(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;]*[^\s"'<>;.,])?)/gi,
+    severity: 'MEDIUM'
+  },
+
   // ─── Network Host / Domain Configs ───
   {
     name: 'Network Host / Domain',
-    regex: /\b[a-zA-Z0-9_]*(?:ip|host|domain|addr)\b\s*[:=]\s*@?["']([a-zA-Z0-9.\-]{4,})["']/gi,
+    // Added negative lookahead to prevent matching "http" or "https" as a domain when it's just part of a full URL.
+    regex: /\b[a-zA-Z0-9_]*(?:ip|host|domain|addr)\b\s*[:=]\s*@?["']((?!https?:\/\/)[a-zA-Z0-9.\-]{4,})["']/gi,
     severity: 'MEDIUM'
   },
-  
+
   // ─── Network Port Configs (e.g., let icrpPt = "10500") ───
   {
     name: 'Network Port / Config',
     regex: /\b[a-zA-Z0-9_]*(?:port|pt)\b\s*(?::\s*[a-zA-Z0-9_]+\s*)?=\s*["']?(\d{2,5})["']?/gi,
     severity: 'MEDIUM',
     isFixable: false
-  },
-
-  // ─── Endpoint & Server URLs ───
-  {
-    name: 'Endpoint URL',
-    // Captures full URL, skips public schemas, and excludes URLs with string interpolation ($, \(, ${) to avoid matching non-static secrets.
-    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com))(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;]*[^\s"'<>;.,])?)/gi,
-    severity: 'MEDIUM'
   },
 
   // ─── Hardcoded Passwords (보안지침 §1: 인증 정보) ───
