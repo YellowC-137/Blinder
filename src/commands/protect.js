@@ -208,184 +208,88 @@ function isInsideQuotes(lineContent, matchIndex) {
 }
 
 /**
- * Ensures a key exists in the main Info.plist as a placeholder.
+ * Helper to find the best matching platform for a file extension.
  */
-async function syncIosInfoPlist(repoPath, envVarName, options = {}) {
-  if (options.dryRun) return;
-  
-  const plistFiles = await glob('**/Info.plist', {
-    cwd: repoPath,
-    ignore: ['**/Pods/**', '**/build/**', '**/DerivedData/**', '**/node_modules/**', '**/maskedProject*/**'],
-    absolute: true
-  });
-  
-  // Prioritize Runner/Info.plist (Flutter) or generic non-pod plists
-  const mainPlist = plistFiles.find(p => p.includes('Runner/Info.plist')) || 
-                    plistFiles.find(p => !p.includes('.framework') && !p.includes('Pods'));
-  
-  if (!mainPlist) return;
-
-  try {
-    let content = fs.readFileSync(mainPlist, 'utf8');
-    
-    // Safety check: Don't modify if already present or if it's not a standard plist
-    if (content.includes(`<key>${envVarName}</key>`) || !content.includes('<dict>')) return;
-
-    const dictStartIdx = content.indexOf('<dict>');
-    const firstKeyIdx = content.indexOf('<key>', dictStartIdx);
-    
-    const injection = `\t<key>${envVarName}</key>\n\t<string>$(${envVarName})</string>\n`;
-    
-    let newContent;
-    if (firstKeyIdx !== -1) {
-      // Insert at the beginning of the dictionary for visibility
-      newContent = content.substring(0, firstKeyIdx) + injection + content.substring(firstKeyIdx);
-    } else {
-      // Empty dict? Insert before closing tag
-      const dictEndIdx = content.lastIndexOf('</dict>');
-      newContent = content.substring(0, dictEndIdx) + injection + content.substring(dictEndIdx);
-    }
-    
-    fs.writeFileSync(mainPlist, newContent);
-    // logger.success(`Added ${envVarName} placeholder to Info.plist`);
-  } catch (err) {
-    // Silent fail for sync
-  }
+function findPlatformForExtension(platforms, ext) {
+  const matching = platforms.find(p => (p.commonExtensions || []).includes(ext));
+  if (matching) return matching;
+  return platforms.find(p => p.id === 'common') || platforms[0];
 }
 
-async function applyAutoFixes(repoPath, secrets, options = {}) {
-  const migrations = [];
-  const fileGroups = secrets.reduce((acc, s) => {
-    if (!acc[s.file]) acc[s.file] = [];
-    acc[s.file].push(s);
+/**
+ * Core engine for applying auto-fixes using the 2-stage pipeline.
+ * (보안지침 §3: 소스코드 내 하드코딩 제거 및 환경변수 치환)
+ */
+async function applyAutoFixes(repoPath, results, options = {}) {
+  const platforms = options.platforms || [];
+  const fileGroups = results.reduce((acc, res) => {
+    if (!acc[res.file]) acc[res.file] = [];
+    acc[res.file].push(res);
     return acc;
   }, {});
 
+  const migrations = [];
+
   for (const [relPath, fileSecrets] of Object.entries(fileGroups)) {
     const absPath = path.join(repoPath, relPath);
-    const contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
+    if (!fs.existsSync(absPath)) continue;
+
     const ext = path.extname(relPath);
+    const matchingPlatform = findPlatformForExtension(platforms, ext);
+
+    // Lifecycle Hook: preFix
+    if (matchingPlatform?.preFix) {
+      await matchingPlatform.preFix({ repoPath, relPath, absPath, fileSecrets, options });
+    }
+
+    const contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
+    let fileModified = false;
 
     for (const s of fileSecrets) {
-      const { match, envVarName, line } = s;
+      if (s.isSensitiveFile || !s.isFixable) continue;
+
+      const { envVarName, match, fullMatch, line } = s;
       const lineIdx = line - 1;
-      
       if (lineIdx < 0 || lineIdx >= contentLines.length) continue;
 
       let accessor = '';
-      let inlineAccessor = '';
+      let injectedText = '';
+      let replacedText = '';
+      let handledByPlatform = false;
 
-      if (ext === '.dart') {
-        accessor = `String.fromEnvironment('${envVarName}')`;
-        inlineAccessor = "$" + `{${accessor}}`;
-      } else if (ext === '.kt') {
-        accessor = `BuildConfig.${envVarName}`;
-        inlineAccessor = "$" + `{${accessor}}`;
-      } else if (ext === '.java') {
-        accessor = `BuildConfig.${envVarName}`;
-        inlineAccessor = `" + ${accessor} + "`;
-      } else if (ext === '.swift') {
-        accessor = `(Bundle.main.object(forInfoDictionaryKey: "${envVarName}") as? String ?? "")`;
-        inlineAccessor = `\\(${accessor})`;
-      } else if (ext === '.m' || ext === '.mm' || ext === '.h') {
-        accessor = `[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"]`;
-        inlineAccessor = accessor; // String interpolation not natively aligned, safe fallback
-      } else if (ext === '.plist' || ext === '.xcconfig') {
-        accessor = `\$(${envVarName})`;
-        inlineAccessor = accessor;
-      } else if (ext === '.xml') {
-        accessor = "$" + `{${envVarName}}`; // Android Manifest or values placeholders
-        inlineAccessor = accessor;
-      } else if (ext === '.gradle') {
-        accessor = `System.getenv('${envVarName}') ?: ""`;
-        inlineAccessor = "$" + `{System.getenv('${envVarName}') ?: ""}`;
-      } else if (ext === '.json') {
-        accessor = `process.env.${envVarName}`;
-        inlineAccessor = accessor;
-      } else {
-        accessor = `process.env.${envVarName}`;
-        inlineAccessor = "$" + `{${accessor}}`; // Fallback for JS/others using template literal
-      }
+      // Stage 1: Advanced Fix
+      if (matchingPlatform?.applyAdvancedFix) {
+        const advResult = await matchingPlatform.applyAdvancedFix({
+          lineContent: contentLines[lineIdx],
+          match,
+          fullMatch,
+          envVarName,
+          ext,
+          repoPath,
+          relPath,
+          options,
+          migrations,
+          logger
+        });
 
-      // iOS specific: Ensure the key is in Info.plist
-      if (ext === '.swift' || ext === '.m' || ext === '.mm' || ext === '.h') {
-        await syncIosInfoPlist(repoPath, envVarName, options);
-      }
-
-      let lineContent = contentLines[lineIdx];
-
-      // Safeguard: Skip DOCTYPE/DTD declarations in XML/Plist
-      if ((ext === '.plist' || ext === '.xml') && 
-          (lineContent.includes('DOCTYPE') || lineContent.includes('DTD'))) {
-        continue;
-      }
-
-      let replacedText = match;
-      let injectedText = accessor;
-
-      const isObjcFile = ext === '.m' || ext === '.h' || ext === '.mm';
-      const objcConstRegex = /(?:NSString\s*\*\s*const|const\s+NSString\s*\*)\s+([a-zA-Z0-9_]+)\s*=\s*@?["'][^"']+["']\s*;/i;
-      const objcConstMatch = isObjcFile ? lineContent.match(objcConstRegex) : null;
-
-      if (objcConstMatch && !s.isComment) {
-        const varName = objcConstMatch[1];
-        const hFileName = relPath.replace(/\.m(m|)$/, '.h');
-        const hAbsPath = path.join(repoPath, hFileName);
-        
-        let headerExternFound = false;
-
-        // Strategy A: Synchronize with Header (Public Constant)
-        if (fs.existsSync(hAbsPath)) {
-          let hContent = fs.readFileSync(hAbsPath, 'utf8');
-          const externRegex = new RegExp(`extern\\s+NSString\\s*\\*\\s*const\\s+${varName}\\s*;`, 'i');
-          const externMatch = hContent.match(externRegex);
-          
-          if (externMatch) {
-            headerExternFound = true;
-            const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
-            const headerReplacedText = externMatch[0];
-            
-            if (!options.dryRun) {
-              hContent = hContent.replace(externRegex, macro);
-              fs.writeFileSync(hAbsPath, hContent);
-              logger.success(`Updated header (Public): ${hFileName}`);
-            }
-
-            // Record migration for the header file for rollback support
-            migrations.push({
-              file: hFileName,
-              envVarName: envVarName,
-              accessor: macro,
-              injectedText: macro,
-              replacedText: headerReplacedText
-            });
-          }
+        if (advResult.handled) {
+          contentLines[lineIdx] = advResult.lineContent;
+          injectedText = advResult.injectedText;
+          replacedText = advResult.replacedText;
+          fileModified = true;
+          handledByPlatform = true;
         }
+      }
 
-        if (headerExternFound) {
-          // Public: Comment out the .m definition (already handled by macro in .h)
-          const placeholder = `// Protected by Blinder: ${varName} moved to macro in header`;
-          replacedText = contentLines[lineIdx]; 
-          injectedText = placeholder;
-          lineContent = placeholder;
+      // Stage 2: Basic Fix
+      if (!handledByPlatform) {
+        if (matchingPlatform?.getAutoFixReplacement) {
+          accessor = matchingPlatform.getAutoFixReplacement(match, envVarName, ext, options);
         } else {
-          // Strategy B: Inline replacement (Private/Internal Constant)
-          const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
-          replacedText = contentLines[lineIdx];
-          injectedText = macro;
-          lineContent = macro;
-          if (!options.dryRun) {
-            // logger.success(`Updated implementation (Private): ${relPath}`);
-          }
+          accessor = `process.env.${envVarName}`;
         }
-      } else if (s.patternName === 'Objective-C Macro String' && match.includes('#define') && !s.isComment) {
-        const macroParts = lineContent.trim().split(/\s+/);
-        const varName = macroParts[1] || 'SECRET';
-        const macro = `#define ${varName} ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"])`;
-        replacedText = lineContent.trim();
-        injectedText = macro;
-        lineContent = macro;
-      } else if (!options.dryRun && lineContent) {
+
+        let lineContent = contentLines[lineIdx];
         const exactObjc = `@"${match}"`;
         const exactDouble = `"${match}"`;
         const exactSingle = `'${match}'`;
@@ -405,44 +309,48 @@ async function applyAutoFixes(repoPath, secrets, options = {}) {
         } else {
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));
-          
           const regexMatch = lineContent.match(regex);
+          
           if (regexMatch) {
              const matchIndex = regexMatch.index;
-             if (isInsideQuotes(lineContent, matchIndex)) {
-               replacedText = match;
-               injectedText = inlineAccessor;
-               lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
-             } else {
-               replacedText = match;
-               injectedText = accessor;
-               lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
-             }
-          } else {
-             logger.warn(`Could not safely replace "${match}" on line ${lineIdx + 1} in ${relPath}. (No word boundary or valid structural match found). Skipping.`);
+             replacedText = match;
+             injectedText = accessor;
+             lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
           }
+        }
+
+        if (injectedText) {
+          contentLines[lineIdx] = lineContent;
+          fileModified = true;
         }
       }
 
-      migrations.push({
-        file: relPath,
-        envVarName: envVarName,
-        accessor: accessor,
-        injectedText: injectedText,
-        replacedText: replacedText
-      });
+      if (injectedText) {
+        migrations.push({
+          file: relPath,
+          envVarName,
+          accessor: accessor || injectedText,
+          injectedText,
+          replacedText: replacedText || match,
+          line: s.line
+        });
+      }
 
-      if (!options.dryRun) {
-        contentLines[lineIdx] = lineContent;
-      } else {
-        logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${accessor}`);
+      if (options.dryRun && injectedText) {
+        logger.info(`[Dry-Run] ${relPath}:${s.line} -- Replace ${logger.maskSecret(match)} with ${injectedText}`);
       }
     }
 
-    if (!options.dryRun) {
+    if (fileModified && !options.dryRun) {
       fs.writeFileSync(absPath, contentLines.join('\n'));
       logger.success(`Updated ${relPath}`);
     }
+
+    // Lifecycle Hook: postFix
+    if (matchingPlatform?.postFix) {
+      await matchingPlatform.postFix({ repoPath, relPath, absPath, fileSecrets, options, ext, envVarName: fileSecrets[0].envVarName });
+    }
   }
+
   return migrations;
 }

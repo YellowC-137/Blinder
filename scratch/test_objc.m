@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-NSString *const MY_API_KEY = @"sk_live_123456789012345678901234";
+NSString *const MY_API_KEY = process.env.MY_API_KEY;
 
 int main() {
     return 0;

@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 const { glob } = fg;
-import { patterns, platformExtensions, sensitiveFiles } from './patterns.js';
+import { patterns } from './patterns.js';
+import logger from '../utils/logger.js';
 
 /**
  * Heuristic to detect if a match is likely a false positive.
@@ -27,20 +28,10 @@ function isTestKey(line, filePath, matchValue) {
 }
 
 /**
- * Heuristic to detect if a line is a comment.
+ * Heuristic to detect if a line is a comment using platform specific regex.
  */
-function isCommentLine(line, ext) {
-  const trimmed = line.trim();
-  if (ext === '.swift' || ext === '.kt' || ext === '.java' || ext === '.dart' || ext === '.m' || ext === '.h' || ext === '.mm' || ext === '.c' || ext === '.cpp') {
-    return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
-  }
-  if (ext === '.yaml' || ext === '.gradle' || ext === '.properties' || ext === '.py' || ext === '.sh') {
-    return trimmed.startsWith('#');
-  }
-  if (ext === '.xml' || ext === '.plist') {
-    return trimmed.startsWith('<!--');
-  }
-  return false;
+function isCommentLine(line, platforms) {
+  return platforms.some(p => p.commentRegex && p.commentRegex.test(line));
 }
 
 /**
@@ -48,12 +39,9 @@ function isCommentLine(line, ext) {
  */
 async function scanSensitiveFiles(repoPath, platforms) {
   const warnings = [];
+  const sensitiveFiles = platforms.flatMap(p => p.sensitiveFiles || []);
 
   for (const sf of sensitiveFiles) {
-    if (platforms.length > 0 && !platforms.includes(sf.platform) && !platforms.includes('flutter')) {
-      continue;
-    }
-
     const found = await glob(sf.glob, {
       cwd: repoPath,
       ignore: ['**/node_modules/**', '**/Pods/**', '**/.git/**'],
@@ -84,7 +72,6 @@ async function scanSensitiveFiles(repoPath, platforms) {
  */
 function isLowConfidenceMatch(matchValue, patternName, varName = '') {
   // 1. Blacklisted Keywords: Variable names that are unlikely to hold secrets
-  // Apply to ALL patterns if a variable name is detected in the context.
   if (varName) {
     const blacklist = /(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE|TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT|STR_KEY|PARAM_|FIELD_|ATTR_|PROP_|VAL_)/i;
     if (blacklist.test(varName)) {
@@ -94,11 +81,9 @@ function isLowConfidenceMatch(matchValue, patternName, varName = '') {
 
   // 2. Patterns that are naturally noisy (Generic/Config) require further checks
   if (patternName.includes('Config String') || patternName.includes('Macro String') || patternName.includes('Generic')) {
-    // Length check: Too short to be a real secret?
     if (matchValue.length < 8) {
       return true;
     }
-    // Purely Numeric check: Likely a status code, port, or ID
     if (/^\d+$/.test(matchValue)) {
       return true;
     }
@@ -113,13 +98,14 @@ export async function scanProject(repoPath, platforms, options = {}) {
   const usedEnvNames = new Map();
 
   platforms.forEach(p => {
-    (platformExtensions[p] || []).forEach(ext => extensions.add(ext));
+    (p.commonExtensions || []).forEach(ext => extensions.add(ext));
   });
 
   if (extensions.size === 0) {
     ['.swift', '.kt', '.dart', '.xml', '.plist', '.json', '.env', '.properties', '.gradle'].forEach(ext => extensions.add(ext));
   }
 
+  const platformIgnores = platforms.flatMap(p => p.ignorePaths || []);
   const ignorePatterns = [
     '**/node_modules/**',
     '**/Pods/**',
@@ -130,31 +116,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
     '**/dist/**',
     '**/.git/**',
     '**/.env',
-    '**/.gradle/**',
-    '**/.dart_tool/**',
-    '**/linux/**',
-    '**/windows/**',
-    '**/web/**',
-    '**/.build/**',
-    '**/.swiftpm/**',
-    '**/*.xcframework/**',
-    '**/*.framework/**',
-    '**/DerivedData/**',
-    '**/Package.swift',
-    '**/Project.swift',
-    '**/Dependencies.swift',
-    '**/Workspace.swift',
-    '**/Podfile',
-    '**/Cartfile',
-    '**/*.pbxproj',
-    '**/*Tests/**',
-    '**/*Test/**',
-    '**/*.xctest/**',
-    '**/test/**',
-    '**/android/androidTest/**',
-    '**/GoogleService-Info.plist',
-    '**/google-services.json',
-    ...sensitiveFiles.map(sf => sf.glob),
+    ...platformIgnores,
     ... (options.ignore || [])
   ];
 
@@ -192,7 +154,6 @@ export async function scanProject(repoPath, platforms, options = {}) {
       const firstTenLines = lines.slice(0, 10).join('\n').toLowerCase();
       const sdkKeywords = ['copyright', 'third-party', 'licensed to', 'all rights reserved', 'sdk', 'original author'];
       if (sdkKeywords.some(kw => firstTenLines.includes(kw))) {
-        // Skip this file to prevent corruption of external libraries
         continue;
       }
 
@@ -233,7 +194,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
 
           const startLine = getLineNumber(content, match.index);
           const currentLineText = lines[startLine - 1] || '';
-          const isComment = isCommentLine(currentLineText, ext);
+          const isComment = isCommentLine(currentLineText, platforms);
 
           let severity = pattern.severity;
           const isTest = isTestKey(currentLineText, filePath, matchValue);

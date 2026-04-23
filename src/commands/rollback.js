@@ -25,12 +25,14 @@ function parseEnv(content) {
  * Rollback all protection changes made by blinder blind.
  * - If .blinder_protect.json exists: restore accessors → hardcoded secrets in source
  * - Clean up .env, .env.example, .blinder_protect.json, blinder_reports/
+ * - Call teardownBridge for platforms
  */
 export async function rollbackSecrets(repoPath, options = {}) {
   const metadataPath = path.join(repoPath, '.blinder_protect.json');
   const envPath = path.join(repoPath, '.env');
   const envExamplePath = path.join(repoPath, '.env.example');
   const reportsDir = path.join(repoPath, 'blinder_reports');
+  const platforms = options.platforms || [];
 
   logger.header('Blinder - Rollback');
 
@@ -49,6 +51,7 @@ export async function rollbackSecrets(repoPath, options = {}) {
     let restoreCount = 0;
     let skipCount = 0;
 
+    // Sort by injectedText length to avoid partial replacements
     migrations.sort((a, b) => {
       const targetA = a.injectedText || a.accessor;
       const targetB = b.injectedText || b.accessor;
@@ -75,7 +78,6 @@ export async function rollbackSecrets(repoPath, options = {}) {
       let content = fs.readFileSync(absPath, 'utf8');
       const targetToRemove = mig.injectedText || accessor;
       if (content.includes(targetToRemove)) {
-        // Use replacedText if recorded, otherwise fallback to old double-quote behavior
         const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
         content = content.split(targetToRemove).join(restoredValue);
 
@@ -100,64 +102,79 @@ export async function rollbackSecrets(repoPath, options = {}) {
     logger.info('No protection metadata found. Skipping source code restoration.');
   }
 
-  // ── Phase 2: Clean up generated files ──
+  // ── Phase 2: Teardown Bridge ──
+  for (const platform of platforms) {
+    if (platform.teardownBridge) {
+      if (!options.dryRun) {
+        try {
+          await platform.teardownBridge(repoPath);
+          logger.success(`Removed bridge for ${platform.name}`);
+        } catch (err) {
+          logger.error(`Failed to teardown bridge for ${platform.name}: ${err.message}`);
+        }
+      } else {
+        logger.info(`[Dry-Run] Would teardown bridge for ${platform.name}`);
+      }
+    }
+  }
+
+  // ── Phase 3: Clean up generated files ──
   const filesToClean = [];
   if (fs.existsSync(metadataPath)) filesToClean.push({ path: metadataPath, label: '.blinder_protect.json' });
   if (fs.existsSync(envPath)) filesToClean.push({ path: envPath, label: '.env' });
   if (fs.existsSync(envExamplePath)) filesToClean.push({ path: envExamplePath, label: '.env.example' });
   if (fs.existsSync(reportsDir)) filesToClean.push({ path: reportsDir, label: 'blinder_reports/', isDir: true });
 
-  if (filesToClean.length === 0) {
+  if (filesToClean.length === 0 && !codeRestored) {
     logger.info('Nothing to clean up. Project is already in original state.');
     return;
   }
 
-  logger.info(`\n📋 Files to clean up:`);
-  filesToClean.forEach(f => logger.info(`  • ${f.label}`));
+  if (filesToClean.length > 0) {
+    logger.info(`\n📋 Files to clean up:`);
+    filesToClean.forEach(f => logger.info(`  • ${f.label}`));
 
-  let confirmCleanup = options.yes;
-  if (!confirmCleanup) {
-    const response = await inquirer.prompt([{
-      type: 'confirm',
-      name: 'confirmCleanup',
-      message: 'Delete these files to fully rollback?',
-      default: true
-    }]);
-    confirmCleanup = response.confirmCleanup;
-  }
+    let confirmCleanup = options.yes;
+    if (!confirmCleanup) {
+      const response = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'confirmCleanup',
+        message: 'Delete these files to fully rollback?',
+        default: true
+      }]);
+      confirmCleanup = response.confirmCleanup;
+    }
 
-  if (!confirmCleanup) {
-    logger.info('Cleanup cancelled.');
-    return;
-  }
+    if (confirmCleanup) {
+      if (!options.dryRun) {
+        for (const f of filesToClean) {
+          if (f.isDir) {
+            fs.rmSync(f.path, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(f.path);
+          }
+          logger.success(`Deleted: ${f.label}`);
+        }
 
-  if (!options.dryRun) {
-    for (const f of filesToClean) {
-      if (f.isDir) {
-        fs.rmSync(f.path, { recursive: true, force: true });
+        // Restore .gitignore
+        const gitignorePath = path.join(repoPath, '.gitignore');
+        if (fs.existsSync(gitignorePath)) {
+          let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+          const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
+          const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
+
+          if (blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent)) {
+            gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
+            gitignoreContent = gitignoreContent.trim() + '\n';
+            
+            fs.writeFileSync(gitignorePath, gitignoreContent);
+            logger.success('Restored: .gitignore (Removed Blinder sections)');
+          }
+        }
       } else {
-        fs.unlinkSync(f.path);
-      }
-      logger.success(`Deleted: ${f.label}`);
-    }
-
-    // Restore .gitignore
-    const gitignorePath = path.join(repoPath, '.gitignore');
-    if (fs.existsSync(gitignorePath)) {
-      let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
-      const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
-      const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
-
-      if (blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent)) {
-        gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
-        gitignoreContent = gitignoreContent.trim() + '\n';
-        
-        fs.writeFileSync(gitignorePath, gitignoreContent);
-        logger.success('Restored: .gitignore (Removed Blinder sections)');
+        logger.info('[Dry-Run] No files were actually deleted.');
       }
     }
-  } else {
-    logger.info('[Dry-Run] No files were actually deleted.');
   }
 
   logger.header('Rollback Complete');

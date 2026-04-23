@@ -137,7 +137,8 @@ program
     const spinner = ora('Detecting project type...').start();
     const project = await detectProjectType(repoPath);
     spinner.succeed(`Project root: ${repoPath}`);
-    spinner.succeed(`Detected platforms: ${project.platforms.join(', ') || 'None (Generic Scan)'}`);
+    const platformNames = project.platforms.map(p => p.name).join(', ');
+    spinner.succeed(`Detected platforms: ${platformNames || 'None (Generic Scan)'}`);
 
     const scanSpinner = ora('Scanning for secrets...').start();
     const results = await scanProject(repoPath, project.platforms, {
@@ -164,7 +165,8 @@ program
     }
 
     const project = await detectProjectType(repoPath);
-    logger.info(`Target Platforms: ${project.platforms.join(', ')}`);
+    const platformNames = project.platforms.map(p => p.name).join(', ');
+    logger.info(`Target Platforms: ${platformNames}`);
     
     if (!globalOptions.dryRun) {
       await generateGitignore(repoPath, project.platforms);
@@ -229,7 +231,6 @@ program
         logger.info(`Applying additional filters: ${ignoreList.join(', ')}...`);
         
         const scanSpinner = ora('Re-scanning with new filters...').start();
-        const { scanProject } = await import('../src/detectors/scanner.js');
         currentResults = await scanProject(repoPath, project.platforms, {
           customPatterns: config.customPatterns,
           ignore: [...(config.ignorePaths || []), ...ignoreList]
@@ -263,7 +264,8 @@ program
       if (choice === 'auto' || choice === 'manual') {
         await protectSecrets(repoPath, currentResults, { 
           dryRun: globalOptions.dryRun,
-          mode: choice
+          mode: choice,
+          platforms: project.platforms
         });
       } else {
         logger.info('Operation skipped by user.');
@@ -288,7 +290,7 @@ program
       }
 
       if (runBridge) {
-        await bridgeProject(repoPath, { dryRun: globalOptions.dryRun });
+        await bridgeProject(repoPath, { dryRun: globalOptions.dryRun, platforms: project.platforms });
       }
     }
   }));
@@ -299,7 +301,8 @@ program
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    await bridgeProject(repoPath, { dryRun: globalOptions.dryRun });
+    const project = await detectProjectType(repoPath);
+    await bridgeProject(repoPath, { dryRun: globalOptions.dryRun, platforms: project.platforms });
   }));
 
 program
@@ -308,10 +311,11 @@ program
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    const { rollbackSecrets } = await import('../src/commands/rollback.js');
+    const project = await detectProjectType(repoPath);
     await rollbackSecrets(repoPath, { 
       dryRun: globalOptions.dryRun,
-      yes: globalOptions.yes 
+      yes: globalOptions.yes,
+      platforms: project.platforms
     });
   }));
 

@@ -203,32 +203,3 @@ export const patterns = [
     severity: 'HIGH'
   },
 ];
-
-export const platformExtensions = {
-  flutter: ['.dart', '.yaml', '.xml', '.plist'],
-  ios: ['.swift', '.m', '.h', '.mm', '.plist', '.xcconfig'],
-  android: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json']
-};
-
-/**
- * Sensitive files that should NEVER be committed to Git.
- * (보안지침 §2: 플랫폼별 상세 체크리스트)
- */
-export const sensitiveFiles = [
-  // iOS
-  { glob: '**/GoogleService-Info.plist', severity: 'CRITICAL', platform: 'ios', reason: 'Firebase 설정 및 API 키가 포함된 파일' },
-  { glob: '**/*.xcconfig', severity: 'HIGH', platform: 'ios', reason: '서버 주소 및 키 정보가 담긴 환경 설정 파일' },
-  { glob: '**/*.mobileprovision', severity: 'HIGH', platform: 'ios', reason: 'iOS 프로비저닝 프로필 (앱 배포 및 권한 정보)' },
-  { glob: '**/*.provisionprofile', severity: 'HIGH', platform: 'ios', reason: 'iOS 프로비저닝 프로필 (앱 배포 및 권한 정보)' },
-  { glob: '**/*.entitlements', severity: 'MEDIUM', platform: 'ios', reason: 'iOS 앱 권한 및 Keychain Access Group 정보' },
-  { glob: '**/*.p12', severity: 'CRITICAL', platform: 'ios', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
-  { glob: '**/*.pfx', severity: 'CRITICAL', platform: 'ios', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
-  // Android
-  { glob: '**/google-services.json', severity: 'CRITICAL', platform: 'android', reason: 'Google 서비스 인증 정보가 포함된 파일' },
-  { glob: '**/local.properties', severity: 'HIGH', platform: 'android', reason: 'SDK 경로 및 API Key가 저장될 수 있는 파일' },
-  { glob: '**/gradle.properties', severity: 'HIGH', platform: 'android', reason: 'API Key, KeyStore 비밀번호가 저장될 수 있는 파일' },
-  { glob: '**/*.jks', severity: 'CRITICAL', platform: 'android', reason: '앱 서명 키 파일 (유출 시 치명적)' },
-  { glob: '**/*.keystore', severity: 'CRITICAL', platform: 'android', reason: '앱 서명 키 파일 (유출 시 치명적)' },
-  // Flutter
-  { glob: '**/generated_plugin_registrant.dart', severity: 'MEDIUM', platform: 'flutter', reason: '내부 경로가 노출될 수 있는 자동 생성 파일' },
-];

@@ -1,35 +1,29 @@
 import logger from '../utils/logger.js';
-import { detectProjectType } from '../utils/detector.js';
-import { setupAndroidBridge } from '../utils/androidBridge.js';
-import { setupIosBridge } from '../utils/iosBridge.js';
-import { setupFlutterBridge } from '../utils/flutterBridge.js';
 
 /**
- * Automates native build system integration to read .env files.
+ * Automates native build system integration to read .env files using platform plugins.
  */
 export async function bridgeProject(repoPath, options = {}) {
   logger.header('Blinder - Bridge Configuration');
   
-  const project = await detectProjectType(repoPath);
-  const platforms = project.platforms;
+  const platforms = options.platforms || [];
 
   if (platforms.length === 0) {
-    logger.warn('No mobile platforms detected. Generic bridge is not available.');
+    logger.warn('No platforms detected for bridging.');
     return;
   }
 
-  logger.info(`Tethering .env to: ${platforms.join(', ')}`);
+  const platformNames = platforms.map(p => p.name).join(', ');
+  logger.info(`Tethering .env to: ${platformNames}`);
 
-  if (platforms.includes('android')) {
-    await setupAndroidBridge(repoPath);
-  }
-
-  if (platforms.includes('ios')) {
-    await setupIosBridge(repoPath);
-  }
-
-  if (platforms.includes('flutter')) {
-    await setupFlutterBridge(repoPath);
+  for (const platform of platforms) {
+    if (platform.setupBridge) {
+      try {
+        await platform.setupBridge(repoPath);
+      } catch (err) {
+        logger.error(`Failed to setup bridge for ${platform.name}: ${err.message}`);
+      }
+    }
   }
 
   logger.divider();

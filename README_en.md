@@ -137,22 +137,200 @@ When applying `blinder protect` (Auto-fix), there are specific considerations fo
 
 ---
 
-## Scan Report Example (Terminal Output)
+## 🔌 Adding a New Platform Plugin
+
+Starting from Blinder v2.0, the **IPlatform Plugin Architecture** allows you to add support for new languages and frameworks without modifying the core engine. Follow this guide to create a new platform plugin.
+
+### Architecture Overview
 
 ```text
-✔ Project root: /Users/dev/my-mobile-app
-✔ Detected platforms: flutter, ios, android
-- Scanning for secrets...
-✔ Scan complete. Found 3 potential secrets.
+src/platforms/
+├── index.js          ← Plugin Registry (register here)
+├── common.js         ← Common Plugin (always active)
+└── mobile/
+    ├── ios.js        ← iOS Plugin
+    ├── android.js    ← Android Plugin
+    └── flutter.js    ← Flutter Plugin
+```
 
-Scan Results
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠ [HIGH] lib/main.dart:10 - Google API Key
-ℹ    Match: AIza...3456
-⚠ [HIGH] ios/Runner/AppDelegate.swift:5 - GitLab Personal Access Token
-ℹ    Match: glpa...ghij
-⚠ [TEST KEY] test/mocks.dart:2 - Generic API Key
-ℹ    Match: test...1234
+All commands (`scan`, `blind`, `bridge`, `rollback`, `gitignore`) automatically invoke methods from registered plugins. There are no hardcoded `if-else` branches — simply adding a plugin integrates it into the entire pipeline.
+
+### Step 1: Create the Plugin File
+
+Create a new file under `src/platforms/`. Choose an appropriate subfolder based on the category.
+
+```javascript
+// src/platforms/backend/springboot.js
+import fs from 'fs';
+import path from 'path';
+
+export default {
+  // ─── Required Properties ───
+  id: 'springboot',              // Unique identifier (lowercase, alphanumeric)
+  name: 'Spring Boot',           // Human-readable display name
+  category: 'backend',           // Category: 'mobile', 'backend', 'web', 'core'
+
+  // ─── Required Method: detect ───
+  // Receives the project root path and determines if this platform applies.
+  // Returning true activates all hooks for this platform.
+  detect: async (repoPath) => {
+    return fs.existsSync(path.join(repoPath, 'pom.xml')) ||
+           fs.existsSync(path.join(repoPath, 'build.gradle'));
+  },
+
+  // ─── Required Property: commonExtensions ───
+  // File extensions to scan for this platform
+  commonExtensions: ['.java', '.properties', '.yml', '.yaml', '.xml'],
+
+  // ─── Optional Property: sensitiveFiles ───
+  // Files that should never be committed (scanner will show warnings)
+  sensitiveFiles: [
+    { glob: '**/application-secret.yml', severity: 'CRITICAL', reason: 'May contain production DB/API keys' },
+    { glob: '**/application-prod.properties', severity: 'HIGH', reason: 'Production environment config' }
+  ],
+
+  // ─── Optional Property: commentRegex ───
+  // Regex to identify comment lines (scanner ignores secrets in comments)
+  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
+
+  // ─── Optional Property: ignorePaths ───
+  // Glob patterns for paths to skip during scanning
+  ignorePaths: [
+    '**/target/**',
+    '**/.mvn/**',
+    '**/build/**'
+  ],
+
+  // ─── Optional Method: getGitignoreTemplate ───
+  // Content to add to .gitignore when `blinder gitignore` is executed
+  getGitignoreTemplate: () => `
+# Spring Boot
+target/
+*.jar
+*.war
+application-secret.yml
+application-prod.properties
+`,
+
+  // ─── Key Method: getAutoFixReplacement ───
+  // Defines how detected secrets are replaced with environment variable accessors.
+  // Return the appropriate accessor syntax based on the file extension (ext).
+  getAutoFixReplacement: (match, envVarName, ext, options) => {
+    if (ext === '.java') {
+      return `System.getenv("${envVarName}")`;
+    }
+    if (ext === '.properties') {
+      return `\${${envVarName}}`;
+    }
+    if (ext === '.yml' || ext === '.yaml') {
+      return `\${${envVarName}}`;
+    }
+    return `process.env.${envVarName}`;
+  },
+
+  // ─── Advanced Method (Optional): applyAdvancedFix ───
+  // Handles complex patterns that cannot be resolved by simple string replacement.
+  // (e.g., Obj-C global constant → macro conversion)
+  // Return: { handled: boolean, lineContent?, injectedText?, replacedText? }
+  // applyAdvancedFix: (context) => { ... },
+
+  // ─── Advanced Methods (Optional): preFix / postFix ───
+  // Hooks that run before/after file modification
+  // preFix:  e.g., backup file
+  // postFix: e.g., sync config files (like iOS Info.plist updates)
+  // preFix: async (context) => { ... },
+  // postFix: async (context) => { ... },
+
+  // ─── Optional Methods: setupBridge / teardownBridge ───
+  // Inject/remove .env integration settings into the build system
+  // when `blinder bridge` or `blinder rollback` is executed.
+  // setupBridge: async (repoPath) => { ... },
+  // teardownBridge: async (repoPath) => { ... },
+
+  // ─── Recommended Property: testCases ───
+  // Test cases for plugin validation
+  testCases: [
+    {
+      input: 'String apiKey = "secret-123";',
+      expected: 'String apiKey = System.getenv("API_KEY");',
+      ext: '.java',
+      envVarName: 'API_KEY'
+    }
+  ]
+};
+```
+
+### Step 2: Register in the Plugin Registry
+
+Add your new plugin to `src/platforms/index.js`.
+
+```javascript
+import common from './common.js';
+import ios from './mobile/ios.js';
+import android from './mobile/android.js';
+import flutter from './mobile/flutter.js';
+import springboot from './backend/springboot.js';   // ← Add
+
+export const platforms = [
+  common,
+  ios,
+  android,
+  flutter,
+  springboot   // ← Add
+];
+
+export default platforms;
+```
+
+> [!IMPORTANT]
+> The `common` plugin must always be **first** in the array. It defines the default behavior for files not handled by any other platform plugin.
+
+### Step 3: Verify
+
+```bash
+# 1. Check platform detection
+blinder scan --path /your/spring-boot-project --dry-run
+# → Verify "Detected platforms: Common Environment, Spring Boot" in output
+
+# 2. Check auto-fix replacements
+blinder blind --path /your/spring-boot-project --dry-run -y
+# → Verify secrets are replaced with the correct accessors
+```
+
+### Complete IPlatform Interface Specification
+
+| Property / Method | Type | Required | Description |
+|:---|:---|:---:|:---|
+| `id` | `string` | ✅ | Unique identifier (lowercase, alphanumeric) |
+| `name` | `string` | ✅ | Human-readable display name |
+| `category` | `string` | ✅ | Category (`core`, `mobile`, `backend`, `web`) |
+| `detect(repoPath)` | `async → bool` | ✅ | Determines if this platform applies |
+| `commonExtensions` | `string[]` | ✅ | File extensions to scan |
+| `sensitiveFiles` | `object[]` | | Sensitive file definitions (`glob`, `severity`, `reason`) |
+| `commentRegex` | `RegExp` | | Regex to identify comment lines |
+| `ignorePaths` | `string[]` | | Glob patterns to exclude from scan |
+| `getGitignoreTemplate()` | `→ string` | | Content for .gitignore section |
+| `getAutoFixReplacement(match, envVarName, ext, options)` | `→ string` | | Environment variable accessor code |
+| `applyAdvancedFix(context)` | `→ object` | | Complex source code transformation (Stage 1) |
+| `preFix(context)` | `async` | | Pre-modification hook |
+| `postFix(context)` | `async` | | Post-modification hook |
+| `setupBridge(repoPath)` | `async` | | Build system .env integration |
+| `teardownBridge(repoPath)` | `async` | | Build system .env teardown |
+| `testCases` | `object[]` | | Validation test cases |
+
+### Lifecycle Execution Order
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ protect.js: applyAutoFixes()                        │
+│                                                     │
+│  for each file:                                     │
+│    1. preFix()          ← Prepare before modifying  │
+│    2. for each secret:                              │
+│       a. applyAdvancedFix()  ← Stage 1 (Advanced)  │
+│       b. getAutoFixReplacement() ← Stage 2 (Basic) │
+│    3. postFix()         ← Cleanup after modifying   │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
