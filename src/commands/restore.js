@@ -25,6 +25,104 @@ function getAllFilesRecursive(dirPath, arrayOfFiles = []) {
 }
 
 /**
+ * Extracts imports and detects missing ones that are still needed.
+ */
+function repairMissingImports(fileName, originalContent, newContent) {
+  const ext = path.extname(fileName);
+  const info = getLanguageSpecificImportInfo(ext);
+  if (!info) return { content: newContent, fixed: 0, details: [] };
+
+  const originalLines = originalContent.split('\n');
+  const newLines = newContent.split('\n');
+  const newContentString = newContent;
+
+  const originalImports = originalLines
+    .filter(line => info.importRegex.test(line))
+    .map(line => {
+      const match = line.match(info.importRegex);
+      return { full: line.trim(), identifier: match[1] || match[0] };
+    });
+
+  const currentImports = new Set(newLines.filter(line => info.importRegex.test(line)).map(line => line.trim()));
+  const missing = originalImports.filter(imp => !currentImports.has(imp.full));
+  
+  const toRestore = [];
+  for (const imp of missing) {
+    // Basic check: is the identifier (e.g. ClassName) still present in the code body?
+    // We use a word boundary regex to avoid partial matches
+    const id = imp.identifier.split('.').pop(); // Get last part for Java/Kotlin (e.g. Repository)
+    const usageRegex = new RegExp(`\\b${id}\\b`);
+    
+    if (usageRegex.test(newContentString)) {
+      toRestore.push(imp.full);
+    }
+  }
+
+  if (toRestore.length === 0) return { content: newContent, fixed: 0, details: [] };
+
+  // Find a good place to insert (after existing imports or at the top)
+  let insertIndex = -1;
+  for (let i = newLines.length - 1; i >= 0; i--) {
+    if (info.importRegex.test(newLines[i])) {
+      insertIndex = i + 1;
+      break;
+    }
+  }
+
+  // If no imports found, find package declaration or just start at top (after comments)
+  if (insertIndex === -1) {
+    const packageRegex = /^(?:package|module)\s+/;
+    for (let i = 0; i < newLines.length; i++) {
+      if (packageRegex.test(newLines[i])) {
+        insertIndex = i + 1;
+        break;
+      }
+    }
+  }
+  
+  if (insertIndex === -1) insertIndex = 0;
+
+  const resultLines = [...newLines];
+  resultLines.splice(insertIndex, 0, ...toRestore);
+
+  return {
+    content: resultLines.join('\n'),
+    fixed: toRestore.length,
+    details: toRestore
+  };
+}
+
+function getLanguageSpecificImportInfo(ext) {
+  switch (ext) {
+    case '.kt':
+    case '.java':
+      return {
+        // Matches "import com.foo.Bar" and captures "com.foo.Bar"
+        importRegex: /^import\s+([\w\.]+);?/
+      };
+    case '.swift':
+      return {
+        // Matches "import UIKit" and captures "UIKit"
+        importRegex: /^import\s+([\w\s]+)/
+      };
+    case '.dart':
+      return {
+        // Matches "import 'package:...'" and captures the string content
+        importRegex: /^import\s+['"]([^'"]+)['"]/
+      };
+    case '.m':
+    case '.h':
+    case '.mm':
+      return {
+        // Matches "#import <Header.h>" or "#import "Header.h""
+        importRegex: /^#import\s+["<]([^">]+)[">]/
+      };
+    default:
+      return null;
+  }
+}
+
+/**
  * Detects if a file was modified by AI by re-masking original content 
  * and comparing with current masked version.
  */
@@ -117,13 +215,62 @@ function detectChanges(maskDir, repoPath, mapData, options = {}) {
 /**
  * Restores AI-modified files back to the original project from the masked directory.
  */
+/**
+ * Auto-detects the masked directory by searching for .blinder_map.json
+ * in likely locations within the repo.
+ */
+function findMaskedDirectory(repoPath) {
+  // 1. Check the maskedProject_<name> convention (mask.js default)
+  const projectName = path.basename(repoPath);
+  const conventionDir = path.join(repoPath, `maskedProject_${projectName}`);
+  if (fs.existsSync(path.join(conventionDir, '.blinder_map.json'))) {
+    return conventionDir;
+  }
+
+  // 2. Check legacy default
+  const legacyDir = path.join(repoPath, '.blinder_masked');
+  if (fs.existsSync(path.join(legacyDir, '.blinder_map.json'))) {
+    return legacyDir;
+  }
+
+  // 3. Scan top-level directories for any containing .blinder_map.json
+  try {
+    const entries = fs.readdirSync(repoPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const candidate = path.join(repoPath, entry.name, '.blinder_map.json');
+        if (fs.existsSync(candidate)) {
+          return path.join(repoPath, entry.name);
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  return null;
+}
+
 export async function restoreFromMasked(repoPath, options = {}) {
-  const maskDir = path.join(repoPath, options.maskOutput || '.blinder_masked');
+  let maskDir;
+
+  if (options.maskOutput && options.maskOutput !== '.blinder_masked') {
+    // User explicitly specified an output directory
+    maskDir = path.join(repoPath, options.maskOutput);
+  } else {
+    // Auto-detect the masked directory
+    maskDir = findMaskedDirectory(repoPath);
+  }
+
+  if (!maskDir) {
+    logger.error('Mapping file (.blinder_map.json) not found in any directory.');
+    logger.info('Please run "blinder mask" first, or specify the directory with -o.');
+    return;
+  }
+
   const mapPath = path.join(maskDir, '.blinder_map.json');
 
   if (!fs.existsSync(mapPath)) {
-    logger.error('Mapping file (.blinder_map.json) not found in masked directory.');
-    logger.info('Please run "blinder mask" first.');
+    logger.error(`Mapping file (.blinder_map.json) not found in: ${maskDir}`);
+    logger.info('Please run "blinder mask" first, or specify the correct directory with -o.');
     return;
   }
 
@@ -189,6 +336,19 @@ export async function restoreFromMasked(repoPath, options = {}) {
     for (const [varName, info] of sortedMappings) {
       content = content.split(info.redactedTag).join(info.originalValue);
     }
+
+    // Import Integrity Check: auto-repair missing imports that AI accidentally removed
+    const originalPath = path.join(repoPath, f);
+    if (fs.existsSync(originalPath)) {
+      const originalContent = fs.readFileSync(originalPath, 'utf8');
+      const repaired = repairMissingImports(f, originalContent, content);
+      if (repaired.fixed > 0) {
+        content = repaired.content;
+        logger.warn(`  🔧 Auto-repaired ${repaired.fixed} missing import(s) in: ${f}`);
+        repaired.details.forEach(d => logger.info(`     + ${d}`));
+      }
+    }
+
     plannedModifications.push({ file: f, newContent: content });
   }
 

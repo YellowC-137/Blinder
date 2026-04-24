@@ -335,7 +335,7 @@ program
 program
   .command('restore')
   .description('Restore AI changes to original project')
-  .option('-o, --output <dir>', 'Masked output directory', '.blinder_masked')
+  .option('-o, --output <dir>', 'Masked output directory (auto-detected if not specified)')
   .option('--diff', 'Show diffs before applying changes', false)
   .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
