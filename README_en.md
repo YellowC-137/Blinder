@@ -10,12 +10,11 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 
 ## ✨ Key Features
 
-- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, Obj-C, Java, etc.). Easily extensible to new platforms via the plugin architecture.
-- **🔌 Plugin-Based Extension**: Support new languages and frameworks simply by implementing the IPlatform interface. Add a single file to `src/platforms/` without modifying the core engine, and it integrates into the entire pipeline.
-- **🔍 AI-Optimized Scanning**: Minimizes false positives by ignoring secrets within comments and automatically filtering out non-secret numeric data (error codes, ports, etc.) and test code (`*Tests*`, `test/`).
-- **🛡️ Rock-Solid Default Ignores**: Automatically blocks common framework dependency folders (`Pods`, `build`, `.gradle`, `.dart_tool`, etc.) to prevent accidental modification of third-party libraries on the first run.
+- **🔍 AST-Based Precision Engine (Phase-Gate)**: Goes beyond simple regex by using the `web-tree-sitter` AST analysis engine to verify string literals in the actual code structure. Significantly reduces false positives in comments or non-code areas. (Prioritized for iOS/Android/Flutter)
+- **⚡ Hybrid I/O Optimization**: Intelligently switches between `readFileSync` and `readline` based on file size, and utilizes `Stream.pipe()` during masking to minimize memory overhead in large-scale projects.
+- **🛡️ Auto-Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and automatically replaces them with platform-specific environment variable reference code (Dart, Kotlin, Swift, Obj-C, Java, etc.).
+- **🔌 Plugin-Based Extension**: Support new languages and frameworks by inheriting from the `BasePlatform` class. Standardized interfaces ensure secure and reliable extension.
 - **📜 Multi-line Secret Detection**: Flawlessly detects and processes multi-line sensitive data such as PEM Private Keys and certificates.
-- **⚙️ Enterprise-Grade Optimization**: Comprehensive detection for global services (Google, AWS, Stripe), regional SDKs (Kakao, Naver), IPv4 infrastructure addresses, and DB connection strings.
 - **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/` on every run, and provides `--ci` or `-y` (yes) modes to preemptively block security incidents in your pipeline.
 
 ---

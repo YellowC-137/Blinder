@@ -7,6 +7,7 @@ export default definePlatform({
   id: 'android',
   name: 'Android',
   category: 'mobile',
+  astLanguage: 'kotlin',
 
   detect: async (repoPath) => {
     const hasAndroidDir = fs.existsSync(path.join(repoPath, 'android'));

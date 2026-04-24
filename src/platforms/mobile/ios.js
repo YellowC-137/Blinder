@@ -9,6 +9,7 @@ export default definePlatform({
   id: 'ios',
   name: 'iOS',
   category: 'mobile',
+  astLanguage: 'swift',
 
   detect: async (repoPath) => {
     const hasIosDir = fs.existsSync(path.join(repoPath, 'ios'));

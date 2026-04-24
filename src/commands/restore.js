@@ -122,19 +122,27 @@ export async function restoreFromMasked(repoPath, options = {}) {
 
   // Apply modifications
   for (const mod of plannedModifications) {
-    if (!options.dryRun) fs.writeFileSync(path.join(repoPath, mod.file), mod.newContent);
-    logger.success(`✔ Restored: ${mod.file}`);
+    try {
+      if (!options.dryRun) fs.writeFileSync(path.join(repoPath, mod.file), mod.newContent);
+      logger.success(`✔ Restored: ${mod.file}`);
+    } catch (err) {
+      logger.error(`Failed to restore file ${mod.file}: ${err.message}`);
+    }
   }
 
   // Apply additions
   for (const f of changes.added) {
     const srcPath = path.join(maskDir, f);
     const destPath = path.join(repoPath, f);
-    if (!options.dryRun) {
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(srcPath, destPath);
+    try {
+      if (!options.dryRun) {
+        fs.mkdirSync(path.dirname(destPath), { recursive: true });
+        fs.copyFileSync(srcPath, destPath);
+      }
+      logger.success(`✔ Added: ${f}`);
+    } catch (err) {
+      logger.error(`Failed to add file ${f}: ${err.message}`);
     }
-    logger.success(`✔ Added: ${f}`);
   }
 
   // Handle deletions
@@ -154,8 +162,12 @@ export async function restoreFromMasked(repoPath, options = {}) {
     }
 
     if (shouldDelete && !options.dryRun) {
-      fs.unlinkSync(destPath);
-      logger.warn(`✔ Deleted: ${f}`);
+      try {
+        fs.unlinkSync(destPath);
+        logger.warn(`✔ Deleted: ${f}`);
+      } catch (err) {
+        logger.error(`Failed to delete file ${f}: ${err.message}`);
+      }
     }
   }
 

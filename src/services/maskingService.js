@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import logger from '../utils/logger.js';
 
 /**
  * performMasking
@@ -37,38 +38,53 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
       fs.mkdirSync(destFolder, { recursive: true });
     }
 
-    if (secretsByFile[relPath]) {
-      let content = fs.readFileSync(srcPath, 'utf8');
-      const secrets = secretsByFile[relPath];
-      secrets.sort((a, b) => b.match.length - a.match.length);
+    try {
+      if (secretsByFile[relPath]) {
+        let content = fs.readFileSync(srcPath, 'utf8');
+        const secrets = secretsByFile[relPath];
+        secrets.sort((a, b) => b.match.length - a.match.length);
 
-      for (const s of secrets) {
-        const mask = `__BLINDER_${s.envVarName}__`;
-        content = content.split(s.match).join(mask);
+        for (const s of secrets) {
+          const mask = `__BLINDER_${s.envVarName}__`;
+          content = content.split(s.match).join(mask);
 
-        if (!mappingData.mappings[s.envVarName]) {
-          mappingData.mappings[s.envVarName] = {
-            originalValue: s.match,
-            redactedTag: mask,
-            files: []
-          };
+          if (!mappingData.mappings[s.envVarName]) {
+            mappingData.mappings[s.envVarName] = {
+              originalValue: s.match,
+              redactedTag: mask,
+              files: []
+            };
+          }
+          if (!mappingData.mappings[s.envVarName].files.includes(relPath)) {
+            mappingData.mappings[s.envVarName].files.push(relPath);
+          }
         }
-        if (!mappingData.mappings[s.envVarName].files.includes(relPath)) {
-          mappingData.mappings[s.envVarName].files.push(relPath);
-        }
+        fs.writeFileSync(destPath, content);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
       }
-      fs.writeFileSync(destPath, content);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
 
-    const fileContent = fs.readFileSync(destPath);
-    mappingData.fileHashes[relPath] = crypto.createHash('sha256').update(fileContent).digest('hex');
-    mappingData.allFiles.push(relPath);
+      // Stream-based hashing to save memory
+      mappingData.fileHashes[relPath] = await calculateHash(destPath);
+      mappingData.allFiles.push(relPath);
+    } catch (err) {
+      logger.error(`Failed to process file ${relPath} for masking: ${err.message}`);
+      // Continue with other files even if one fails
+    }
   }
 
   const mapPath = path.join(maskDir, '.blinder_map.json');
   fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
 
   return mappingData;
+}
+
+function calculateHash(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    stream.on('data', chunk => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', err => reject(err));
+  });
 }

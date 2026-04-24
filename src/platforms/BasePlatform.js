@@ -9,6 +9,7 @@ export class BasePlatform {
     this.id = config.id;
     this.name = config.name;
     this.category = config.category || 'custom';
+    this.astLanguage = config.astLanguage; // AST 엔진 식별자 (예: 'swift', 'objc')
     this.commonExtensions = config.commonExtensions || [];
     this.sensitiveFiles = config.sensitiveFiles || [];
     this.ignorePaths = config.ignorePaths || [];

@@ -43,7 +43,14 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
       await matchingPlatform.preFix({ repoPath, relPath, absPath, fileSecrets, options });
     }
 
-    const contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
+    let contentLines;
+    try {
+      contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
+    } catch (err) {
+      logger.error(`Failed to read file ${relPath}: ${err.message}`);
+      continue;
+    }
+
     let fileModified = false;
 
     for (const s of fileSecrets) {
@@ -138,12 +145,20 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
     }
 
     if (fileModified && !options.dryRun) {
-      fs.writeFileSync(absPath, contentLines.join('\n'));
+      try {
+        fs.writeFileSync(absPath, contentLines.join('\n'));
+      } catch (err) {
+        logger.error(`Failed to write file ${relPath}: ${err.message}`);
+      }
     }
 
     // Lifecycle Hook: postFix
     if (matchingPlatform?.postFix) {
-      await matchingPlatform.postFix({ repoPath, relPath, absPath, fileSecrets, options, ext, envVarName: fileSecrets[0].envVarName });
+      try {
+        await matchingPlatform.postFix({ repoPath, relPath, absPath, fileSecrets, options, ext, envVarName: fileSecrets[0].envVarName });
+      } catch (err) {
+        logger.warn(`PostFix hook failed for ${relPath}: ${err.message}`);
+      }
     }
   }
 
