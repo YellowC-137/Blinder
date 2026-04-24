@@ -8,8 +8,10 @@
     "blinder": "./bin/blinder.js"
   },
   "scripts": {
-    "test": "node test/pattern_test.js",
-    "generate-plugin": "node scripts/generate-plugin.js"
+    "test": "node test/pattern_test.js && node test/platform_unit_test.js",
+    "test:integration": "node test/platform_integration_test.js && node test/objc_migration_test.js",
+    "test:all": "npm test && npm run test:integration",
+    "add-platform": "node bin/blinder.js add_platform"
   },
   "keywords": [
     "security",

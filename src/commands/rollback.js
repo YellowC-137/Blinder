@@ -2,130 +2,35 @@ import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
 import logger from '../utils/logger.js';
+import { performRollback, cleanGitignore } from '../services/rollbackService.js';
 
-/**
- * Simple .env parser
- */
-function parseEnv(content) {
-  const env = {};
-  const lines = content.split('\n');
-  for (const line of lines) {
-    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-    if (match) {
-      let value = match[2] || '';
-      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-      else if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
-      env[match[1]] = value;
-    }
-  }
-  return env;
-}
-
-/**
- * Rollback all protection changes made by blinder blind.
- * - If .blinder_protect.json exists: restore accessors → hardcoded secrets in source
- * - Clean up .env, .env.example, .blinder_protect.json, blinder_reports/
- * - Call teardownBridge for platforms
- */
 export async function rollbackSecrets(repoPath, options = {}) {
   const metadataPath = path.join(repoPath, '.blinder_protect.json');
   const envPath = path.join(repoPath, '.env');
   const envExamplePath = path.join(repoPath, '.env.example');
   const reportsDir = path.join(repoPath, 'blinder_reports');
-  const platforms = options.platforms || [];
 
   logger.header('Blinder - Rollback');
 
-  // ── Phase 1: Restore source code (if metadata exists) ──
-  let codeRestored = false;
+  const report = await performRollback(repoPath, options);
 
-  if (fs.existsSync(metadataPath) && fs.existsSync(envPath)) {
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    const envVars = parseEnv(fs.readFileSync(envPath, 'utf8'));
-    const { migrations } = metadata;
-
-    logger.info(`Protected at: ${metadata.createdAt}`);
-    logger.info(`Found ${migrations.length} migration(s) to rollback.`);
-    logger.divider();
-
-    let restoreCount = 0;
-    let skipCount = 0;
-
-    // Sort by injectedText length to avoid partial replacements
-    migrations.sort((a, b) => {
-      const targetA = a.injectedText || a.accessor;
-      const targetB = b.injectedText || b.accessor;
-      return targetB.length - targetA.length;
-    });
-
-    for (const mig of migrations) {
-      const { file, envVarName, accessor } = mig;
-      const absPath = path.join(repoPath, file);
-
-      if (!fs.existsSync(absPath)) {
-        logger.warn(`File not found, skipping: ${file}`);
-        skipCount++;
-        continue;
-      }
-
-      const secretValue = envVars[envVarName];
-      if (secretValue === undefined) {
-        logger.warn(`Secret "${envVarName}" not in .env, skipping: ${file}`);
-        skipCount++;
-        continue;
-      }
-
-      let content = fs.readFileSync(absPath, 'utf8');
-      const targetToRemove = mig.injectedText || accessor;
-      if (content.includes(targetToRemove)) {
-        const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
-        content = content.split(targetToRemove).join(restoredValue);
-
-        if (!options.dryRun) {
-          fs.writeFileSync(absPath, content);
-        }
-        logger.success(`Restored: ${file} (${envVarName})`);
-        restoreCount++;
-      } else {
-        logger.warn(`Accessor not found in ${file} — already rolled back?`);
-        skipCount++;
-      }
-    }
-
-    logger.divider();
-    logger.success(`Source code restored: ${restoreCount} changes applied.`);
-    if (skipCount > 0) logger.warn(`${skipCount} skipped.`);
-    codeRestored = true;
-  } else if (fs.existsSync(metadataPath)) {
-    logger.warn('.env not found. Source code restoration skipped.');
-  } else {
-    logger.info('No protection metadata found. Skipping source code restoration.');
+  if (report.codeRestored) {
+    logger.success(`Source code restored: ${report.restoreCount} changes applied.`);
+    if (report.skipCount > 0) logger.warn(`${report.skipCount} skipped.`);
   }
 
-  // ── Phase 2: Teardown Bridge ──
-  for (const platform of platforms) {
-    if (platform.teardownBridge) {
-      if (!options.dryRun) {
-        try {
-          await platform.teardownBridge(repoPath);
-          logger.success(`Removed bridge for ${platform.name}`);
-        } catch (err) {
-          logger.error(`Failed to teardown bridge for ${platform.name}: ${err.message}`);
-        }
-      } else {
-        logger.info(`[Dry-Run] Would teardown bridge for ${platform.name}`);
-      }
-    }
-  }
+  report.bridgeResults.forEach(res => {
+    if (res.success) logger.success(`Removed bridge for ${res.name}`);
+    else logger.error(`Failed to teardown bridge for ${res.name}: ${res.error}`);
+  });
 
-  // ── Phase 3: Clean up generated files ──
   const filesToClean = [];
   if (fs.existsSync(metadataPath)) filesToClean.push({ path: metadataPath, label: '.blinder_protect.json' });
   if (fs.existsSync(envPath)) filesToClean.push({ path: envPath, label: '.env' });
   if (fs.existsSync(envExamplePath)) filesToClean.push({ path: envExamplePath, label: '.env.example' });
   if (fs.existsSync(reportsDir)) filesToClean.push({ path: reportsDir, label: 'blinder_reports/', isDir: true });
 
-  if (filesToClean.length === 0 && !codeRestored) {
+  if (filesToClean.length === 0 && !report.codeRestored) {
     logger.info('Nothing to clean up. Project is already in original state.');
     return;
   }
@@ -145,38 +50,18 @@ export async function rollbackSecrets(repoPath, options = {}) {
       confirmCleanup = response.confirmCleanup;
     }
 
-    if (confirmCleanup) {
-      if (!options.dryRun) {
-        for (const f of filesToClean) {
-          if (f.isDir) {
-            fs.rmSync(f.path, { recursive: true, force: true });
-          } else {
-            fs.unlinkSync(f.path);
-          }
-          logger.success(`Deleted: ${f.label}`);
-        }
+    if (confirmCleanup && !options.dryRun) {
+      for (const f of filesToClean) {
+        if (f.isDir) fs.rmSync(f.path, { recursive: true, force: true });
+        else fs.unlinkSync(f.path);
+        logger.success(`Deleted: ${f.label}`);
+      }
 
-        // Restore .gitignore
-        const gitignorePath = path.join(repoPath, '.gitignore');
-        if (fs.existsSync(gitignorePath)) {
-          let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
-          const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
-          const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
-
-          if (blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent)) {
-            gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
-            gitignoreContent = gitignoreContent.trim() + '\n';
-            
-            fs.writeFileSync(gitignorePath, gitignoreContent);
-            logger.success('Restored: .gitignore (Removed Blinder sections)');
-          }
-        }
-      } else {
-        logger.info('[Dry-Run] No files were actually deleted.');
+      if (cleanGitignore(repoPath)) {
+        logger.success('Restored: .gitignore (Removed Blinder sections)');
       }
     }
   }
 
   logger.header('Rollback Complete');
-  logger.success('Project restored to pre-protection state.');
 }

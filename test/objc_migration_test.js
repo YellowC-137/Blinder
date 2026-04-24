@@ -1,8 +1,9 @@
+import fs from 'fs';
+import path from 'path';
 import { scanProject } from '../src/detectors/scanner.js';
 import { protectSecrets } from '../src/commands/protect.js';
 import { rollbackSecrets } from '../src/commands/rollback.js';
-import fs from 'fs';
-import path from 'path';
+import { platforms } from '../src/platforms/index.js';
 
 /**
  * Test script to verify Objective-C Public vs Private constant handling.
@@ -27,9 +28,9 @@ extern NSString *const PUBLIC_SERVER;
   const mContent = `
 #import "Config.h"
 @implementation Config
-NSString *const PUBLIC_SERVER = @"https://api.public.com";
+NSString *const PUBLIC_SERVER = @"https://api.public.com/v1/auth/callback";
 NSString *const STR_KEY_APPVER = @"app_version";
-NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
+NSString *const PRIVATE_KEY = @"LOCAL_SECRET_1234567890_PRIVATE";
 @end
 `;
 
@@ -37,7 +38,7 @@ NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
   fs.writeFileSync(mFile, mContent);
 
   // 1. Scan
-  const results = await scanProject(testDir, ['ios']);
+  const results = await scanProject(testDir, platforms);
   console.log(`Found ${results.length} secrets in Obj-C project.`);
 
   // 1.5 Simulate .gitignore update
@@ -45,7 +46,7 @@ NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
   fs.writeFileSync(gitignoreFile, 'node_modules/\n# --- BLINDER COMMON ---\n.env\n.blinder_protect.json\n');
 
   // 2. Protect (Auto-fix mode)
-  await protectSecrets(testDir, results, { mode: 'auto', dryRun: false });
+  await protectSecrets(testDir, results, { mode: 'auto', dryRun: false, platforms: platforms });
 
   // 3. Verify Files
   const updatedM = fs.readFileSync(mFile, 'utf8');
@@ -64,22 +65,27 @@ NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
   const isPrivateMMacroed = updatedM.includes('#define PRIVATE_KEY ((NSString *)[[NSBundle mainBundle]');
   const isKeyIgnored = updatedM.includes('NSString *const STR_KEY_APPVER = @"app_version";');
 
+  let testFailed = false;
+
   if (isPublicMCleaned && isPublicHMacroed) {
     console.log('✅ Public constant: Synchronized correctly (Header macro + Implementation comment)');
   } else {
     console.error('❌ Public constant: Sync logic failed!');
+    testFailed = true;
   }
 
   if (isPrivateMMacroed && !updatedM.includes('// Protected by Blinder: PRIVATE_KEY')) {
     console.log('✅ Private constant: Fallback correctly (Direct macro replacement in .m)');
   } else {
     console.error('❌ Private constant: Fallback logic failed!');
+    testFailed = true;
   }
 
   if (isKeyIgnored) {
     console.log('✅ Key/Param constant (STR_KEY_APPVER): Correctly ignored (Heuristic match)');
   } else {
     console.error('❌ Key/Param constant was unexpectedly converted!');
+    testFailed = true;
   }
 
   // 4. Test Rollback
@@ -110,8 +116,8 @@ NSString *const PRIVATE_KEY = @"LOCAL_SECRET_123";
   if (fs.existsSync(path.join(testDir, '.gitignore'))) fs.unlinkSync(path.join(testDir, '.gitignore'));
   fs.rmdirSync(testDir);
 
-  console.log('\nResult: OBJ-C DUAL-STRATEGY TESTS COMPLETE! 🎉');
-  process.exit(0);
+  console.log(`\nResult: OBJ-C DUAL-STRATEGY TESTS COMPLETE! ${testFailed ? '❌' : '🎉'}`);
+  process.exit(testFailed ? 1 : 0);
 }
 
 runTests().catch(err => {

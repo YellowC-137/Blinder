@@ -142,13 +142,13 @@ When applying `blinder protect` (Auto-fix), there are specific considerations fo
 
 Blinder uses a **plugin architecture** that lets you add support for new languages and frameworks without touching the core engine.
 
-### Quickest Way: CLI Scaffolding
+### Quick Start: CLI Scaffolding
 
 ```bash
-npm run generate-plugin
+blinder add_platform
 ```
 
-Answer the interactive prompts and plugin file creation + registry registration is done **automatically**. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+Answer the interactive prompts, and the plugin file generation + registry registration will be completed **automatically**. You can choose a category (Backend, Frontend, Mobile) or define your own via the **Custom** option. For more details, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Manual: Minimal Template (This is all you need!)
 

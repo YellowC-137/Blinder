@@ -15,7 +15,9 @@ import { bridgeProject } from '../src/commands/bridge.js';
 import { loadConfig } from '../src/utils/config.js';
 import { maskFiles } from '../src/commands/mask.js';
 import { restoreFromMasked } from '../src/commands/restore.js';
-import { rollbackSecrets } from '../src/commands/rollback.js';
+import { addPlatform } from '../src/commands/add_platform.js';
+import { t } from '../src/utils/i18n.js';
+import { getGlobalConfig, saveGlobalConfig } from '../src/utils/globalConfig.js';
 
 const program = new Command();
 
@@ -65,7 +67,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
   logger.success(`Automatic report generated: blinder_reports/${reportFilename}`);
 
   if (results.length === 0) {
-    logger.success('No secrets found!');
+    logger.success(t('no_secrets'));
     return false;
   }
 
@@ -73,7 +75,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
   const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };
   results.sort((a, b) => (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99));
 
-  logger.header('Scan Results');
+  logger.header(t('header_results'));
 
   const fileWarnings = results.filter(r => r.isSensitiveFile);
   const contentMatches = results.filter(r => !r.isSensitiveFile);
@@ -113,7 +115,7 @@ async function report(results, repoPath, options, skipConfirm = false) {
 
 program
   .name('blinder')
-  .description('Blinder - AI-Agent Security & Secret Protection with Plugin Architecture')
+  .description(t('cli_desc'))
   .version('1.0.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)
@@ -121,7 +123,7 @@ program
 
 program
   .command('scan')
-  .description('Scan project for sensitive information')
+  .description(t('scan_desc'))
   .option('-o, --output <file>', 'Save scan results to a JSON file')
   .option('--include-examples', 'Include matches found in test/example files', false)
   .option('--ci', 'Fail with exit code 1 if secrets are found', false)
@@ -134,26 +136,26 @@ program
       throw new Error(`Directory not found: ${repoPath}`);
     }
 
-    const spinner = ora('Detecting project type...').start();
+    const spinner = ora(t('detecting_project')).start();
     const project = await detectProjectType(repoPath);
-    spinner.succeed(`Project root: ${repoPath}`);
+    spinner.succeed(`${t('project_root')} ${repoPath}`);
     const platformNames = project.platforms.map(p => p.name).join(', ');
-    spinner.succeed(`Detected platforms: ${platformNames || 'None (Generic Scan)'}`);
+    spinner.succeed(`${t('detected_platforms')} ${platformNames || 'None (Generic Scan)'}`);
 
-    const scanSpinner = ora('Scanning for secrets...').start();
+    const scanSpinner = ora(t('scanning_secrets')).start();
     const results = await scanProject(repoPath, project.platforms, {
       includeExamples: options.includeExamples,
       customPatterns: config.customPatterns,
       ignore: config.ignorePaths
     });
-    scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
+    scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
     await report(results, repoPath, options);
   }));
 
 program
   .command('blind')
-  .description('Complete setup (Scan + Protect + Gitignore)')
+  .description(t('blind_desc'))
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
@@ -182,7 +184,7 @@ program
     const hasSecrets = await report(results, repoPath, {});
     
     if (hasSecrets) {
-      logger.info('\n💡 TIP: Use a ".blinderSettings" file in your project root to ignore specific folders (e.g., third-party SDKs).');
+      logger.info(`\n${t('tips')}`);
       logger.divider();
       logger.warn('⚠️  CAUTION: Build Configuration Modification');
       logger.info('   This tool may modify your project\'s core build files (build.gradle, .pbxproj, etc.)');
@@ -272,9 +274,9 @@ program
       }
     }
     
-    logger.header('Process Finished!');
+    logger.header(t('process_finished'));
     if (!globalOptions.dryRun) {
-      logger.success('Blinder protection is now active.');
+      logger.success(t('protection_active'));
       
       let runBridge = globalOptions.yes;
       if (!runBridge) {
@@ -297,7 +299,7 @@ program
 
 program
   .command('bridge')
-  .description('Automate .env integration with native build systems (Android, iOS, Flutter)')
+  .description(t('bridge_desc'))
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
@@ -307,7 +309,7 @@ program
 
 program
   .command('rollback')
-  .description('Rollback all protection changes')
+  .description(t('rollback_desc'))
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
@@ -321,7 +323,7 @@ program
 
 program
   .command('mask')
-  .description('Mask secrets for AI-agent work')
+  .description(t('mask_desc'))
   .option('-o, --output <dir>', 'Masked output directory')
   .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
@@ -334,7 +336,7 @@ program
 
 program
   .command('restore')
-  .description('Restore AI changes to original project')
+  .description(t('restore_desc'))
   .option('-o, --output <dir>', 'Masked output directory (auto-detected if not specified)')
   .option('--diff', 'Show diffs before applying changes', false)
   .action((options) => handleAction(async () => {
@@ -351,12 +353,33 @@ program
 
 program
   .command('gitignore')
-  .description('Generate platform-specific .gitignore')
+  .description(t('gitignore_desc'))
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const project = await detectProjectType(repoPath);
     await generateGitignore(repoPath, project.platforms);
+  }));
+
+program
+  .command('add_platform')
+  .description(t('add_platform_desc'))
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts();
+    const repoPath = path.resolve(globalOptions.path);
+    await addPlatform(repoPath);
+  }));
+
+program
+  .command('set_language')
+  .description(t('set_language_desc'))
+  .argument('<lang>', 'Language (ko/en)')
+  .action((lang) => handleAction(async () => {
+    if (!['ko', 'en'].includes(lang)) {
+      throw new Error('Support only "ko" or "en"');
+    }
+    saveGlobalConfig({ language: lang });
+    logger.success(t('lang_changed', { lang }));
   }));
 
 program
