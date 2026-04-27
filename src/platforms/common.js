@@ -34,10 +34,10 @@ export default definePlatform({
   getGitignoreTemplate: () => `
 # Blinder
 .env
-.env.example
 blinder_reports/
 maskedProject_*/
 .blinder_protect.json
+blinder-ios-setup.sh
 *.pem
 *.key
 *.p12

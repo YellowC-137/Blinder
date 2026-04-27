@@ -12,7 +12,7 @@ class ASTProvider {
     this.parser = null;
     this.languages = new Map();
     this.initialized = false;
-    this.wasmDir = path.resolve(path.dirname(import.meta.url.replace('file://', '')), 'grammars');
+    this.wasmDir = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/tree-sitter-wasms/out');
   }
 
   /**
@@ -47,13 +47,21 @@ class ASTProvider {
     }
 
     try {
-      const wasmBuffer = fs.readFileSync(wasmPath);
-      const lang = await Language.load(wasmBuffer);
+      // In web-tree-sitter 0.22+, it's often better to load from path in Node
+      const lang = await Language.load(wasmPath);
       this.languages.set(langId, lang);
       return lang;
     } catch (err) {
-      logger.error(`Language.load error for ${langId}: ${err.stack || err.message}`);
-      throw new Error(`Failed to load ${langId} grammar: ${err.message || 'Unknown error'}`);
+      // Fallback to buffer if path loading fails
+      try {
+        const wasmBuffer = fs.readFileSync(wasmPath);
+        const lang = await Language.load(wasmBuffer);
+        this.languages.set(langId, lang);
+        return lang;
+      } catch (innerErr) {
+        logger.debug(`Language.load error for ${langId}: ${innerErr.stack || innerErr.message}`);
+        throw new Error(`Failed to load ${langId} grammar: ${innerErr.message || 'Unknown error'}`);
+      }
     }
   }
 
@@ -86,7 +94,8 @@ class ASTProvider {
       // 문자열 리터럴 내부인지 확인
       return isString;
     } catch (err) {
-      logger.warn(`AST validation skipped for ${path.basename(filePath)}: ${err.message}`);
+      // AST 실패 시 디버그 로그만 남기고 조용히 Regex 결과로 대체
+      logger.debug(`AST validation skipped for ${path.basename(filePath)}: ${err.message}`);
       return true; // 에러 시 안전하게 정규식 결과 신뢰 (Fallback)
     }
   }

@@ -196,7 +196,15 @@ GoogleService-Info.plist
 
     const plistFiles = await glob('**/Info.plist', {
       cwd: repoPath,
-      ignore: ['**/Pods/**', '**/build/**', '**/DerivedData/**', '**/node_modules/**', '**/maskedProject*/**'],
+      ignore: [
+        '**/Pods/**', 
+        '**/build/**', 
+        '**/DerivedData/**', 
+        '**/node_modules/**', 
+        '**/maskedProject*/**',
+        '**/*.xcframework/**',
+        '**/*.framework/**'
+      ],
       absolute: true
     });
     
@@ -241,7 +249,7 @@ GoogleService-Info.plist
         const podfilePath = podfilePaths[0];
         let content = fs.readFileSync(podfilePath, 'utf8');
         
-        // Remove Blinder sections
+        // 1. Remove the function definition (with markers)
         const startMarker = '# --- Blinder Hook Start ---';
         const endMarker = '# --- Blinder Hook End ---';
         const startIndex = content.indexOf(startMarker);
@@ -249,10 +257,16 @@ GoogleService-Info.plist
 
         if (startIndex !== -1 && endIndex !== -1) {
             content = content.substring(0, startIndex) + content.substring(endIndex + endMarker.length);
-            // Also remove the call
-            content = content.replace(/\s*blinder_post_install\(installer\)/g, '');
-            fs.writeFileSync(podfilePath, content);
         }
+
+        // 2. Remove the call (always, for safety)
+        content = content.replace(/^\s*blinder_post_install\(installer\)\s*$/gm, '');
+
+        // 3. Clean up potentially empty post_install block if it only had our call
+        const emptyBlockRegex = /post_install\s+do\s+\|installer\|\s+end\n?/g;
+        content = content.replace(emptyBlockRegex, '');
+
+        fs.writeFileSync(podfilePath, content);
     }
 
     const scriptPath = path.join(repoPath, 'blinder-ios-setup.sh');

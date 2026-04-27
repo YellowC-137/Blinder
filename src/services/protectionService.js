@@ -154,10 +154,21 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
 
     // Lifecycle Hook: postFix
     if (matchingPlatform?.postFix) {
-      try {
-        await matchingPlatform.postFix({ repoPath, relPath, absPath, fileSecrets, options, ext, envVarName: fileSecrets[0].envVarName });
-      } catch (err) {
-        logger.warn(`PostFix hook failed for ${relPath}: ${err.message}`);
+      for (const s of fileSecrets) {
+        if (s.isSensitiveFile || !s.isFixable) continue;
+        try {
+          await matchingPlatform.postFix({ 
+            repoPath, 
+            relPath, 
+            absPath, 
+            fileSecrets, 
+            options, 
+            ext, 
+            envVarName: s.envVarName 
+          });
+        } catch (err) {
+          logger.warn(`PostFix hook failed for ${relPath} (${s.envVarName}): ${err.message}`);
+        }
       }
     }
   }

@@ -11,6 +11,7 @@ import { scanProject } from '../src/detectors/scanner.js';
 import { generateGitignore } from '../src/commands/gitignore.js';
 import { protectSecrets } from '../src/commands/protect.js';
 import { bridgeProject } from '../src/commands/bridge.js';
+import { rollbackSecrets } from '../src/commands/rollback.js';
 
 import { loadConfig } from '../src/utils/config.js';
 import { maskFiles } from '../src/commands/mask.js';
@@ -46,17 +47,9 @@ async function report(results, repoPath, options, skipConfirm = false) {
     fs.mkdirSync(reportDir, { recursive: true });
   }
 
-  // Ensure blinder_reports/ is in .gitignore
-  const gitignorePath = path.join(repoPath, '.gitignore');
-  const ignoreString = 'blinder_reports/';
-  let gitignoreContent = '';
-  if (fs.existsSync(gitignorePath)) {
-    gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
-  }
-  if (!gitignoreContent.includes(ignoreString)) {
-    fs.appendFileSync(gitignorePath, `\n# Blinder Reports\n${ignoreString}\n`);
-    logger.info('Added blinder_reports/ to .gitignore');
-  }
+  // Ensure .gitignore is updated with platform templates
+  const project = await detectProjectType(repoPath);
+  await generateGitignore(repoPath, project.platforms);
 
   const projectName = path.basename(repoPath).toLowerCase().replace(/[^a-z0-9]/g, '_') || 'project';
   const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
@@ -329,7 +322,6 @@ program
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    const { maskFiles } = await import('../src/commands/mask.js');
     logger.info('\n💡 TIP: You can customize masked output paths via ".blinderSettings" file.');
     await maskFiles(repoPath, { ...options, ...globalOptions, ...config, maskOutput: options.output });
   }));
@@ -342,7 +334,6 @@ program
   .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    const { restoreFromMasked } = await import('../src/commands/restore.js');
     await restoreFromMasked(repoPath, { 
       ...options, 
       maskOutput: options.output,

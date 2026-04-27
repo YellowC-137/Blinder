@@ -9,7 +9,7 @@ export default definePlatform({
 
   // 프로젝트 감지: gemgile가 있으면 ruby 프로젝트로 인식
   detect: async (repoPath) => {
-    return fs.existsSync(path.join(repoPath, 'gemgile'));
+    return fs.existsSync(path.join(repoPath, 'Gemfile'));
   },
 
   // 스캔 대상 확장자

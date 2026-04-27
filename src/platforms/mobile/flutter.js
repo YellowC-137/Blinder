@@ -53,13 +53,42 @@ export default definePlatform({
   },
 
   teardownBridge: async (repoPath) => {
-    // Logic to remove Flutter bridge artifacts
+    // 1. Remove Flutter CLI wrapper
     const wrapperPath = path.join(repoPath, 'f.sh');
     if (fs.existsSync(wrapperPath)) {
         fs.unlinkSync(wrapperPath);
     }
-    // Note: launch.json/IntelliJ configs are harder to rollback safely without a parser, 
-    // but we can at least remove the wrapper.
+
+    // 2. Remove IDE launch configs
+    const defineArg = '--dart-define-from-file=.env';
+    
+    // VS Code
+    const launchJsonPath = path.join(repoPath, '.vscode', 'launch.json');
+    if (fs.existsSync(launchJsonPath)) {
+        try {
+            let content = fs.readFileSync(launchJsonPath, 'utf8');
+            if (content.includes(defineArg)) {
+                content = content.replace(new RegExp(`"${defineArg}",\\s*`, 'g'), '');
+                content = content.replace(new RegExp(`,\\s*"${defineArg}"`, 'g'), '');
+                content = content.replace(new RegExp(`"${defineArg}"`, 'g'), '');
+                fs.writeFileSync(launchJsonPath, content);
+            }
+        } catch (err) {}
+    }
+
+    // IntelliJ / Android Studio
+    const ideaDir = path.join(repoPath, '.idea', 'runConfigurations');
+    if (fs.existsSync(ideaDir)) {
+        const files = fs.readdirSync(ideaDir).filter(f => f.endsWith('.xml'));
+        for (const file of files) {
+            const absPath = path.join(ideaDir, file);
+            let content = fs.readFileSync(absPath, 'utf8');
+            if (content.includes(defineArg)) {
+                content = content.replace(new RegExp(`\\s*${defineArg}`, 'g'), '');
+                fs.writeFileSync(absPath, content);
+            }
+        }
+    }
   },
 
   testCases: [
