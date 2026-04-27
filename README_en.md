@@ -56,6 +56,14 @@ Automates build settings so that the contents of the generated `.env` file are a
 #### 3. `blinder mask` (Before Sending to AI)
 Creates a **masked copy of the project** that replaces secrets with `__BLINDER_VAR__` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
 
+> [!NOTE]
+> **Why use `mask` instead of just restricting read access to `.env`?**
+> 1. **Non-invasive**: `blind` modifies your source code. `mask` creates a safe **physical copy** while keeping your original files untouched. Useful when you don't want to alter the original codebase.
+> 2. **External Sharing**: When you need to zip and share your code externally (e.g., ChatGPT Web, other developers), you need a folder where secrets are physically removed.
+> 3. **Execution Log Leaks**: If an agent builds or runs the code in the terminal, secrets loaded in memory might be printed to the logs or error messages.
+> 4. **Git History Protection**: Even with restricted file access, agents might still read hardcoded secrets left in previous Git commits.
+
+
 #### 4. `blinder restore` (After AI Modifications)
 Safely brings **all code modifications and new files** created by the AI agent in the masked folder back into the original project. Masked secrets are automatically restored to their actual values.
 
