@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import logger from '../utils/logger.js';
 
 /**
  * findPlatformForExtension
@@ -40,7 +41,11 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
 
     // Lifecycle Hook: preFix
     if (matchingPlatform?.preFix) {
-      await matchingPlatform.preFix({ repoPath, relPath, absPath, fileSecrets, options });
+      try {
+        await matchingPlatform.preFix({ repoPath, relPath, absPath, fileSecrets, options });
+      } catch (err) {
+        throw new Error(`preFix hook failed for ${matchingPlatform.id || matchingPlatform.name} on ${relPath}: ${err.message}`);
+      }
     }
 
     let contentLines;

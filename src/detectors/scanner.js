@@ -305,7 +305,9 @@ export async function scanProject(repoPath, platforms, options = {}) {
       } else {
         await scanSmallFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options);
       }
-    } catch (err) {}
+    } catch (err) {
+      logger.warn(`Scan failed for ${filePath}: ${err.message}`);
+    }
   }
 
   const fileWarnings = await scanSensitiveFiles(repoPath, platforms);

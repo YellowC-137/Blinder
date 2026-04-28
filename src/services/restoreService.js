@@ -43,7 +43,9 @@ export function repairMissingImports(fileName, originalContent, newContent) {
   const toRestore = [];
   for (const imp of missing) {
     const id = imp.identifier.split('.').pop();
-    const usageRegex = new RegExp(`\\b${id}\\b`);
+    if (!id) continue;
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const usageRegex = new RegExp(`\\b${escaped}\\b`);
     if (usageRegex.test(newContentString)) {
       toRestore.push(imp.full);
     }

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import logger from '../utils/logger.js';
 
 /**
  * parseEnv
@@ -37,7 +38,15 @@ export async function performRollback(repoPath, options = {}) {
   };
 
   if (fs.existsSync(metadataPath) && fs.existsSync(envPath)) {
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    let metadata;
+    try {
+      metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    } catch (err) {
+      throw new Error(`Failed to parse .blinder_protect.json: ${err.message}`);
+    }
+    if (!metadata || typeof metadata !== 'object' || !Array.isArray(metadata.migrations)) {
+      throw new Error('Invalid .blinder_protect.json: missing or malformed "migrations" array');
+    }
     const envVars = parseEnv(fs.readFileSync(envPath, 'utf8'));
     const { migrations } = metadata;
 

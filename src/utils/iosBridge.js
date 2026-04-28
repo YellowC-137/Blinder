@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import logger from './logger.js';
 
 const IOS_SETUP_SCRIPT = `#!/bin/bash
@@ -179,9 +179,9 @@ export async function setupIosBridge(repoPath) {
 
   if (!autoInjected) {
     try {
-      execSync(`sh "${scriptPath}"`, { stdio: 'inherit', cwd: repoPath });
+      execFileSync('sh', [scriptPath], { stdio: 'inherit', cwd: repoPath });
     } catch (err) {
-      // Ignore execution errors
+      logger.error(`iOS bridge setup failed: ${err.message}`);
     }
 
     logger.header('⚠️ IMPORTANT: Manual Xcode Setup Required');

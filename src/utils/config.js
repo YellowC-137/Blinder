@@ -18,12 +18,22 @@ export function loadConfig(repoPath) {
     try {
       const fileContent = fs.readFileSync(configPath, 'utf8');
       const userConfig = JSON.parse(fileContent);
-      
+
+      if (!userConfig || typeof userConfig !== 'object' || Array.isArray(userConfig)) {
+        throw new Error('Root must be a JSON object');
+      }
+      if (userConfig.customPatterns !== undefined && !Array.isArray(userConfig.customPatterns)) {
+        throw new Error('"customPatterns" must be an array');
+      }
+      if (userConfig.ignorePaths !== undefined && !Array.isArray(userConfig.ignorePaths)) {
+        throw new Error('"ignorePaths" must be an array');
+      }
+
       // Support legacy 'sanitizeOutput' for a smooth transition if present
       if (userConfig.sanitizeOutput && !userConfig.maskOutput) {
         userConfig.maskOutput = userConfig.sanitizeOutput;
       }
-      
+
       config = { ...config, ...userConfig };
       logger.debug('Loaded configuration from .blinderSettings');
     } catch (error) {
