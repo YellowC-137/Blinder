@@ -187,7 +187,11 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
       let { matchValue, varName } = extractMatchDetails(pattern, match, content, ext);
 
       if (astLang && !options.skipAST) {
-        const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, match.index);
+        // Use offset of the captured value (not match[0]) so AST validation hits the string literal,
+        // not surrounding identifiers (e.g., `apiKey` in `apiKey = "..."`).
+        const valueOffsetInMatch = match[0].indexOf(matchValue);
+        const valueOffset = match.index + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
+        const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset);
         if (!isValid) continue;
       }
 
@@ -254,7 +258,9 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
         }
 
         if (astLang && !options.skipAST) {
-           const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, byteOffset + match.index);
+           const valueOffsetInMatch = match[0].indexOf(matchValue);
+           const valueOffset = byteOffset + match.index + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
+           const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset);
            if (!isValid) continue;
         }
 

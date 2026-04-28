@@ -1,5 +1,8 @@
 import { platforms } from '../src/platforms/index.js';
 import assert from 'assert';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 /**
  * Unit tests for platform-specific logic.
@@ -59,6 +62,67 @@ async function runUnitTests() {
   if (flutter) {
     test('Flutter - Dart replacement', () => {
       assert.strictEqual(flutter.getAutoFixReplacement('secret', 'MY_KEY', '.dart'), "String.fromEnvironment('MY_KEY')");
+    });
+  }
+
+  // 4. Android detect() — guard against false-positives on non-Android Gradle projects
+  if (android) {
+    function mkTmp(setup) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blinder-detect-'));
+      setup(dir);
+      return dir;
+    }
+    function rmTmp(dir) { fs.rmSync(dir, { recursive: true, force: true }); }
+
+    async function asyncTest(name, fn) {
+      try { await fn(); console.log(`✅ PASS: ${name}`); passCount++; }
+      catch (e) { console.error(`❌ FAIL: ${name}\n   ${e.message}`); failCount++; }
+    }
+
+    await asyncTest('Android detect — Spring Boot Gradle (NOT android)', async () => {
+      const dir = mkTmp(d => {
+        fs.writeFileSync(path.join(d, 'build.gradle'), 'plugins { id "org.springframework.boot" }');
+      });
+      try { assert.strictEqual(await android.detect(dir), false); }
+      finally { rmTmp(dir); }
+    });
+
+    await asyncTest('Android detect — pure Maven (NOT android)', async () => {
+      const dir = mkTmp(d => fs.writeFileSync(path.join(d, 'pom.xml'), '<project></project>'));
+      try { assert.strictEqual(await android.detect(dir), false); }
+      finally { rmTmp(dir); }
+    });
+
+    await asyncTest('Android detect — native Android (com.android.application)', async () => {
+      const dir = mkTmp(d => {
+        fs.mkdirSync(path.join(d, 'app'), { recursive: true });
+        fs.writeFileSync(path.join(d, 'app/build.gradle'), 'apply plugin: "com.android.application"');
+      });
+      try { assert.strictEqual(await android.detect(dir), true); }
+      finally { rmTmp(dir); }
+    });
+
+    await asyncTest('Android detect — Flutter android/ subdir', async () => {
+      const dir = mkTmp(d => {
+        fs.mkdirSync(path.join(d, 'android/app'), { recursive: true });
+        fs.writeFileSync(path.join(d, 'android/app/build.gradle'), 'apply plugin: "com.android.application"');
+      });
+      try { assert.strictEqual(await android.detect(dir), true); }
+      finally { rmTmp(dir); }
+    });
+
+    await asyncTest('Android detect — AndroidManifest.xml at root', async () => {
+      const dir = mkTmp(d => fs.writeFileSync(path.join(d, 'AndroidManifest.xml'), '<manifest/>'));
+      try { assert.strictEqual(await android.detect(dir), true); }
+      finally { rmTmp(dir); }
+    });
+
+    await asyncTest('Android detect — Kotlin DSL com.android.library', async () => {
+      const dir = mkTmp(d => {
+        fs.writeFileSync(path.join(d, 'build.gradle.kts'), 'plugins { id("com.android.library") version "8.0.0" }');
+      });
+      try { assert.strictEqual(await android.detect(dir), true); }
+      finally { rmTmp(dir); }
     });
   }
 
