@@ -46,7 +46,13 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
 
         for (const s of secrets) {
           const mask = `__BLINDER_${s.envVarName}__`;
+          // Skip if the match value isn't actually present (likely already
+          // masked by a prior pattern with a different envVarName but same
+          // match value — registering this file under the unused tag would
+          // trigger a false "Missing Redaction Tag" during restore).
+          const beforeContent = content;
           content = content.split(s.match).join(mask);
+          const replaced = content !== beforeContent;
 
           if (!mappingData.mappings[s.envVarName]) {
             mappingData.mappings[s.envVarName] = {
@@ -55,7 +61,7 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
               files: []
             };
           }
-          if (!mappingData.mappings[s.envVarName].files.includes(relPath)) {
+          if (replaced && !mappingData.mappings[s.envVarName].files.includes(relPath)) {
             mappingData.mappings[s.envVarName].files.push(relPath);
           }
         }

@@ -33,6 +33,12 @@ export async function performRollback(repoPath, options = {}) {
     codeRestored: false,
     restoreCount: 0,
     skipCount: 0,
+    skipReasons: {
+      alreadyRestored: 0,
+      fileNotFound: 0,
+      secretMissing: 0,
+      accessorNotFound: 0
+    },
     bridgeResults: [],
     skippedFiles: []
   };
@@ -63,6 +69,7 @@ export async function performRollback(repoPath, options = {}) {
       if (!fs.existsSync(absPath)) {
         report.skippedFiles.push({ file, reason: 'File not found' });
         report.skipCount++;
+        report.skipReasons.fileNotFound++;
         continue;
       }
 
@@ -70,6 +77,7 @@ export async function performRollback(repoPath, options = {}) {
       if (secretValue === undefined) {
         report.skippedFiles.push({ file, reason: `Secret ${envVarName} not in .env` });
         report.skipCount++;
+        report.skipReasons.secretMissing++;
         continue;
       }
 
@@ -84,6 +92,17 @@ export async function performRollback(repoPath, options = {}) {
         }
         report.restoreCount++;
       } else {
+        // Either an earlier migration with an identical accessor already
+        // restored every occurrence in this file (common when same secret
+        // appears N times under one envVarName), or the accessor was edited
+        // since blind. Distinguish: if replacedText is already present,
+        // earlier migration handled it.
+        const replacedText = mig.replacedText;
+        if (replacedText && content.includes(replacedText)) {
+          report.skipReasons.alreadyRestored++;
+        } else {
+          report.skipReasons.accessorNotFound++;
+        }
         report.skipCount++;
       }
     }

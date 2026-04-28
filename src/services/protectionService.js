@@ -19,6 +19,59 @@ function escapeRegExp(string) {
 }
 
 /**
+ * findEnclosingStringLiteral
+ *
+ * Determines whether a substring at [matchStart, matchEnd) sits inside a
+ * single-line string literal. Walks the line scanning for unescaped string
+ * delimiters (", ', `). Returns the bounds of the enclosing literal
+ * (start = position of opening quote, end = position AFTER closing quote)
+ * and the quote character used. Returns null if not inside a literal.
+ *
+ * Used by the basic-fix path to expand the replacement target from a
+ * partial substring (which would leave broken quotes around the injected
+ * accessor — e.g. `"process.env.X" + trailing chars within original quotes`)
+ * to the entire string literal so the accessor replaces the literal as an
+ * expression.
+ */
+function findEnclosingStringLiteral(lineContent, matchStart, matchEnd) {
+  let openIdx = -1;
+  let openChar = '';
+  let inString = false;
+  let curChar = '';
+  let curStart = -1;
+
+  for (let i = 0; i < matchStart; i++) {
+    const c = lineContent[i];
+    if (c === '\\') { i++; continue; }
+    if (!inString) {
+      if (c === '"' || c === "'" || c === '`') {
+        inString = true;
+        curChar = c;
+        curStart = i;
+      }
+    } else if (c === curChar) {
+      inString = false;
+      curChar = '';
+      curStart = -1;
+    }
+  }
+
+  if (!inString) return null;
+  openIdx = curStart;
+  openChar = curChar;
+
+  for (let i = matchEnd; i < lineContent.length; i++) {
+    const c = lineContent[i];
+    if (c === '\\') { i++; continue; }
+    if (c === openChar) {
+      return { start: openIdx, end: i + 1, quoteChar: openChar };
+    }
+  }
+
+  return null;
+}
+
+/**
  * applyAutoFixes
  * (보안지침 §3: 소스코드 내 하드코딩 제거 및 환경변수 치환 로직)
  */
@@ -58,6 +111,20 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
 
     let fileModified = false;
 
+    // .json auto-fix is disabled. Code accessors (e.g. process.env.X)
+    // injected into JSON values produce non-parsable JSON; placeholder
+    // strings (${VAR}) require consumer-specific runtime interpolation
+    // (npm, Composer, Heroku app.json all differ), so we skip source
+    // modification entirely. Detected secrets still go into .env via
+    // prepareEnvContent — user wires interpolation manually if needed.
+    if (ext === '.json') {
+      const fixable = fileSecrets.filter(s => !s.isSensitiveFile && s.isFixable);
+      if (fixable.length > 0) {
+        logger.warn(`Skipped auto-fix for ${relPath}: .json files require manual runtime interpolation (${fixable.length} secret(s) recorded in .env only).`);
+      }
+      continue;
+    }
+
     for (const s of fileSecrets) {
       if (s.isSensitiveFile || !s.isFixable) continue;
 
@@ -74,6 +141,8 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
       if (matchingPlatform?.applyAdvancedFix) {
         const advResult = await matchingPlatform.applyAdvancedFix({
           lineContent: contentLines[lineIdx],
+          prevLine: lineIdx > 0 ? contentLines[lineIdx - 1] : '',
+          nextLine: lineIdx + 1 < contentLines.length ? contentLines[lineIdx + 1] : '',
           match,
           fullMatch,
           envVarName,
@@ -88,7 +157,9 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
           contentLines[lineIdx] = advResult.lineContent;
           injectedText = advResult.injectedText;
           replacedText = advResult.replacedText;
-          fileModified = true;
+          // Platform may signal "handled but no rewrite" (e.g. Spring @Value
+          // with ${prop:default} — fallback intentionally left alone).
+          if (injectedText) fileModified = true;
           handledByPlatform = true;
         }
       }
@@ -122,12 +193,24 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));
           const regexMatch = lineContent.match(regex);
-          
+
           if (regexMatch) {
              const matchIndex = regexMatch.index;
-             replacedText = match;
-             injectedText = accessor;
-             lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchIndex + match.length);
+             const matchEndIndex = matchIndex + match.length;
+             // If the match sits inside a string literal (e.g., a Slack
+             // webhook URL that pattern only partially captured), replace
+             // the entire literal so the accessor lands as an expression
+             // instead of being wrapped in stale quotes.
+             const literal = findEnclosingStringLiteral(lineContent, matchIndex, matchEndIndex);
+             if (literal) {
+               replacedText = lineContent.substring(literal.start, literal.end);
+               injectedText = accessor;
+               lineContent = lineContent.substring(0, literal.start) + injectedText + lineContent.substring(literal.end);
+             } else {
+               replacedText = match;
+               injectedText = accessor;
+               lineContent = lineContent.substring(0, matchIndex) + injectedText + lineContent.substring(matchEndIndex);
+             }
           }
         }
 

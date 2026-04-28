@@ -117,6 +117,16 @@ export function hasBeenModifiedByAI(relPath, maskedContent, originalContent, map
   return remasked !== maskedContent;
 }
 
+// OS-generated metadata files that appear in mask dirs after the user opens
+// them in Finder/Explorer. Excluded from change detection so they don't show
+// up as "Added" by AI.
+const OS_METADATA_FILES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini', 'ehthumbs.db']);
+
+function isOsMetadata(relPath) {
+  const base = path.basename(relPath);
+  return OS_METADATA_FILES.has(base);
+}
+
 /**
  * detectChanges
  */
@@ -126,7 +136,7 @@ export function detectChanges(maskDir, repoPath, mapData, options = {}) {
 
   const currentFiles = getAllFilesRecursive(maskDir)
     .map(f => path.relative(maskDir, f))
-    .filter(f => f !== '.blinder_map.json');
+    .filter(f => f !== '.blinder_map.json' && !isOsMetadata(f));
 
   const pathPrefixes = options.paths && options.paths.length > 0 ? options.paths : [];
   const isTarget = (f) => pathPrefixes.length === 0 || pathPrefixes.some(p => f.startsWith(p));

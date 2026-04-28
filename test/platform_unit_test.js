@@ -292,14 +292,16 @@ async function runUnitTests() {
       assert.ok(r.lineContent.includes('@Value("${PLAIN_SECRET_XYZ}")'), `got: ${r.lineContent}`);
     });
 
-    await asyncTest4('Spring Boot - applyAdvancedFix skips existing ${...} placeholder', async () => {
+    await asyncTest4('Spring Boot - applyAdvancedFix skips @Value with ${...} placeholder (no-op)', async () => {
       const r = await springboot.applyAdvancedFix({
-        lineContent: '    @Value("${EXISTING_VAR}")',
-        match: '${EXISTING_VAR}',
+        lineContent: '    @Value("${EXISTING_VAR:fallback-secret-AKIAEXAMPLE}")',
+        match: 'fallback-secret-AKIAEXAMPLE',
         envVarName: 'X',
         ext: '.java'
       });
-      assert.strictEqual(r.handled, false);
+      assert.strictEqual(r.handled, true);
+      assert.strictEqual(r.injectedText, '');
+      assert.strictEqual(r.lineContent, '    @Value("${EXISTING_VAR:fallback-secret-AKIAEXAMPLE}")');
     });
 
     await asyncTest4('Spring Boot - applyAdvancedFix skips non-Java files', async () => {
@@ -437,6 +439,43 @@ async function runUnitTests() {
         __test.setBuildTool(null);
         await react.preFix({ repoPath: dir, relPath: '', absPath: '', fileSecrets: [], options: {} });
         assert.strictEqual(__test.getBuildTool(), 'vite');
+      } finally { rmTmp5(dir); }
+    });
+
+    test('React - Next.js client-side accessor (NEXT_PUBLIC_)', () => {
+      __test.setBuildTool('nextjs');
+      __test.setClientSide(true);
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.NEXT_PUBLIC_API_KEY');
+      __test.setClientSide(false);
+    });
+
+    test('React - isNextjsClientSideFile pages/ → client', () => {
+      assert.strictEqual(__test.isNextjsClientSideFile('pages/index.tsx', ''), true);
+    });
+    test('React - isNextjsClientSideFile pages/api/ → server', () => {
+      assert.strictEqual(__test.isNextjsClientSideFile('pages/api/users.ts', ''), false);
+    });
+    test('React - isNextjsClientSideFile lib/ → server', () => {
+      assert.strictEqual(__test.isNextjsClientSideFile('lib/util.ts', ''), false);
+    });
+
+    await asyncTest5('React - isNextjsClientSideFile app/ with use client → client', async () => {
+      const dir = mkTmp5(d => {
+        fs.mkdirSync(path.join(d, 'app'), { recursive: true });
+        fs.writeFileSync(path.join(d, 'app', 'page.tsx'), '"use client";\nexport default function Page() {}');
+      });
+      try {
+        assert.strictEqual(__test.isNextjsClientSideFile('app/page.tsx', path.join(dir, 'app', 'page.tsx')), true);
+      } finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React - isNextjsClientSideFile app/ without use client → server', async () => {
+      const dir = mkTmp5(d => {
+        fs.mkdirSync(path.join(d, 'app'), { recursive: true });
+        fs.writeFileSync(path.join(d, 'app', 'page.tsx'), 'export default function Page() {}');
+      });
+      try {
+        assert.strictEqual(__test.isNextjsClientSideFile('app/page.tsx', path.join(dir, 'app', 'page.tsx')), false);
       } finally { rmTmp5(dir); }
     });
   }
