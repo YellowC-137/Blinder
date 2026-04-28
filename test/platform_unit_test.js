@@ -126,6 +126,57 @@ async function runUnitTests() {
     });
   }
 
+  // 5. Node.js
+  const node = platforms.find(p => p.id === 'node');
+  if (node) {
+    function mkTmp2(setup) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blinder-node-'));
+      setup(dir);
+      return dir;
+    }
+    function rmTmp2(dir) { fs.rmSync(dir, { recursive: true, force: true }); }
+
+    async function asyncTest2(name, fn) {
+      try { await fn(); console.log(`✅ PASS: ${name}`); passCount++; }
+      catch (e) { console.error(`❌ FAIL: ${name}\n   ${e.message}`); failCount++; }
+    }
+
+    test('Node.js - JS replacement', () => {
+      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.js'), 'process.env.MY_KEY');
+      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.ts'), 'process.env.MY_KEY');
+    });
+
+    await asyncTest2('Node.js detect — Express minimal (match)', async () => {
+      const dir = mkTmp2(d => fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({
+        name: 't', version: '1.0.0', dependencies: { express: '^4.0.0' }
+      })));
+      try { assert.strictEqual(await node.detect(dir), true); }
+      finally { rmTmp2(dir); }
+    });
+
+    await asyncTest2('Node.js detect — React project (NOT node)', async () => {
+      const dir = mkTmp2(d => fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({
+        name: 't', version: '1.0.0', dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0' }
+      })));
+      try { assert.strictEqual(await node.detect(dir), false); }
+      finally { rmTmp2(dir); }
+    });
+
+    await asyncTest2('Node.js detect — Next.js (NOT node)', async () => {
+      const dir = mkTmp2(d => fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({
+        name: 't', version: '1.0.0', dependencies: { next: '^14.0.0' }
+      })));
+      try { assert.strictEqual(await node.detect(dir), false); }
+      finally { rmTmp2(dir); }
+    });
+
+    await asyncTest2('Node.js detect — no package.json (NOT node)', async () => {
+      const dir = mkTmp2(() => {});
+      try { assert.strictEqual(await node.detect(dir), false); }
+      finally { rmTmp2(dir); }
+    });
+  }
+
   console.log(`\nUnit Tests Finished: ${passCount} passed, ${failCount} failed.`);
   if (failCount > 0) process.exit(1);
 }

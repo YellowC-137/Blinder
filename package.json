@@ -13,7 +13,8 @@
     "test:regression:ios": "bash test/regression/ios/run.sh",
     "test:regression:android": "bash test/regression/android/run.sh",
     "test:regression:flutter": "bash test/regression/flutter/run.sh",
-    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter",
+    "test:regression:node": "bash test/regression/node/run.sh",
+    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node",
     "test:all": "npm test && npm run test:integration",
     "add-platform": "node bin/blinder.js add_platform"
   },
