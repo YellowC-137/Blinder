@@ -15,7 +15,8 @@
     "test:regression:flutter": "bash test/regression/flutter/run.sh",
     "test:regression:node": "bash test/regression/node/run.sh",
     "test:regression:java": "bash test/regression/java/run.sh",
-    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node && npm run test:regression:java",
+    "test:regression:springboot": "bash test/regression/springboot/run.sh",
+    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node && npm run test:regression:java && npm run test:regression:springboot",
     "test:all": "npm test && npm run test:integration",
     "add-platform": "node bin/blinder.js add_platform"
   },

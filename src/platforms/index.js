@@ -4,6 +4,7 @@ import android from './mobile/android.js';
 import flutter from './mobile/flutter.js';
 import ruby from './backend/ruby.js';
 import node from './backend/node.js';
+import springboot from './backend/springboot.js';
 import java from './backend/java.js';
 
 export const platforms = [
@@ -13,6 +14,7 @@ export const platforms = [
   flutter,
   ruby,
   node,
+  springboot,
   java
 ];
 

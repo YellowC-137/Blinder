@@ -34,16 +34,17 @@ fi
 color_green "PASS: Java compile"
 
 color_blue "→ runtime smoke (load .env into env, run Main)"
-ENV_KV=""
+ENV_KV=()
 if [ -f "$SAMPLE/.env" ]; then
   while IFS='=' read -r key value; do
     [ -z "$key" ] && continue
     [[ "$key" =~ ^# ]] && continue
-    ENV_KV="$ENV_KV $key=$value"
+    value="${value%\"}"; value="${value#\"}"
+    ENV_KV+=("$key=$value")
   done < "$SAMPLE/.env"
 fi
 
-OUTPUT=$(env -i PATH="$PATH" $ENV_KV java -cp "$OUT_DIR" com.example.Main 2>&1)
+OUTPUT=$(env -i PATH="$PATH" "${ENV_KV[@]}" java -cp "$OUT_DIR" com.example.Main 2>&1)
 echo "$OUTPUT"
 if echo "$OUTPUT" | grep -q "stripe configured: true" && \
    echo "$OUTPUT" | grep -q "github configured: true" && \

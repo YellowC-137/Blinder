@@ -250,6 +250,118 @@ async function runUnitTests() {
     });
   }
 
+  // 5. Spring Boot
+  const springboot = platforms.find(p => p.id === 'springboot');
+  if (springboot) {
+    function mkTmp4(setup) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blinder-spring-'));
+      setup(dir);
+      return dir;
+    }
+    function rmTmp4(dir) { fs.rmSync(dir, { recursive: true, force: true }); }
+
+    async function asyncTest4(name, fn) {
+      try { await fn(); console.log(`✅ PASS: ${name}`); passCount++; }
+      catch (e) { console.error(`❌ FAIL: ${name}\n   ${e.message}`); failCount++; }
+    }
+
+    test('Spring Boot - .java replacement', () => {
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.java'), 'System.getenv("DB_PW")');
+    });
+    test('Spring Boot - .kt replacement', () => {
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.kt'), 'System.getenv("DB_PW")');
+    });
+    test('Spring Boot - .properties replacement', () => {
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.properties'), '${DB_PW}');
+    });
+    test('Spring Boot - .yml replacement', () => {
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.yml'), '${DB_PW}');
+    });
+    test('Spring Boot - .yaml replacement', () => {
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.yaml'), '${DB_PW}');
+    });
+
+    await asyncTest4('Spring Boot - applyAdvancedFix rewrites @Value literal', async () => {
+      const r = await springboot.applyAdvancedFix({
+        lineContent: '    @Value("plain-secret-xyz")',
+        match: 'plain-secret-xyz',
+        envVarName: 'PLAIN_SECRET_XYZ',
+        ext: '.java'
+      });
+      assert.strictEqual(r.handled, true);
+      assert.ok(r.lineContent.includes('@Value("${PLAIN_SECRET_XYZ}")'), `got: ${r.lineContent}`);
+    });
+
+    await asyncTest4('Spring Boot - applyAdvancedFix skips existing ${...} placeholder', async () => {
+      const r = await springboot.applyAdvancedFix({
+        lineContent: '    @Value("${EXISTING_VAR}")',
+        match: '${EXISTING_VAR}',
+        envVarName: 'X',
+        ext: '.java'
+      });
+      assert.strictEqual(r.handled, false);
+    });
+
+    await asyncTest4('Spring Boot - applyAdvancedFix skips non-Java files', async () => {
+      const r = await springboot.applyAdvancedFix({
+        lineContent: 'spring.datasource.password=plain',
+        match: 'plain', envVarName: 'X', ext: '.properties'
+      });
+      assert.strictEqual(r.handled, false);
+    });
+
+    await asyncTest4('Spring Boot detect — pom.xml with spring-boot-starter (match)', async () => {
+      const dir = mkTmp4(d => fs.writeFileSync(path.join(d, 'pom.xml'),
+        '<project><dependency><artifactId>spring-boot-starter-web</artifactId></dependency></project>'));
+      try { assert.strictEqual(await springboot.detect(dir), true); }
+      finally { rmTmp4(dir); }
+    });
+
+    await asyncTest4('Spring Boot detect — Gradle with org.springframework.boot (match)', async () => {
+      const dir = mkTmp4(d => fs.writeFileSync(path.join(d, 'build.gradle'),
+        'plugins { id "org.springframework.boot" version "3.0.0" }'));
+      try { assert.strictEqual(await springboot.detect(dir), true); }
+      finally { rmTmp4(dir); }
+    });
+
+    await asyncTest4('Spring Boot detect — pure Maven without spring (NOT spring)', async () => {
+      const dir = mkTmp4(d => fs.writeFileSync(path.join(d, 'pom.xml'),
+        '<project><dependency><artifactId>commons-lang3</artifactId></dependency></project>'));
+      try { assert.strictEqual(await springboot.detect(dir), false); }
+      finally { rmTmp4(dir); }
+    });
+
+    await asyncTest4('Spring Boot detect — empty dir (NOT spring)', async () => {
+      const dir = mkTmp4(() => {});
+      try { assert.strictEqual(await springboot.detect(dir), false); }
+      finally { rmTmp4(dir); }
+    });
+
+    // classifier
+    const { classifySpringPropertyKey } = await import('../src/protectors/keyClassifier.js');
+    test('Spring classifier - spring.datasource.password ALLOW', () => {
+      assert.strictEqual(classifySpringPropertyKey('spring.datasource.password').allowed, true);
+    });
+    test('Spring classifier - my.app.api-key ALLOW (kebab→dot)', () => {
+      assert.strictEqual(classifySpringPropertyKey('my.app.api-key').allowed, true);
+    });
+    test('Spring classifier - server.port BLOCK', () => {
+      assert.strictEqual(classifySpringPropertyKey('server.port').allowed, false);
+    });
+    test('Spring classifier - spring.application.name BLOCK', () => {
+      assert.strictEqual(classifySpringPropertyKey('spring.application.name').allowed, false);
+    });
+    test('Spring classifier - logging.level.root BLOCK', () => {
+      assert.strictEqual(classifySpringPropertyKey('logging.level.root').allowed, false);
+    });
+    test('Spring classifier - management.endpoints.web BLOCK', () => {
+      assert.strictEqual(classifySpringPropertyKey('management.endpoints.web.exposure.include').allowed, false);
+    });
+    test('Spring classifier - random.user.name DEFAULT DENY', () => {
+      assert.strictEqual(classifySpringPropertyKey('random.user.name').allowed, false);
+    });
+  }
+
   console.log(`\nUnit Tests Finished: ${passCount} passed, ${failCount} failed.`);
   if (failCount > 0) process.exit(1);
 }
