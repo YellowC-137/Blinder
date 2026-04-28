@@ -8,6 +8,22 @@
 
 ---
 
+## 🧩 지원 플랫폼 / 언어
+
+| 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | AST 검증 | Auto-fix | Bridge | 상태 |
+|---|---|---|---|:---:|:---:|:---:|:---:|
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Swift AST | ✅ + advanced (Obj-C `#define`) | ✅ Podfile post_install + Run Script Phase | ✅ 정식 |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Kotlin AST | ✅ BuildConfig + manifestPlaceholders | ✅ `app/build.gradle` 자동 주입 | ✅ 정식 |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE 설정 + `f.sh` | ✅ 정식 |
+| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | — | ✅ env 변환 | — | ✅ 정식 |
+| **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 베타 (커뮤니티 PR 환영) |
+
+**구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)
+
+> 신규 플랫폼 추가는 [🔌 신규 플랫폼 추가 가이드](#-신규-플랫폼-추가-가이드-plugin-architecture) 또는 [CONTRIBUTING.md](./CONTRIBUTING.md) 참고.
+
+---
+
 ## ✨ 핵심 기능
 
 - **🔍 AST 기반 정밀 검증 (Phase-Gate)**: `web-tree-sitter` AST 분석으로 실제 문자열 리터럴 여부를 검증하여 주석/코드 외 영역 오탐을 최소화. (iOS/Android/Flutter 우선 지원)
@@ -219,17 +235,60 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 
 ## 🔌 신규 플랫폼 추가 가이드 (Plugin Architecture)
 
-코어 엔진 수정 없이 새 언어/프레임워크 지원 가능.
+코어 엔진 수정 없이 새 언어/프레임워크 지원 가능. 풀 가이드 + 트러블슈팅은 [CONTRIBUTING.md](./CONTRIBUTING.md) 참고.
 
-### 가장 빠른 방법: CLI 자동 생성
+### 🗺️ 플러그인이 하는 일
+
+각 언어/프레임워크를 **플러그인 1개 = 파일 1개**로 표현. 코어 엔진은 언어 규칙을 절대 모르고, 플러그인이 다음을 알려줌:
+
+| 책임 | 메서드 |
+|---|---|
+| 이 프로젝트가 내 플랫폼인가? | `detect(repoPath)` |
+| 어떤 확장자 스캔할 건가? | `commonExtensions` |
+| 시크릿 발견 시 무엇으로 치환할 건가? | `getAutoFixReplacement(match, envVarName, ext)` |
+| (선택) `.env`를 빌드 시스템에 어떻게 연동? | `setupBridge(repoPath)` / `teardownBridge(repoPath)` |
+| (선택) 단순 치환으로 안 되는 케이스? | `applyAdvancedFix(context)` |
+
+플러그인 파일 작성 → `src/platforms/index.js` 등록 → 끝.
+
+### 🚀 가장 빠른 길: CLI 스캐폴더
 
 ```bash
 blinder add_platform
+# 또는
+npm run add-platform
 ```
 
-대화형 프롬프트로 플러그인 파일 생성 + 레지스트리 등록 자동화. 카테고리(Backend, Frontend, Mobile) 선택 또는 Custom 정의. 자세한 내용 [CONTRIBUTING.md](./CONTRIBUTING.md) 참고.
+대화형으로 5가지 입력:
 
-### 직접 작성: 최소 템플릿
+| 입력 | 의미 | 예시 |
+|---|---|---|
+| Platform ID | 내부 식별자 + 파일명 | `django` |
+| 표시명 | 사용자에게 보이는 이름 | `Django` |
+| Category | Backend / Frontend / Mobile / Custom | `Backend` |
+| 스캔 확장자 | 콤마 구분 | `.py,.html` |
+| 감지 파일 | `detect()` 마커 | `manage.py` |
+
+자동 동작:
+1. `src/platforms/<category>/<id>.js` 템플릿 생성 — **첫 확장자 기준** env 접근자 자동 선택:
+
+   | 첫 확장자 | 자동 접근자 |
+   |---|---|
+   | `.py` | `os.environ.get("VAR")` |
+   | `.rb` | `ENV["VAR"]` |
+   | `.java` / `.kt` | `System.getenv("VAR")` |
+   | `.go` | `os.Getenv("VAR")` |
+   | `.rs` | `std::env::var("VAR").unwrap_or_default()` |
+   | `.php` | `getenv('VAR')` |
+   | 그 외 | `process.env.VAR` |
+
+2. `src/platforms/index.js`에 import + 배열 항목 자동 추가.
+
+생성 후 출력되는 "🚀 다음 단계" 메시지대로 `detect()` / `getAutoFixReplacement()` 다듬고 `blinder scan --dry-run`으로 검증.
+
+### ✍️ 직접 작성하고 싶다면: 최소 템플릿
+
+`detect`, `commonExtensions`, `getAutoFixReplacement`만 있으면 동작.
 
 ```javascript
 // src/platforms/backend/python.js
@@ -247,23 +306,84 @@ export default definePlatform({
 });
 ```
 
-`src/platforms/index.js` 등록:
+`src/platforms/index.js`에 등록:
 
 ```javascript
 import python from './backend/python.js';
 
 export const platforms = [
-  common, ios, android, flutter,
+  common, ios, android, flutter, ruby,
   python
 ];
 ```
 
-### 검증
+> [!TIP]
+> **`definePlatform()`은 필수 필드(`id`, `name`, `detect`, `commonExtensions`)를 로드 시점에 검증**하고 누락 시 즉시 throw. 옵셔널 훅(`preFix`/`postFix`/`setupBridge` 등)은 안전한 기본값으로 채워짐.
+
+### 🎁 자주 추가하는 옵션
+
+```javascript
+definePlatform({
+  // ...필수 필드 생략
+
+  // 항상 플래그할 민감 파일
+  sensitiveFiles: [
+    { glob: '**/local_settings.py', severity: 'CRITICAL', reason: 'Django 로컬 시크릿' }
+  ],
+
+  // 스캔에서 제외 (벤더, 빌드 결과물 등)
+  ignorePaths: ['**/migrations/**', '**/venv/**'],
+
+  // blinder gitignore가 추가할 섹션
+  getGitignoreTemplate: () => `\n# Django\n*.pyc\n__pycache__/\n.env\n`,
+
+  // 확장자별 다른 접근자
+  getAutoFixReplacement: (match, envVarName, ext) => {
+    if (ext === '.html') return `{{ ${envVarName} }}`;
+    return `os.environ.get("${envVarName}")`;
+  }
+});
+```
+
+### 🔐 구조화 설정 파일을 다루는 플랫폼이라면
+
+Info.plist / AndroidManifest meta-data / .properties / .xcconfig 같은 키/값 구조 파일은 raw 문자열로 매칭하지 말 것. 스캐너가 전용 파서(`src/detectors/parsers/*`)로 라우팅하고 `src/protectors/keyClassifier.js`로 자동치환을 게이팅함.
+
+자동치환 정책은 **default-deny**:
+- ✅ Whitelist 등록 키만 자동치환 (`*_API_KEY`, SDK 키 등)
+- ❌ 시스템 키(`CFBundle*`, `androidx.*`, `org.gradle.*`)는 절대 치환 안됨
+
+신규 키 분류 추가는 `keyClassifier.js`에 규칙 추가.
+
+### ✅ 검증
 
 ```bash
-blinder scan --path /your/python-project --dry-run
-blinder blind --path /your/python-project --dry-run -y
+# 유닛 + 파서 + 분류기 테스트
+npm test
+
+# 레지스트리 파싱 확인
+node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+
+# 플랫폼 감지 + Auto-fix 미리보기
+blinder scan --path /your/project --dry-run
+blinder blind --path /your/project --dry-run -y
+
+# (선택) 실제 샘플 빌드 회귀
+npm run test:regression
 ```
+
+### 🐛 자주 만나는 함정
+
+| 증상 | 해결 |
+|---|---|
+| `Platform plugin must have an "id" property.` | 필수 필드(`id`/`name`/`detect`/`commonExtensions`) 채우기 |
+| 파일은 생성됐는데 동작 안함 | `index.js`에 import + 배열 등록 누락 |
+| `Detected platforms`에 안 나타남 | `detect()`가 false. 마커 파일은 **repo 루트** 기준 |
+| 주석 안 시크릿까지 치환 | `commentRegex` 오버라이드 |
+| `blind` 후 빌드 깨짐 | `setupBridge()` 구현 (BuildConfig / dart-define 등) |
+| `rollback` 후 brige 잔존 | `teardownBridge()` 짝 작성 필수 |
+
+자세한 IPlatform 인터페이스 / 라이프사이클 / Bridge 구현 예시: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 <details>
 <summary><strong>📖 고급 플러그인 API (Bridge, Advanced Fix, Lifecycle Hooks)</strong></summary>

@@ -8,6 +8,22 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 
 ---
 
+## 🧩 Supported Platforms / Languages
+
+| Platform | Category | Detection file | Scan extensions | AST verify | Auto-fix | Bridge | Status |
+|---|---|---|---|:---:|:---:|:---:|:---:|
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Swift AST | ✅ + advanced (Obj-C `#define`) | ✅ Podfile post_install + Run Script Phase | ✅ Stable |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Kotlin AST | ✅ BuildConfig + manifestPlaceholders | ✅ Auto-injected into `app/build.gradle` | ✅ Stable |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE configs + `f.sh` | ✅ Stable |
+| **Common** (cross-platform) | core | (every project) | `.env`, `.json` | — | ✅ env conversion | — | ✅ Stable |
+| **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 Beta (community PRs welcome) |
+
+**Structured-file auto-fix** (default-deny + whitelist gating): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties` (permanently blocked) · `.xcconfig` (permanently blocked)
+
+> To add a new platform, see [🔌 Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture) or [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+
 ## ✨ Key Features
 
 - **🔍 AST-Based Precision Engine (Phase-Gate)**: Goes beyond simple regex by using `web-tree-sitter` AST analysis to verify actual string literals. Significantly reduces false positives in comments or non-code areas. (Prioritized for iOS/Android/Flutter)
@@ -219,17 +235,60 @@ Keys outside the whitelist are detected but never auto-fixed — only flagged wi
 
 ## 🔌 Adding a New Platform Plugin (Plugin Architecture)
 
-Add support for new languages and frameworks without touching the core engine.
+Add support for new languages and frameworks without touching the core engine. Full guide + troubleshooting: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-### Quick Start: CLI Scaffolding
+### 🗺️ What a Plugin Does
+
+Each language/framework is **one plugin = one file**. The core engine knows zero language rules — the plugin tells it:
+
+| Responsibility | Method |
+|---|---|
+| Is this project mine? | `detect(repoPath)` |
+| Which extensions to scan? | `commonExtensions` |
+| What to replace a hardcoded secret with? | `getAutoFixReplacement(match, envVarName, ext)` |
+| (optional) How to wire `.env` into the build system? | `setupBridge(repoPath)` / `teardownBridge(repoPath)` |
+| (optional) Cases simple substitution can't handle? | `applyAdvancedFix(context)` |
+
+Write the plugin file → register in `src/platforms/index.js` → done.
+
+### 🚀 Fastest Path: CLI Scaffolder
 
 ```bash
 blinder add_platform
+# or
+npm run add-platform
 ```
 
-Interactive prompts generate the plugin file and register it automatically. Choose a category (Backend, Frontend, Mobile) or define a Custom one. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+Interactive — 5 inputs:
 
-### Manual: Minimal Template
+| Prompt | Meaning | Example |
+|---|---|---|
+| Platform ID | Internal identifier + filename | `django` |
+| Display name | What users see | `Django` |
+| Category | Backend / Frontend / Mobile / Custom | `Backend` |
+| Scan extensions | Comma-separated | `.py,.html` |
+| Detection file | `detect()` marker | `manage.py` |
+
+Automated steps:
+1. Generates `src/platforms/<category>/<id>.js` — env-accessor auto-picked by **first extension**:
+
+   | First extension | Auto-generated accessor |
+   |---|---|
+   | `.py` | `os.environ.get("VAR")` |
+   | `.rb` | `ENV["VAR"]` |
+   | `.java` / `.kt` | `System.getenv("VAR")` |
+   | `.go` | `os.Getenv("VAR")` |
+   | `.rs` | `std::env::var("VAR").unwrap_or_default()` |
+   | `.php` | `getenv('VAR')` |
+   | other | `process.env.VAR` |
+
+2. Auto-adds import + array entry to `src/platforms/index.js`.
+
+After generation, follow the printed "🚀 Next steps" to refine `detect()` / `getAutoFixReplacement()` and verify with `blinder scan --dry-run`.
+
+### ✍️ Prefer Writing It By Hand: Minimal Template
+
+Only `detect`, `commonExtensions`, and `getAutoFixReplacement` are strictly required.
 
 ```javascript
 // src/platforms/backend/python.js
@@ -253,17 +312,78 @@ Register in `src/platforms/index.js`:
 import python from './backend/python.js';
 
 export const platforms = [
-  common, ios, android, flutter,
+  common, ios, android, flutter, ruby,
   python
 ];
 ```
 
-### Verify
+> [!TIP]
+> **`definePlatform()` validates required fields (`id`, `name`, `detect`, `commonExtensions`) at load time** and throws on missing values. Optional hooks (`preFix`/`postFix`/`setupBridge`, etc.) get safe defaults.
+
+### 🎁 Common Optional Additions
+
+```javascript
+definePlatform({
+  // ...required fields elided
+
+  // Always-flagged sensitive files
+  sensitiveFiles: [
+    { glob: '**/local_settings.py', severity: 'CRITICAL', reason: 'Django local secrets' }
+  ],
+
+  // Excludes (vendor / build outputs)
+  ignorePaths: ['**/migrations/**', '**/venv/**'],
+
+  // Section appended by `blinder gitignore`
+  getGitignoreTemplate: () => `\n# Django\n*.pyc\n__pycache__/\n.env\n`,
+
+  // Different accessor per extension
+  getAutoFixReplacement: (match, envVarName, ext) => {
+    if (ext === '.html') return `{{ ${envVarName} }}`;
+    return `os.environ.get("${envVarName}")`;
+  }
+});
+```
+
+### 🔐 If Your Platform Uses Structured Config Files
+
+For Info.plist / AndroidManifest meta-data / .properties / .xcconfig and similar key/value config files, do **not** match them as raw strings. The scanner already routes them through dedicated parsers (`src/detectors/parsers/*`) and gates auto-fix via `src/protectors/keyClassifier.js`.
+
+Auto-fix policy is **default-deny**:
+- ✅ Only whitelisted keys are eligible (`*_API_KEY`, SDK keys, etc.)
+- ❌ System keys (`CFBundle*`, `androidx.*`, `org.gradle.*`) are never rewritten
+
+To extend coverage, add classifier rules in `keyClassifier.js`.
+
+### ✅ Verify
 
 ```bash
-blinder scan --path /your/python-project --dry-run
-blinder blind --path /your/python-project --dry-run -y
+# Unit + parser + classifier tests
+npm test
+
+# Make sure the registry parses
+node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+
+# Platform detection + auto-fix preview
+blinder scan --path /your/project --dry-run
+blinder blind --path /your/project --dry-run -y
+
+# (optional) Real sample project build regression
+npm run test:regression
 ```
+
+### 🐛 Common Pitfalls
+
+| Symptom | Fix |
+|---|---|
+| `Platform plugin must have an "id" property.` | Fill required fields (`id`/`name`/`detect`/`commonExtensions`) |
+| File created but plugin not active | Missing import + array entry in `index.js` |
+| Not in `Detected platforms` output | `detect()` returned false. Marker file is checked at the **repo root** |
+| Comments get rewritten | Override `commentRegex` |
+| Build breaks after `blind` | Implement `setupBridge()` (BuildConfig / dart-define / etc.) |
+| `rollback` leaves bridge code | Always pair `setupBridge()` with `teardownBridge()` |
+
+Full IPlatform interface / lifecycle / bridge implementation examples: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 <details>
 <summary><strong>📖 Advanced Plugin API (Bridge, Advanced Fix, Lifecycle Hooks)</strong></summary>
