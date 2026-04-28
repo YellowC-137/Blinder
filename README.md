@@ -1,10 +1,88 @@
+<div align="center">
+
 # Blinder 🛡️
 
-[🇰🇷 한국어](./README.md) | [🇺🇸 English](./README_en.md)
+**AI 시대의 시크릿 보호 자동화 — 코드는 그대로, 시크릿만 사라지게.**
 
-**Blinder**는 AI 에이전트(Cursor, ChatGPT, Claude 등)에 코드를 넘기기 전, 소스 속의 민감정보가 외부로 유출되는 것을 사전에 방지하는 **AI 시대의 보안 자동화 도구**입니다.
+[🇰🇷 한국어](./README.md) · [🇺🇸 English](./README_en.md) · [기여 가이드](./CONTRIBUTING.md)
 
-모바일(iOS, Android, Flutter)부터 백엔드(Spring Boot, Node.js 등)까지, **플러그인 아키텍처**를 통해 모든 플랫폼의 하드코딩된 API 키를 탐지하고, 두 가지 워크플로(`blind` 또는 `mask`)로 분리해서 안전하게 처리합니다.
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A518-brightgreen.svg)](https://nodejs.org/)
+[![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](./LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Flutter%20%7C%20Node%20%7C%20Spring%20%7C%20React%20%7C%20Ruby-orange.svg)](#-지원-플랫폼--언어)
+[![Plugin Architecture](https://img.shields.io/badge/architecture-plugin--based-purple.svg)](#-신규-플랫폼-추가-가이드-plugin-architecture)
+[![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](#-그룹-c-보조-명령)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+
+</div>
+
+> **Blinder**는 Cursor / ChatGPT / Claude 같은 AI 에이전트에 코드를 넘기기 전, 소스 속 하드코딩된 API 키·자격증명·인증서가 외부로 유출되는 것을 사전 차단합니다.
+>
+> 모바일(iOS·Android·Flutter)부터 백엔드(Spring Boot·Node.js·Java·Ruby), 프론트엔드(React/CRA/Vite/Next.js)까지 — **플러그인 아키텍처**로 모든 플랫폼을 커버하며, 두 가지 워크플로(`blind`로 운영용 분리, `mask`로 AI 공유용 사본)로 안전하게 처리합니다.
+
+---
+
+## 📑 목차
+
+- [왜 Blinder인가?](#-왜-blinder인가)
+- [60초 퀵스타트](#-60초-퀵스타트)
+- [지원 플랫폼 / 언어](#-지원-플랫폼--언어)
+- [핵심 기능](#-핵심-기능)
+- [설치](#-설치)
+- [두 워크플로 비교](#-두-워크플로-비교)
+- [명령어 가이드](#-명령어-가이드)
+- [프로젝트 설정 (`.blinderSettings`)](#%EF%B8%8F-프로젝트-설정-blindersettings)
+- [플랫폼별 Auto-fix 예시](#-플랫폼별-auto-fix-예시-blind-워크플로)
+- [다른 도구와 비교](#-다른-도구와-비교)
+- [FAQ](#-faq-자주-묻는-질문)
+- [로드맵](#-로드맵)
+- [신규 플랫폼 추가 가이드](#-신규-플랫폼-추가-가이드-plugin-architecture)
+- [공통 주의사항](#-공통-주의사항)
+- [기여하기 · 라이선스 · 감사](#-기여하기--라이선스--감사)
+
+---
+
+## 🤔 왜 Blinder인가?
+
+AI 코딩 에이전트가 일상이 된 지금, 가장 흔한 사고 시나리오는 다음과 같습니다.
+
+| 위험 시나리오 | Blinder가 해결하는 방식 |
+|---|---|
+| 🪣 **`.env`만 빼고 폴더 공유** — 그러나 소스 속 하드코딩 키가 그대로 노출 | `blind`가 소스의 평문 키를 `.env`로 분리 + env 접근자로 자동 치환 |
+| 🤖 **AI에게 "리팩터링해줘"** — 답변에 키 일부가 그대로 인용되어 외부 학습 데이터로 흘러감 | `mask`가 모든 시크릿을 `__BLINDER_VAR__` 토큰으로 치환한 **읽기 전용 사본** 생성 |
+| 🧨 **빌드 깨짐 우려** — 키를 `.env`로 옮기면 `BuildConfig`/`Info.plist`/`dart-define` 연동을 다 손봐야 함 | `bridge`가 플랫폼별 빌드 시스템 연동을 멱등하게 자동 주입 |
+| 🔁 **AI 수정안을 원본에 머지** — 토큰을 다시 시크릿으로 돌리는 작업이 수동/위험 | `restore`가 `.blinder_map.json` 기반으로 자동 복원 + import 누락 보정 |
+| 🚨 **CI/CD에서 사고 차단** — git pre-commit / pipeline에 통합하고 싶음 | `scan --ci` 비-0 종료 코드로 파이프라인 게이팅 |
+
+**한 줄 요약**: 시크릿 탐지(scan) + 운영용 안전 분리(blind/bridge/rollback) + AI 공유용 마스킹(mask/restore)을 **하나의 CLI**로 묶었습니다.
+
+---
+
+## ⚡ 60초 퀵스타트
+
+```bash
+# 1) 설치
+npm install -g github:YellowC-137/Blinder
+
+# 2) 프로젝트 디렉토리로 이동
+cd /path/to/your/project
+
+# 3) 안전하게 미리보기 (파일 수정 없음)
+blinder scan --dry-run
+
+# 4-A) 운영용: 시크릿을 .env로 분리하고 빌드 시스템 연동
+blinder blind            # 소스 자동 치환 + .env 생성 + .gitignore 보강
+blinder bridge           # BuildConfig / Podfile / dart-define 등 빌드 연동
+
+# 4-B) 또는 AI 공유용: 마스킹된 읽기 전용 사본 생성
+blinder mask             # maskedProject_<projectName>/ 생성
+
+# 5) 사고 발생 시 되돌리기
+blinder rollback         # blind 결과를 하드코딩 원상복구
+blinder restore          # AI가 수정한 mask 사본을 원본에 머지 + 토큰 자동 복원
+```
+
+> [!IMPORTANT]
+> 어떤 명령이든 실행 **전에 반드시 `git commit`**. Blinder는 빌드 핵심 파일(`build.gradle`, `Podfile`, `Info.plist`, `.pbxproj`)까지 수정합니다.
 
 ---
 
@@ -12,19 +90,19 @@
 
 | 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | 상태 |
 |---|---|---|---|:---:|
-| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ 배포완료 |
-| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ 배포완료 |
-| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 배포완료 |
-| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 배포완료 |
-| **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ 배포완료 |
-| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ 배포완료 |
-| **Spring Boot** | backend | `pom.xml`(spring-boot-starter) 또는 `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ 배포완료 |
-| **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ 배포완료 |
-| **Ruby** | backend | `Gemfile` | `.rb` | 🧪 베타 (커뮤니티 PR 환영) |
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Stable |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Stable |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ Stable |
+| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ Stable |
+| **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ Stable |
+| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ Stable |
+| **Spring Boot** | backend | `pom.xml`(spring-boot-starter) 또는 `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ Stable |
+| **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ Stable |
+| **Ruby** | backend | `Gemfile` | `.rb` | 🧪 Beta (커뮤니티 PR 환영) |
 
 **구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)
 
-> 신규 플랫폼 추가는 [🔌 신규 플랫폼 추가 가이드](#-신규-플랫폼-추가-가이드-plugin-architecture) 또는 [CONTRIBUTING.md](./CONTRIBUTING.md) 참고.
+> 신규 플랫폼 추가는 [신규 플랫폼 추가 가이드](#-신규-플랫폼-추가-가이드-plugin-architecture) 또는 [CONTRIBUTING.md](./CONTRIBUTING.md)를 참고하세요.
 
 ---
 
@@ -33,33 +111,51 @@
 - **🔍 AST 기반 정밀 검증 (Phase-Gate)**: `web-tree-sitter` AST 분석으로 실제 문자열 리터럴 여부를 검증하여 주석/코드 외 영역 오탐을 최소화. (iOS/Android/Flutter 우선 지원)
 - **⚡ 하이브리드 I/O**: 파일 크기에 따라 `readFileSync`와 `readline` 스트림을 전환. 대용량 프로젝트에서도 메모리 점유율 최소.
 - **🛡️ 자동 환경변수 변환 (Auto-fix)**: 탐지된 시크릿을 `.env`로 옮기고 플랫폼별(Dart/Kotlin/Swift/Obj-C/Java) 환경변수 접근 코드로 자동 치환.
-- **🔌 플러그인 아키텍처**: `BasePlatform` 상속으로 신규 언어/프레임워크 손쉽게 추가.
+- **🔌 플러그인 아키텍처**: `BasePlatform` 상속으로 신규 언어/프레임워크 손쉽게 추가. 코어 엔진은 언어 규칙을 모릅니다.
+- **🌉 Bridge 자동 연동**: BuildConfig·Podfile post_install·dart-define-from-file 등 빌드 시스템 wiring을 멱등하게 주입/회수.
 - **📜 멀티라인 시크릿 탐지**: 일반 문자열뿐만 아니라 PEM Private Key, 인증서 등 여러 줄 데이터까지 처리.
 - **📊 자동 리포트 & CI 지원**: `blinder_reports/`에 스캔 이력 저장. `--ci` / `-y` 모드로 파이프라인 통합.
-- **🗝️ 구조화 파일 검출 + 화이트리스트**: Info.plist, AndroidManifest meta-data, gradle.properties 등 구조화 파일을 키 단위로 파싱하고, SDK 키만 자동치환 대상으로 분류 (시스템 키 자동 제외).
+- **🗝️ 구조화 파일 검출 + 화이트리스트**: Info.plist, AndroidManifest meta-data, gradle.properties 등을 키 단위로 파싱하고, SDK 키만 자동치환 대상으로 분류 (시스템 키 자동 제외).
 
 ---
 
-## 🚀 시작하기
+## 📦 설치
 
-### 설치
+### 옵션 1 — 글로벌 설치 (권장)
 
 ```bash
-# 저장소 클론
+npm install -g github:YellowC-137/Blinder
+blinder --version
+```
+
+### 옵션 2 — 소스 클론 + npm link (개발/기여용)
+
+```bash
 git clone https://github.com/YellowC-137/Blinder.git
 cd Blinder
 npm install
 sudo npm link
 ```
 
-OR
-
-```bash
-npm install -g github:YellowC-137/Blinder
-```
+### 요구 사항
+- Node.js **18 이상**
+- macOS / Linux / Windows (PowerShell)
+- iOS Bridge를 사용하려면 macOS + Xcode 14+ 권장
 
 ---
 
+## 🔀 두 워크플로 비교
+
+| 구분 | `blind` 워크플로 | `mask` 워크플로 |
+|---|---|---|
+| **목적** | 시크릿을 `.env`로 분리, **코드 실행 가능 유지** | AI가 비즈니스 로직만 읽도록 시크릿 완전 제거 |
+| **원본 코드** | 직접 수정 (env 접근자 치환) | 변경 없음 (별도 복사본 생성) |
+| **결과물 빌드 가능 여부** | ✅ 빌드 가능 (bridge 설정 필요) | ❌ **빌드 불가 — 읽기 전용** |
+| **사용 시나리오** | 운영 환경 / 팀 공유 / Git 커밋 | AI 코드 리뷰 / 외부 SDK 분석 / 외부 공유 |
+| **대응 명령** | `blinder blind` ↔ `blinder rollback` | `blinder mask` ↔ `blinder restore` |
+| **수정 결과 처리** | 그대로 사용 (env 로드만 보장) | `restore`로 원본에 다시 머지 |
+
+---
 
 ## 📋 명령어 가이드
 
@@ -145,21 +241,11 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 #### C-2. `blinder gitignore` — `.gitignore` 자동 보강
 감지된 플랫폼별 템플릿(.env, build/, *.jks, ...) + Blinder 생성 파일을 `.gitignore`에 추가.
 
-#### C-3. `blinder help` — 도움말
+#### C-3. `blinder add_platform` — 신규 플랫폼 스캐폴더
+대화형으로 플러그인 파일 1개 + `index.js` 등록을 자동 생성. [신규 플랫폼 추가 가이드](#-신규-플랫폼-추가-가이드-plugin-architecture) 참고.
+
+#### C-4. `blinder help` — 도움말
 모든 명령어 + 옵션 출력.
-
----
-
-## 🔀 두 워크플로 비교
-
-| 구분 | `blind` 워크플로 | `mask` 워크플로 |
-|---|---|---|
-| **목적** | 시크릿을 `.env`로 분리, **코드 실행 가능 유지** | AI가 비즈니스 로직만 읽도록 시크릿 완전 제거 |
-| **원본 코드** | 직접 수정 (env 접근자 치환) | 변경 없음 (별도 복사본 생성) |
-| **결과물 빌드 가능 여부** | ✅ 빌드 가능 (bridge 설정 필요) | ❌ **빌드 불가 — 읽기 전용** |
-| **사용 시나리오** | 운영 환경 / 팀 공유 / Git 커밋 | AI 코드 리뷰 / 외부 SDK 분석 / 외부 공유 |
-| **대응 명령** | `blinder blind` ↔ `blinder rollback` | `blinder mask` ↔ `blinder restore` |
-| **수정 결과 처리** | 그대로 사용 (env 로드만 보장) | `restore`로 원본에 다시 머지 |
 
 ---
 
@@ -201,6 +287,13 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 | **Android (Kotlin/Java)** | `"sk_live...456"` | `BuildConfig.STRIPE_LIVE_SECRET_KEY` |
 | **iOS (Swift)** | `"glpat...789"` | `(Bundle.main.object(forInfoDictionaryKey: "GITLAB_TOKEN") as? String ?? "")` |
 | **iOS (Obj-C)** | `NSString *const API_URL = @"..."` | `#define API_URL [[NSBundle mainBundle] objectForInfoDictionaryKey:@"API_URL"]` |
+| **Node.js** | `const KEY = "sk-..."` | `const KEY = process.env.OPENAI_API_KEY` |
+| **React (CRA)** | `apiKey: "AIza..."` | `apiKey: process.env.REACT_APP_FIREBASE_API_KEY` |
+| **React (Vite)** | `apiKey: "AIza..."` | `apiKey: import.meta.env.VITE_FIREBASE_API_KEY` |
+| **React (Next.js, client)** | `apiKey: "AIza..."` | `apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY` |
+| **Spring Boot (Java)** | `@Value("plain-secret")` | `@Value("${SECRET_NAME}")` |
+| **Spring Boot (.yml)** | `password: "abc123"` | `password: ${DB_PASSWORD}` |
+| **Ruby** | `ENDPOINT = "https://hooks.slack.com/..."` | `ENDPOINT = ENV["SLACK_WEBHOOK_URL"]` |
 
 ### ⚠️ 플랫폼별 Auto-fix 유의사항
 
@@ -222,6 +315,15 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 - `String.fromEnvironment('VAR')` 치환.
 - **필수**: 빌드 시 `--dart-define-from-file=.env` 플래그 명시. → bridge가 IDE 실행 설정 + `f.sh` 래퍼 자동 추가.
 
+#### ⚛️ React (CRA / Vite / Next.js)
+- 빌드 도구 자동 감지 (`react-scripts` / `vite` / `next` deps).
+- **Next.js**: 파일 경로(`pages/api/*`는 서버, `pages/*`는 클라이언트) + `'use client'` 디렉티브로 클라/서버 판별. 클라이언트 파일은 `NEXT_PUBLIC_` 접두사 자동 부여.
+
+#### ☕ Spring Boot
+- `@Value("plain-secret")` → `@Value("${VAR}")` 자동 마이그레이션.
+- 이미 `${prop:default}` placeholder 형태인 경우는 fallback 의도 보호 — 자동 변환 보류.
+- `.properties` / `.yml` / `.xml`은 `${VAR}` 형태로 치환.
+
 ### 🛡️ 구조화 파일 자동치환 정책 (안전장치)
 
 `Info.plist`, `AndroidManifest.xml`, `gradle.properties`는 키 이름 화이트리스트 기반으로만 자동치환:
@@ -235,6 +337,95 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 | .xcconfig | (영구 차단 — 자기참조 위험) | 모든 키 |
 
 화이트리스트 외 키는 검출은 되지만 자동치환은 적용되지 않으며, 사용자에게 경고만 표시됩니다.
+
+---
+
+## 🆚 다른 도구와 비교
+
+| 도구 | 1차 목적 | 자동 치환 | 빌드 시스템 연동 | AI 공유용 마스킹 | 모바일 (iOS/Android/Flutter) |
+|---|---|:---:|:---:|:---:|:---:|
+| **Blinder** | AI 시대 시크릿 보호 + 자동 마이그레이션 | ✅ | ✅ (BuildConfig·Podfile·dart-define) | ✅ (mask/restore) | ✅ |
+| [Gitleaks](https://github.com/gitleaks/gitleaks) | git 기록 시크릿 스캔 | ❌ | ❌ | ❌ | 부분적 |
+| [TruffleHog](https://github.com/trufflesecurity/trufflehog) | 시크릿 검증(verifier) | ❌ | ❌ | ❌ | 부분적 |
+| [git-secrets](https://github.com/awslabs/git-secrets) | pre-commit 훅 | ❌ | ❌ | ❌ | ❌ |
+| [detect-secrets](https://github.com/Yelp/detect-secrets) | baseline 기반 false-positive 관리 | ❌ | ❌ | ❌ | 부분적 |
+
+> Blinder는 **탐지 + 자동 분리 + 빌드 wiring + AI 공유용 사본**까지 한 도구로 묶은 점이 차별화 포인트입니다. 단순 git history 스캐닝이 목적이면 Gitleaks/TruffleHog가 더 적합합니다.
+
+---
+
+## ❓ FAQ (자주 묻는 질문)
+
+<details>
+<summary><strong>Q. 이미 git에 푸시된 시크릿은 어떻게 되나요?</strong></summary>
+
+Blinder는 **현재 워킹 트리** 기준으로 동작합니다. 과거 커밋에 박힌 시크릿은 [BFG Repo-Cleaner](https://rtyley.github.io/bfg-repo-cleaner/) 또는 `git filter-repo`로 별도 정리한 뒤, **반드시 시크릿을 즉시 회전(rotate)** 하세요.
+</details>
+
+<details>
+<summary><strong>Q. <code>blind</code>를 실행했는데 빌드가 깨졌어요.</strong></summary>
+
+대부분 `bridge` 미실행이 원인입니다. `blinder bridge`로 BuildConfig / Podfile post_install / dart-define 연동을 완료하세요. 그래도 깨지면 `blinder rollback`으로 즉시 복구 가능합니다.
+</details>
+
+<details>
+<summary><strong>Q. AI 사본(<code>maskedProject_*</code>)을 그대로 빌드해도 되나요?</strong></summary>
+
+❌ 절대 안 됩니다. 모든 시크릿이 `__BLINDER_VAR__` 토큰으로 치환되어 컴파일 에러 또는 NPE가 발생합니다. AI에게도 "빌드/실행해서 검증해 달라"고 요청하지 마세요. 사본은 **읽기 전용**입니다.
+</details>
+
+<details>
+<summary><strong>Q. 외부 SDK 폴더 (KeySharp, RSKSW 등)도 스캔되나요?</strong></summary>
+
+기본 휴리스틱(`Copyright`, `SDK`, `Third-party` 문구 감지)으로 자동 제외 시도하지만, 100%는 아닙니다. `.blinderSettings`의 `ignorePaths`에 명시적으로 추가하세요.
+</details>
+
+<details>
+<summary><strong>Q. CI/CD 파이프라인에 통합하려면?</strong></summary>
+
+`blinder scan --ci`는 시크릿 발견 시 비-0 종료 코드를 반환합니다. GitHub Actions / GitLab CI / Jenkins의 단계로 추가하면 PR 머지 직전 게이팅이 가능합니다.
+
+```yaml
+# .github/workflows/blinder.yml
+- name: Scan secrets
+  run: npx -y github:YellowC-137/Blinder scan --ci
+```
+</details>
+
+<details>
+<summary><strong>Q. 사용자 정의 시크릿 패턴은 어떻게 추가하나요?</strong></summary>
+
+`.blinderSettings`의 `customPatterns`에 정규식 + severity로 등록합니다. 자세한 예시는 [프로젝트 설정](#%EF%B8%8F-프로젝트-설정-blindersettings) 섹션 참고.
+</details>
+
+<details>
+<summary><strong>Q. Next.js의 <code>NEXT_PUBLIC_</code> 접두사는 어떻게 결정되나요?</strong></summary>
+
+파일 상단 `'use client'` 디렉티브가 있거나 `pages/` 하위(단 `pages/api/*` 제외)이면 클라이언트로 판단하여 `NEXT_PUBLIC_` 접두사를 부여합니다. 그 외 (App Router 기본 RSC, `lib/`, `utils/`)는 서버로 판단하여 bare `process.env.X`를 사용합니다.
+</details>
+
+<details>
+<summary><strong>Q. <code>.blinder_protect.json</code> / <code>.blinder_map.json</code>은 git에 커밋해야 하나요?</strong></summary>
+
+❌ 둘 다 자동으로 `.gitignore`에 추가됩니다. 로컬 메타데이터이며 푸시 대상이 아닙니다. 단, **로컬에서 절대 삭제하지 마세요** — 삭제 시 정확한 위치 복원/머지가 불가능합니다.
+</details>
+
+---
+
+## 🗺️ 로드맵
+
+| 단계 | 항목 | 상태 |
+|---|---|:---:|
+| **언어/프레임워크** | Python (Django/FastAPI), Go, PHP (Laravel), Rust 플러그인 | 🟡 계획 |
+| **언어/프레임워크** | Vue.js / Nuxt, SvelteKit, Astro | 🟡 계획 |
+| **AI 통합** | MCP (Model Context Protocol) 서버 모드 — IDE에서 직접 mask/restore | 🟡 계획 |
+| **검출 엔진** | 시크릿 verifier (live-key 검증) — TruffleHog 스타일 | 🟡 계획 |
+| **검출 엔진** | 엔트로피 기반 unknown-pattern 가설 | ✅ 부분 (`isPlaceholderValue`) |
+| **CI** | GitHub Actions / GitLab CI / Bitbucket Pipelines 공식 액션 | 🟡 계획 |
+| **리포트** | SARIF 출력 (GitHub Code Scanning 연동) | 🟡 계획 |
+| **Git 기록** | 과거 커밋 시크릿 일괄 정리 헬퍼 (BFG 래퍼) | 🟡 검토 |
+
+> 우선순위 제안 / 신규 항목은 [GitHub Issues](https://github.com/YellowC-137/Blinder/issues)로 부탁드립니다.
 
 ---
 
@@ -485,3 +676,34 @@ application-secret.yml
 
 > [!WARNING]
 > **벤더 라이브러리 빌드 영향**: KeySharp, RSKSW 등 사내 보안 라이브러리는 키 길이 검증 등 자체 제약이 있을 수 있음. `.blinderSettings`의 `ignorePaths`로 제외 후 적용 권장.
+
+> [!CAUTION]
+> **이미 노출된 시크릿은 즉시 회전(rotate)**: Blinder는 사후 정리 도구가 아닙니다. git 기록 / 백업 / 외부 공유본에 한 번이라도 노출된 키는 무조건 새 키로 교체하세요.
+
+---
+
+## 🤝 기여하기 · 라이선스 · 감사
+
+### 기여
+신규 플랫폼 플러그인, 버그 리포트, 문서 개선, 패턴 추가 모두 환영합니다. 시작은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 참고하세요.
+
+- 🐛 **버그 리포트**: [GitHub Issues](https://github.com/YellowC-137/Blinder/issues)
+- 💡 **기능 제안**: [GitHub Discussions](https://github.com/YellowC-137/Blinder/discussions)
+- 🔌 **신규 플랫폼 PR**: `blinder add_platform` → 생성된 파일 다듬기 → PR
+
+### 라이선스
+
+[ISC License](./LICENSE) © Blinder Contributors.
+
+### 감사
+
+- AST 분석 엔진: [`web-tree-sitter`](https://github.com/tree-sitter/tree-sitter) + [`tree-sitter-wasms`](https://github.com/Menci/tree-sitter-wasms)
+- CLI / UX: [`commander`](https://github.com/tj/commander.js), [`inquirer`](https://github.com/SBoudrias/Inquirer.js), [`chalk`](https://github.com/chalk/chalk), [`ora`](https://github.com/sindresorhus/ora)
+- 영감을 준 선행 도구: [Gitleaks](https://github.com/gitleaks/gitleaks), [TruffleHog](https://github.com/trufflesecurity/trufflehog), [git-secrets](https://github.com/awslabs/git-secrets), [detect-secrets](https://github.com/Yelp/detect-secrets)
+
+<div align="center">
+
+**시크릿은 사라지게, 코드는 그대로.**
+Blinder를 사용하시는 모든 분께 감사드립니다. ⭐ Star로 응원 부탁드려요.
+
+</div>

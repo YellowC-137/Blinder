@@ -1,14 +1,204 @@
+<div align="center">
+
 # Contributing to Blinder 🛡️
 
-[🇰🇷 한국어](#한국어-기여-가이드) | [🇺🇸 English](#english-contribution-guide)
+[🇰🇷 한국어](#한국어-기여-가이드) · [🇺🇸 English](#english-contribution-guide)
+
+</div>
+
+> First off, **thank you** — Blinder grows because of contributors like you. This guide covers how to file issues, set up the dev environment, follow our PR conventions, and (most importantly) **add a brand-new platform plugin end-to-end**.
 
 ---
 
 ## English Contribution Guide
 
-Thanks for your interest in contributing. PRs welcome for new platforms, bug fixes, docs.
+### 📑 Quick Navigation
 
-This guide walks you through adding a brand-new platform plugin (e.g. Ruby, Django, Go) **end-to-end** — from scaffolding to merging.
+- [Ways to Contribute](#-ways-to-contribute)
+- [Code of Conduct](#-code-of-conduct)
+- [Filing Issues](#-filing-issues)
+- [Dev Setup](#%EF%B8%8F-dev-setup)
+- [Project Layout](#-project-layout)
+- [Pull Request Checklist](#-pull-request-checklist)
+- [Commit Convention](#-commit-convention)
+- [Adding a New Platform Plugin](#%EF%B8%8F-step-by-step-add-a-new-platform-recommended-path)
+- [Full IPlatform Interface](#-full-iplatform-interface-reference)
+- [Bridge Integration (Compiled Languages)](#-bridge-integration-for-compiled-languages)
+- [Testing Your Plugin](#-testing-your-plugin)
+- [Common Pitfalls](#-common-pitfalls)
+
+---
+
+### 🎁 Ways to Contribute
+
+There are many ways to help, and **all of them are valuable**:
+
+| Type | Examples |
+|---|---|
+| 🐛 **Bug reports** | False positives, false negatives, build breakage after `blind`, `restore` failures |
+| 🔌 **New plugins** | Python (Django/FastAPI), Go, PHP, Rust, Vue, Svelte, etc. — see the step-by-step guide below |
+| 🧪 **Test coverage** | New regression fixtures under `test/regression/<platform>/`, edge-case unit tests |
+| 🎯 **New patterns** | Adding regex patterns to `src/detectors/patterns.js` for unsupported secret types |
+| 📚 **Docs** | Translations, clearer examples, fixing typos, adding diagrams |
+| 💬 **Triage** | Reproducing reported issues, validating fixes, answering questions in Discussions |
+
+> Not sure where to start? Look for [`good first issue`](https://github.com/YellowC-137/Blinder/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) labels.
+
+---
+
+### 🤝 Code of Conduct
+
+We follow a short, well-known principle: **be kind, be patient, assume good intent.** Disagreement is fine — disrespect is not. Harassment, discrimination, and personal attacks will result in removal.
+
+If you experience or witness behavior that violates this, please open a confidential issue to maintainers.
+
+---
+
+### 🐛 Filing Issues
+
+A good bug report dramatically speeds up fixes. Please include:
+
+1. **Blinder version** — `blinder --version` (or commit SHA if installed from source)
+2. **Node.js version** — `node --version`
+3. **OS** — macOS / Linux / Windows + version
+4. **Platform plugin** triggered (`react`, `springboot`, `ios`, …)
+5. **Reproduction steps** — exact command(s) you ran
+6. **Expected** vs **actual** behavior
+7. **Minimal example** — a small repo or snippet that reproduces it (please redact real secrets)
+8. **Logs** — full stack trace if any, or `--dry-run` output
+
+> ⚠️ **Never paste real secrets in issues.** Use placeholders like `AKIA...EXAMPLE` or `sk-test-...`.
+
+For feature requests, lead with the **problem you're trying to solve**, not just the proposed solution.
+
+---
+
+### 🛠️ Dev Setup
+
+```bash
+# 1) Clone + install
+git clone https://github.com/YellowC-137/Blinder.git
+cd Blinder
+npm install
+
+# 2) Link the CLI globally so `blinder` resolves to your working copy
+sudo npm link
+
+# 3) Verify
+blinder --version
+node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+
+# 4) Run the test suite
+npm test                 # unit + parser + classifier tests
+npm run test:integration # end-to-end migration tests
+npm run test:regression  # real sample-app build regressions (slow)
+```
+
+#### Requirements
+- Node.js **18+**
+- macOS / Linux / Windows
+- For iOS regression: macOS + Xcode 14+
+- For Android regression: Android SDK + Gradle wrapper present
+
+---
+
+### 🗂️ Project Layout
+
+```text
+Blinder/
+├── bin/blinder.js                 ← CLI entrypoint (commander)
+├── src/
+│   ├── commands/                  ← One file per CLI command (blind, mask, scan, restore, ...)
+│   ├── detectors/
+│   │   ├── scanner.js             ← Core file-walker + dedup + entropy gating
+│   │   ├── patterns.js            ← Built-in secret regexes
+│   │   └── parsers/               ← Structured-file parsers (.plist, manifest, .properties)
+│   ├── platforms/
+│   │   ├── BasePlatform.js        ← Class wrapper (don't touch)
+│   │   ├── definePlatform.js      ← Helper that validates + wraps your config
+│   │   ├── index.js               ← Registry — every plugin imported here
+│   │   ├── common.js              ← Cross-platform rules
+│   │   ├── mobile/                ← ios.js, android.js, flutter.js
+│   │   ├── backend/               ← node.js, java.js, springboot.js, ruby.js
+│   │   └── frontend/              ← react.js
+│   ├── protectors/
+│   │   └── keyClassifier.js       ← Whitelist/blacklist for structured-file keys
+│   ├── services/
+│   │   └── protectionService.js   ← applyAutoFixes() — runs lifecycle hooks
+│   └── utils/                     ← logger, packageJsonReader, etc.
+└── test/
+    ├── pattern_test.js            ← Regex correctness
+    ├── platform_unit_test.js      ← Per-platform plugin behavior
+    ├── parser_test.js             ← Structured-file parsing
+    ├── key_classifier_test.js     ← Whitelist/blacklist
+    └── regression/<platform>/     ← Real sample apps for build verification
+```
+
+---
+
+### ✅ Pull Request Checklist
+
+Before opening a PR, please confirm:
+
+- [ ] **Branch from `main`** (or the branch maintainers ask you to target)
+- [ ] **Tests pass locally**: `npm test` (and `npm run test:integration` if your change touches lifecycle/migration code)
+- [ ] **No real secrets** in tests/fixtures — use clearly-fake placeholders (`sk-test-...`, `AKIA...EXAMPLE`)
+- [ ] **New platform?** Updated `src/platforms/index.js` AND added at least one test case in `test/platform_unit_test.js`
+- [ ] **New pattern?** Added cases in `test/pattern_test.js` covering both **positive** match and **negative** (placeholder/comment) cases
+- [ ] **Docs touched** when adding user-facing behavior — updated both `README.md` and `README_en.md`
+- [ ] **No noisy formatting** — keep the diff focused on the change
+- [ ] **Linked issue** in the PR description (`Fixes #123` / `Closes #123`)
+- [ ] **Screenshots / logs** when the change affects CLI output or detection results
+
+#### PR description template
+
+```markdown
+## What
+<one-sentence summary of the change>
+
+## Why
+<problem this solves; link to issue if any>
+
+## How
+<the approach — note any tricky decisions>
+
+## Test plan
+- [ ] `npm test` passes
+- [ ] Manual verification: <commands you ran + observed output>
+
+Fixes #<issue>
+```
+
+---
+
+### 📝 Commit Convention
+
+We follow a lightweight [Conventional Commits](https://www.conventionalcommits.org/) style. Type prefix is required; scope is optional but encouraged.
+
+```
+<type>(<scope>): <short summary>
+
+[optional body — what & why, not how]
+[optional footer — Fixes #N, BREAKING CHANGE: ...]
+```
+
+| Type | When to use |
+|---|---|
+| `feat` | New user-facing functionality |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `test` | Tests only |
+| `refactor` | Refactor without behavior change |
+| `perf` | Performance improvement |
+| `chore` | Tooling / deps / build / CI |
+
+Examples:
+```
+feat(react): add NEXT_PUBLIC_ prefix for Next.js client files
+fix(springboot): preserve ${prop:default} placeholders in @Value
+docs(readme): add comparison table vs gitleaks/trufflehog
+test(ruby): cover multi-line concat with line continuation
+```
 
 ---
 
@@ -291,14 +481,200 @@ PRs touching auto-fix should:
 | Auto-fix replaces secrets in comments | `commentRegex` doesn't match your syntax | Override `commentRegex` (default catches `//`, `/*`, `*`, `#`) |
 | Build breaks after `blind` | Auto-fixed code needs runtime wiring | Implement `setupBridge()` |
 | `rollback` leaves leftover bridge code | `teardownBridge()` not implemented | Pair every `setupBridge()` with a `teardownBridge()` |
+| False positive on a clearly-non-secret value | Pattern too greedy | Add an entry to the placeholder/whitelist set, or tighten the regex with a negative lookahead |
+| Real secret missed | Pattern too narrow, or the literal lives in a context the scanner skips | Add a regression fixture under `test/regression/<platform>/` and a unit test in `test/pattern_test.js` |
 
 ---
 
 ## 한국어 기여 가이드
 
-Blinder 기여 환영. 신규 플랫폼, 버그 수정, 문서 모두 PR 가능.
+### 📑 빠른 이동
 
-이 가이드는 신규 플랫폼 플러그인(예: Ruby, Django, Go) 추가를 **처음부터 끝까지** 따라가는 친절한 안내서.
+- [기여 방법](#-기여-방법)
+- [행동 규범](#-행동-규범)
+- [이슈 작성](#-이슈-작성)
+- [개발 환경 설정](#%EF%B8%8F-개발-환경-설정)
+- [프로젝트 구조](#%EF%B8%8F-프로젝트-구조)
+- [PR 체크리스트](#-pr-체크리스트)
+- [커밋 컨벤션](#-커밋-컨벤션)
+- [신규 플랫폼 추가 (단계별)](#%EF%B8%8F-단계별-가이드-신규-플랫폼-추가-권장-경로)
+- [전체 IPlatform 인터페이스](#-전체-iplatform-인터페이스-레퍼런스)
+- [Bridge 연동 (컴파일 언어)](#-bridge-연동-컴파일-언어용)
+- [플러그인 검증](#-플러그인-검증)
+- [자주 만나는 함정](#-자주-만나는-함정)
+
+---
+
+### 🎁 기여 방법
+
+기여 방식은 다양하며 **모두 동등하게 가치 있습니다**:
+
+| 종류 | 예시 |
+|---|---|
+| 🐛 **버그 리포트** | 오탐(false positive), 미탐(false negative), `blind` 후 빌드 깨짐, `restore` 실패 |
+| 🔌 **신규 플러그인** | Python (Django/FastAPI), Go, PHP, Rust, Vue, Svelte 등 — 아래 단계별 가이드 참고 |
+| 🧪 **테스트 보강** | `test/regression/<platform>/`에 신규 회귀 fixture, 엣지케이스 유닛테스트 |
+| 🎯 **신규 패턴** | `src/detectors/patterns.js`에 미지원 시크릿 타입 정규식 추가 |
+| 📚 **문서** | 번역, 명확한 예시, 오타 수정, 다이어그램 추가 |
+| 💬 **트리아지** | 보고된 이슈 재현, 수정안 검증, Discussions 답변 |
+
+> 어디서 시작할지 모르겠다면 [`good first issue`](https://github.com/YellowC-137/Blinder/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) 라벨을 살펴보세요.
+
+---
+
+### 🤝 행동 규범
+
+짧지만 명확한 원칙: **친절하게, 인내심 있게, 선의를 가정하기.** 의견 차이는 환영, 무례함은 금지. 괴롭힘·차별·인신공격은 즉시 제재 대상입니다.
+
+이런 행동을 겪거나 목격하면 메인테이너에게 비공개 이슈로 알려주세요.
+
+---
+
+### 🐛 이슈 작성
+
+좋은 버그 리포트는 수정 속도를 극적으로 높입니다. 다음 정보를 포함해 주세요:
+
+1. **Blinder 버전** — `blinder --version` (소스 설치 시 commit SHA)
+2. **Node.js 버전** — `node --version`
+3. **OS** — macOS / Linux / Windows + 버전
+4. **트리거된 플랫폼 플러그인** (`react`, `springboot`, `ios`, …)
+5. **재현 단계** — 정확히 실행한 명령어
+6. **기대 동작** vs **실제 동작**
+7. **최소 재현 예시** — 작은 저장소나 스니펫 (실제 시크릿은 반드시 마스킹)
+8. **로그** — 전체 스택트레이스 또는 `--dry-run` 출력
+
+> ⚠️ **이슈에 실제 시크릿을 절대 붙여넣지 마세요.** `AKIA...EXAMPLE` 같은 가짜 placeholder를 사용하세요.
+
+기능 제안은 **해결하려는 문제**부터 명확히 적어주세요. 제안된 솔루션보다 우선합니다.
+
+---
+
+### 🛠️ 개발 환경 설정
+
+```bash
+# 1) 클론 + 의존성 설치
+git clone https://github.com/YellowC-137/Blinder.git
+cd Blinder
+npm install
+
+# 2) CLI를 작업 사본에 글로벌 링크
+sudo npm link
+
+# 3) 검증
+blinder --version
+node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+
+# 4) 테스트 실행
+npm test                 # 유닛 + 파서 + 분류기
+npm run test:integration # E2E 마이그레이션 테스트
+npm run test:regression  # 실제 sample-app 빌드 회귀 (느림)
+```
+
+#### 요구 사항
+- Node.js **18 이상**
+- macOS / Linux / Windows
+- iOS 회귀: macOS + Xcode 14+
+- Android 회귀: Android SDK + Gradle wrapper 존재
+
+---
+
+### 🗂️ 프로젝트 구조
+
+```text
+Blinder/
+├── bin/blinder.js                 ← CLI 엔트리포인트 (commander)
+├── src/
+│   ├── commands/                  ← CLI 명령어 1개당 파일 1개 (blind, mask, scan, restore, ...)
+│   ├── detectors/
+│   │   ├── scanner.js             ← 코어 파일 워커 + dedup + 엔트로피 게이팅
+│   │   ├── patterns.js            ← 내장 시크릿 정규식
+│   │   └── parsers/               ← 구조화 파일 파서 (.plist, manifest, .properties)
+│   ├── platforms/
+│   │   ├── BasePlatform.js        ← 클래스 래퍼 (수정 X)
+│   │   ├── definePlatform.js      ← 검증 + 래핑 헬퍼
+│   │   ├── index.js               ← 레지스트리 — 모든 플러그인 import
+│   │   ├── common.js              ← 공통 규칙
+│   │   ├── mobile/                ← ios.js, android.js, flutter.js
+│   │   ├── backend/               ← node.js, java.js, springboot.js, ruby.js
+│   │   └── frontend/              ← react.js
+│   ├── protectors/
+│   │   └── keyClassifier.js       ← 구조화 파일 키 화이트/블랙리스트
+│   ├── services/
+│   │   └── protectionService.js   ← applyAutoFixes() — 라이프사이클 훅 실행
+│   └── utils/                     ← logger, packageJsonReader 등
+└── test/
+    ├── pattern_test.js            ← 정규식 정확도
+    ├── platform_unit_test.js      ← 플랫폼별 동작
+    ├── parser_test.js             ← 구조화 파일 파싱
+    ├── key_classifier_test.js     ← 화이트/블랙리스트
+    └── regression/<platform>/     ← 빌드 검증용 실제 sample-app
+```
+
+---
+
+### ✅ PR 체크리스트
+
+PR 열기 전 확인:
+
+- [ ] **`main` 기준 브랜치** (메인테이너 지정 브랜치 우선)
+- [ ] **로컬 테스트 통과**: `npm test` (라이프사이클/마이그레이션 변경 시 `npm run test:integration`도)
+- [ ] **실제 시크릿 금지** — 명백히 가짜인 placeholder 사용 (`sk-test-...`, `AKIA...EXAMPLE`)
+- [ ] **신규 플랫폼?** `src/platforms/index.js` 갱신 + `test/platform_unit_test.js`에 최소 1개 테스트케이스
+- [ ] **신규 패턴?** `test/pattern_test.js`에 **positive 매치** + **negative (placeholder/주석)** 케이스 추가
+- [ ] **사용자 노출 동작 변경 시 문서 갱신** — `README.md` + `README_en.md` 양쪽
+- [ ] **불필요한 포맷 변경 없음** — diff를 변경 핵심에만 집중
+- [ ] **이슈 링크** PR 본문에 (`Fixes #123` / `Closes #123`)
+- [ ] **CLI 출력 / 검출 결과 변경 시 스크린샷 또는 로그**
+
+#### PR 본문 템플릿
+
+```markdown
+## What
+<한 줄 요약>
+
+## Why
+<이 PR이 해결하는 문제 — 이슈 링크>
+
+## How
+<접근 방식 — 까다로운 결정사항 메모>
+
+## Test plan
+- [ ] `npm test` 통과
+- [ ] 수동 검증: <실행한 명령어 + 관찰 결과>
+
+Fixes #<issue>
+```
+
+---
+
+### 📝 커밋 컨벤션
+
+가벼운 [Conventional Commits](https://www.conventionalcommits.org/) 스타일. type prefix는 필수, scope는 권장.
+
+```
+<type>(<scope>): <짧은 요약>
+
+[선택 본문 — what & why, not how]
+[선택 푸터 — Fixes #N, BREAKING CHANGE: ...]
+```
+
+| Type | 사용 시점 |
+|---|---|
+| `feat` | 신규 사용자 노출 기능 |
+| `fix` | 버그 수정 |
+| `docs` | 문서만 |
+| `test` | 테스트만 |
+| `refactor` | 동작 변경 없는 리팩터 |
+| `perf` | 성능 개선 |
+| `chore` | 도구 / 의존성 / 빌드 / CI |
+
+예시:
+```
+feat(react): Next.js 클라이언트 파일에 NEXT_PUBLIC_ 접두사 추가
+fix(springboot): @Value의 ${prop:default} placeholder 보존
+docs(readme): gitleaks/trufflehog 비교표 추가
+test(ruby): 라인 컨티뉴에이션 멀티라인 concat 케이스 보강
+```
 
 ---
 
@@ -581,3 +957,13 @@ npm run test:regression:flutter
 | 주석 안의 시크릿까지 치환 | `commentRegex` 미일치 | `commentRegex` 오버라이드 (기본은 `//`, `/*`, `*`, `#` 잡음) |
 | `blind` 후 빌드 깨짐 | 자동치환된 코드가 런타임 연동 필요 | `setupBridge()` 구현 |
 | `rollback` 후 brige 코드 잔존 | `teardownBridge()` 미구현 | 모든 `setupBridge()`는 `teardownBridge()` 짝 필수 |
+| 명백한 비-시크릿이 오탐 | 패턴이 너무 탐욕적 | placeholder/whitelist에 추가하거나 negative lookahead로 정규식 타이트닝 |
+| 진짜 시크릿이 미탐 | 패턴이 너무 좁거나, 스캐너가 스킵하는 컨텍스트에 위치 | `test/regression/<platform>/`에 회귀 fixture + `test/pattern_test.js`에 유닛테스트 |
+
+---
+
+<div align="center">
+
+**기여해 주셔서 감사합니다 🙏 — Blinder는 여러분이 만들어 갑니다.**
+
+</div>
