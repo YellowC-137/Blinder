@@ -1,0 +1,14 @@
+{
+  "name": "blinder-node-sample",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "smoke": "node -e \"require('./index.js'); console.log('smoke OK')\""
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

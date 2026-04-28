@@ -118,6 +118,81 @@ const ANDROID_PROPS_WHITELIST_KEY_HINT = [
 ];
 
 // ──────────────────────────────────────────────────────────────
+// Spring Boot application.{properties,yml,yaml}
+// ──────────────────────────────────────────────────────────────
+//
+// Spring 키는 dot/kebab/snake 혼용 (spring.datasource.password,
+// spring.datasource.url, my-app.api-key, MY_APP_API_KEY 등).
+// 정규화: 소문자, 구분자(_,-)→`.` 으로 통일 후 매칭.
+const SPRING_BLACKLIST_PREFIX = [
+  'server.',
+  'spring.application.',
+  'spring.profiles.',
+  'spring.main.',
+  'spring.jpa.show',
+  'spring.jpa.hibernate.ddl',
+  'spring.jpa.properties.hibernate.dialect',
+  'spring.jpa.open',
+  'spring.mvc.',
+  'spring.web.',
+  'spring.thymeleaf.',
+  'spring.freemarker.',
+  'spring.jackson.',
+  'spring.servlet.',
+  'spring.resources.',
+  'spring.banner.',
+  'spring.output.',
+  'logging.',
+  'management.',
+  'springdoc.',
+  'info.'
+];
+
+const SPRING_BLACKLIST_EXACT = new Set([
+  'server.port',
+  'server.address',
+  'server.servlet.context.path',
+  'spring.application.name',
+  'spring.profiles.active',
+  'spring.profiles.include',
+  'spring.main.banner.mode',
+  'spring.main.web.application.type'
+]);
+
+const SPRING_WHITELIST_KEY_HINT = [
+  /(^|\.)password$/i,
+  /(^|\.)passwd$/i,
+  /(^|\.)secret$/i,
+  /(^|\.)client\.secret$/i,
+  /(^|\.)access[._]?key$/i,
+  /(^|\.)secret[._]?key$/i,
+  /(^|\.)api[._]?key$/i,
+  /(^|\.)app[._]?key$/i,
+  /(^|\.)client[._]?id$/i,
+  /(^|\.)token$/i,
+  /(^|\.)access[._]?token$/i,
+  /(^|\.)refresh[._]?token$/i,
+  /(^|\.)private[._]?key$/i,
+  /(^|\.)keystore[._]?password$/i,
+  /(^|\.)trust[._]?store[._]?password$/i,
+  /(^|\.)jdbc[._]?url$/i,
+  /spring\.datasource\.url$/i,
+  /spring\.datasource\.username$/i,
+  /spring\.datasource\.password$/i,
+  /spring\.mail\.password$/i,
+  /spring\.mail\.username$/i,
+  /spring\.redis\.password$/i,
+  /spring\.rabbitmq\.password$/i,
+  /spring\.kafka\..*\.password$/i,
+  /spring\.security\.oauth2\.client\.registration\..*\.client[._]?secret$/i,
+  /spring\.security\.oauth2\.client\.registration\..*\.client[._]?id$/i
+];
+
+function normalizeSpringKey(key) {
+  return String(key).toLowerCase().replace(/[_-]/g, '.');
+}
+
+// ──────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
@@ -177,6 +252,21 @@ export function classifyPropertiesKey(key, filename) {
 }
 
 /**
+ * Spring Boot application.{properties,yml,yaml} 키 판정.
+ * - 시스템(server.*, spring.application.*, logging.*, management.*) → block
+ * - secret 명명 힌트 (password/secret/api-key/token/jdbc.url 등) → allow
+ * - 그 외 → default deny
+ */
+export function classifySpringPropertyKey(key) {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  const norm = normalizeSpringKey(key);
+  if (SPRING_BLACKLIST_EXACT.has(norm)) return { allowed: false, reason: 'spring system key (exact match)' };
+  if (startsWithAny(SPRING_BLACKLIST_PREFIX, norm)) return { allowed: false, reason: 'spring system key prefix' };
+  if (matchesAny(SPRING_WHITELIST_KEY_HINT, norm)) return { allowed: true, reason: 'spring secret key hint' };
+  return { allowed: false, reason: 'not in whitelist (default deny)' };
+}
+
+/**
  * Aggregator: 파일타입 + 키 → 판정
  */
 export function classifyKey({ fileType, key, filename }) {
@@ -185,6 +275,7 @@ export function classifyKey({ fileType, key, filename }) {
     case 'xcconfig':    return classifyXcconfigKey(key);
     case 'manifest':    return classifyManifestMetaKey(key);
     case 'properties':  return classifyPropertiesKey(key, filename);
+    case 'spring':      return classifySpringPropertyKey(key);
     default:            return { allowed: false, reason: `unknown fileType: ${fileType}` };
   }
 }
@@ -193,5 +284,7 @@ export const _internal = {
   IOS_PLIST_WHITELIST, IOS_PLIST_BLACKLIST_PREFIX, IOS_PLIST_BLACKLIST_EXACT,
   IOS_XCCONFIG_BLACKLIST_PREFIX, IOS_XCCONFIG_BLACKLIST_EXACT,
   ANDROID_META_WHITELIST, ANDROID_META_BLACKLIST_PREFIX, ANDROID_META_BLACKLIST_EXACT,
-  ANDROID_PROPS_BLACKLIST_PREFIX, ANDROID_PROPS_WHITELIST_KEY_HINT
+  ANDROID_PROPS_BLACKLIST_PREFIX, ANDROID_PROPS_WHITELIST_KEY_HINT,
+  SPRING_BLACKLIST_PREFIX, SPRING_BLACKLIST_EXACT, SPRING_WHITELIST_KEY_HINT,
+  normalizeSpringKey
 };

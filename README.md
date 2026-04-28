@@ -10,16 +10,18 @@
 
 ## 🧩 지원 플랫폼 / 언어
 
-| 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | AST 검증 | Auto-fix | Bridge | 상태 |
-|---|---|---|---|:---:|:---:|:---:|:---:|
-| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Swift AST | ✅ + advanced (Obj-C `#define`) | ✅ Podfile post_install + Run Script Phase | ✅ 배포완료 |
-| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Kotlin AST | ✅ BuildConfig + manifestPlaceholders | ✅ `app/build.gradle` 자동 주입 | ✅ 배포완료 |
-| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE 설정 + `f.sh` | ✅ 배포완료 |
-| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | — | ✅ env 변환 | — | ✅ 배포완료 |
-| **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
-| **JavaScript / Node.js** | backend/frontend | `package.json` | `.js, .mjs, .cjs` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
-| **React** | frontend | `package.json` | `.jsx, .tsx` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
-| **Spring Boot (Java)** | backend | `pom.xml, build.gradle` | `.java, .yml, .properties` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
+
+| 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | 상태 |
+|---|---|---|---|:---:|
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ 배포완료 |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ 배포완료 |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 배포완료 |
+| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 배포완료 |
+| **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ 배포완료 |
+| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ 배포완료 |
+| **Spring Boot** | backend | `pom.xml`(spring-boot-starter) 또는 `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ 배포완료 |
+| **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ 배포완료 |
+| **Ruby** | backend | `Gemfile` | `.rb` | ✅ 배포완료 |
 
 
 **구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)

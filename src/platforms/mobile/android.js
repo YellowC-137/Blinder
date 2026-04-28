@@ -10,10 +10,42 @@ export default definePlatform({
   astLanguage: 'kotlin',
 
   detect: async (repoPath) => {
-    const hasAndroidDir = fs.existsSync(path.join(repoPath, 'android'));
-    const hasBuildGradle = fs.existsSync(path.join(repoPath, 'build.gradle')) || 
-                           fs.existsSync(path.join(repoPath, 'app/build.gradle'));
-    return hasAndroidDir || hasBuildGradle;
+    // Strong signal 1: AndroidManifest.xml anywhere in standard locations
+    const manifestPaths = [
+      'AndroidManifest.xml',
+      'app/src/main/AndroidManifest.xml',
+      'src/main/AndroidManifest.xml'
+    ];
+    if (manifestPaths.some(p => fs.existsSync(path.join(repoPath, p)))) return true;
+
+    // Strong signal 2: Flutter/RN-style nested android/ project dir
+    if (fs.existsSync(path.join(repoPath, 'android', 'app', 'build.gradle')) ||
+        fs.existsSync(path.join(repoPath, 'android', 'build.gradle'))) {
+      return true;
+    }
+
+    // Weaker signal: build.gradle present — verify Android Gradle Plugin actually applied
+    // (prevents false-match on Spring Boot / pure Java Gradle projects)
+    const gradleCandidates = [
+      'app/build.gradle',
+      'app/build.gradle.kts',
+      'build.gradle',
+      'build.gradle.kts',
+      'settings.gradle',
+      'settings.gradle.kts'
+    ];
+    for (const rel of gradleCandidates) {
+      const p = path.join(repoPath, rel);
+      if (!fs.existsSync(p)) continue;
+      try {
+        const content = fs.readFileSync(p, 'utf8');
+        if (/com\.android\.application|com\.android\.library|com\.android\.tools\.build/.test(content)) {
+          return true;
+        }
+      } catch { /* unreadable — ignore */ }
+    }
+
+    return false;
   },
 
   commonExtensions: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json'],

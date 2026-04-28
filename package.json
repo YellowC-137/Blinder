@@ -13,7 +13,11 @@
     "test:regression:ios": "bash test/regression/ios/run.sh",
     "test:regression:android": "bash test/regression/android/run.sh",
     "test:regression:flutter": "bash test/regression/flutter/run.sh",
-    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter",
+    "test:regression:node": "bash test/regression/node/run.sh",
+    "test:regression:java": "bash test/regression/java/run.sh",
+    "test:regression:springboot": "bash test/regression/springboot/run.sh",
+    "test:regression:react": "bash test/regression/react/run.sh",
+    "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node && npm run test:regression:java && npm run test:regression:springboot && npm run test:regression:react",
     "test:all": "npm test && npm run test:integration",
     "add-platform": "node bin/blinder.js add_platform"
   },
@@ -38,7 +42,7 @@
     "ora": "^9.3.0",
     "plist": "^3.1.0",
     "tree-sitter-wasms": "^0.1.13",
-    "web-tree-sitter": "^0.26.8",
+    "web-tree-sitter": "0.22.6",
     "xml2js": "^0.6.2"
   }
 }

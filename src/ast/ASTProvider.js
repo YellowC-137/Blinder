@@ -1,5 +1,5 @@
 import path from 'path';
-import { Parser, Language } from 'web-tree-sitter';
+import Parser from 'web-tree-sitter';
 import fs from 'fs';
 import logger from '../utils/logger.js';
 
@@ -21,7 +21,7 @@ class ASTProvider {
   async init() {
     if (this.initialized) return true;
     try {
-      const selfWasmPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/web-tree-sitter/web-tree-sitter.wasm');
+      const selfWasmPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/web-tree-sitter/tree-sitter.wasm');
       await Parser.init({
         locateFile() { return selfWasmPath; }
       });
@@ -47,15 +47,13 @@ class ASTProvider {
     }
 
     try {
-      // In web-tree-sitter 0.22+, it's often better to load from path in Node
-      const lang = await Language.load(wasmPath);
+      const lang = await Parser.Language.load(wasmPath);
       this.languages.set(langId, lang);
       return lang;
     } catch (err) {
-      // Fallback to buffer if path loading fails
       try {
         const wasmBuffer = fs.readFileSync(wasmPath);
-        const lang = await Language.load(wasmBuffer);
+        const lang = await Parser.Language.load(wasmBuffer);
         this.languages.set(langId, lang);
         return lang;
       } catch (innerErr) {
@@ -111,7 +109,13 @@ class ASTProvider {
       '.mm': 'objc',
       '.kt': 'kotlin',
       '.java': 'java',
-      '.dart': 'dart'
+      '.dart': 'dart',
+      '.js': 'javascript',
+      '.mjs': 'javascript',
+      '.cjs': 'javascript',
+      '.jsx': 'javascript',
+      '.ts': 'typescript',
+      '.tsx': 'tsx'
     };
     return mapping[ext];
   }
