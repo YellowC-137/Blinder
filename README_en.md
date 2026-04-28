@@ -41,7 +41,7 @@ npm install -g github:YellowC-137/Blinder
 ### Essential Commands
 
 #### 1. `blinder blind` (Initial Setup)
-Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security. It performs `scan` + `protect` + `gitignore` in a single workflow.
+The goal is to separate key values into `.env` to safely share code while keeping it **"executable."** Detects secrets within the project and migrates them to `.env`, laying the groundwork for project security. It performs `scan` + `protect` + `gitignore` in a single workflow.
 - **Secure Workflow**: Provides an interactive phase to review targeted files and prompt for **additional folder exclusions (e.g., User Custom Library)** before modification.
 - `-y, --yes`: Automatically answers 'yes' to all interactive prompts, suitable for CI/CD pipelines.
 
@@ -54,7 +54,7 @@ Automates build settings so that the contents of the generated `.env` file are a
 - **Flutter**: Automatically adds environment variable flags to IDE (VS Code, IntelliJ) execution settings.
 
 #### 3. `blinder mask` (Before Sending to AI)
-Creates a **masked copy of the project** that replaces secrets with `__BLINDER_VAR__` tags, granting AI agents (like Cursor) full project context without risking secret leaks.
+Regardless of execution capability, the goal is to completely overwrite or exclude sensitive values (constants, strings, etc.) so that the AI can purely read the **"business logic and code flow."** Creates a **masked copy of the project** that replaces secrets with `__BLINDER_VAR__` tags, granting AI agents (like Cursor) full project context without risking secret leaks. Unnecessary security files like SSH keys are also excluded.
 
 > [!NOTE]
 > **Why use `mask` instead of just restricting read access to `.env`?**

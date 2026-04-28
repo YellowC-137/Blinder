@@ -15,7 +15,13 @@ export default definePlatform({
   commonExtensions: ['.dart', '.yaml'],
 
   sensitiveFiles: [
-    { glob: '**/generated_plugin_registrant.dart', severity: 'MEDIUM', reason: '내부 경로가 노출될 수 있는 자동 생성 파일' }
+    { glob: '**/generated_plugin_registrant.dart', severity: 'MEDIUM', reason: '내부 경로가 노출될 수 있는 자동 생성 파일' },
+    { glob: '**/.flutter-plugins', severity: 'LOW', reason: 'Flutter 자동생성 (로컬 플러그인 경로 노출)' },
+    { glob: '**/.flutter-plugins-dependencies', severity: 'LOW', reason: 'Flutter 자동생성 (의존성 경로 노출)' },
+    { glob: '**/firebase_app_id_file.json', severity: 'CRITICAL', reason: 'FlutterFire CLI 생성 Firebase App ID' },
+    { glob: '**/firebase_options.dart', severity: 'HIGH', reason: 'FlutterFire 옵션 (Firebase API 키 하드코딩)' },
+    { glob: '**/.firebaserc', severity: 'MEDIUM', reason: 'Firebase 프로젝트 바인딩 (프로젝트 ID 노출)' },
+    { glob: '**/firebase.json', severity: 'MEDIUM', reason: 'Firebase 프로젝트 설정' }
   ],
 
   commentRegex: /^\s*(\/\/|\/\*|\*)/,

@@ -23,7 +23,14 @@ export default definePlatform({
     { glob: '**/local.properties', severity: 'HIGH', reason: 'SDK 경로 및 API Key가 저장될 수 있는 파일' },
     { glob: '**/gradle.properties', severity: 'HIGH', reason: 'API Key, KeyStore 비밀번호가 저장될 수 있는 파일' },
     { glob: '**/*.jks', severity: 'CRITICAL', reason: '앱 서명 키 파일 (유출 시 치명적)' },
-    { glob: '**/*.keystore', severity: 'CRITICAL', reason: '앱 서명 키 파일 (유출 시 치명적)' }
+    { glob: '**/*.keystore', severity: 'CRITICAL', reason: '앱 서명 키 파일 (유출 시 치명적)' },
+    { glob: '**/*.bks', severity: 'CRITICAL', reason: 'BouncyCastle 키 저장소' },
+    { glob: '**/signing.properties', severity: 'CRITICAL', reason: '앱 서명 자격증명 (관용 명칭)' },
+    { glob: '**/keystore.properties', severity: 'CRITICAL', reason: '앱 서명 자격증명 (관용 명칭)' },
+    { glob: '**/release.keystore.properties', severity: 'CRITICAL', reason: 'Release 빌드 서명 자격증명' },
+    { glob: '**/play-credentials.json', severity: 'CRITICAL', reason: 'Google Play 게시 자격증명' },
+    { glob: '**/play-service-account*.json', severity: 'CRITICAL', reason: 'Google Play 서비스 어카운트' },
+    { glob: '**/agconnect-services.json', severity: 'HIGH', reason: 'Huawei AppGallery 서비스 설정' }
   ],
 
   commentRegex: /^\s*(\/\/|\/\*|\*|#)/,

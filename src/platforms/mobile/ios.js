@@ -37,7 +37,15 @@ export default definePlatform({
     { glob: '**/*.provisionprofile', severity: 'HIGH', reason: 'iOS 프로비저닝 프로필 (앱 배포 및 권한 정보)' },
     { glob: '**/*.entitlements', severity: 'MEDIUM', reason: 'iOS 앱 권한 및 Keychain Access Group 정보' },
     { glob: '**/*.p12', severity: 'CRITICAL', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
-    { glob: '**/*.pfx', severity: 'CRITICAL', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' }
+    { glob: '**/*.pfx', severity: 'CRITICAL', reason: '인증서 및 개인키가 포함된 보안 파일 (유출 시 위험)' },
+    { glob: '**/*.cer', severity: 'HIGH', reason: 'iOS 인증서 파일' },
+    { glob: '**/*.certSigningRequest', severity: 'MEDIUM', reason: '인증서 서명 요청 (CSR)' },
+    { glob: '**/AuthKey_*.p8', severity: 'CRITICAL', reason: 'App Store Connect API 키 (.p8)' },
+    { glob: '**/Fastfile', severity: 'MEDIUM', reason: 'Fastlane 설정 (배포 자격증명 참조 가능)' },
+    { glob: '**/Appfile', severity: 'MEDIUM', reason: 'Fastlane Apple ID/Team ID 정보' },
+    { glob: '**/Matchfile', severity: 'HIGH', reason: 'Fastlane Match 인증서 저장소 정보' },
+    { glob: '**/ExportOptions.plist', severity: 'MEDIUM', reason: 'IPA 익스포트 옵션 (팀/프로비저닝 정보)' },
+    { glob: '**/Generated.xcconfig', severity: 'LOW', reason: 'Flutter 자동생성 (로컬 경로 노출)' }
   ],
 
   commentRegex: /^\s*(\/\/|\/\*|\*)/,
