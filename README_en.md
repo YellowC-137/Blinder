@@ -19,6 +19,7 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 | **Node.js** | backend | `package.json` (no frontend deps) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ Stable |
 | **Java** | backend | `pom.xml` or `build.gradle` (excl. Spring/Android) or `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ Stable |
 | **Spring Boot** | backend | `pom.xml`(spring-boot-starter) or `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ Stable |
+| **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ Stable |
 | **Ruby** | backend | `Gemfile` | `.rb` | 🧪 Beta (community PRs welcome) |
 
 **Structured-file auto-fix** (default-deny + whitelist gating): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties` (permanently blocked) · `.xcconfig` (permanently blocked)

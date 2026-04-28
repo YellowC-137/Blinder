@@ -40,15 +40,19 @@ async function handleAction(action) {
 
 /**
  * Displays scan results and saves a report.
+ * `project` is the detect result (post --platform filter); when null, falls
+ * back to a fresh detect for backwards-compat with existing call sites.
  */
-async function report(results, repoPath, options, skipConfirm = false) {
+async function report(results, repoPath, options, skipConfirm = false, project = null) {
   const reportDir = path.join(repoPath, 'blinder_reports');
   if (!fs.existsSync(reportDir)) {
     fs.mkdirSync(reportDir, { recursive: true });
   }
 
   // Ensure .gitignore is updated with platform templates
-  const project = await detectProjectType(repoPath);
+  if (!project) {
+    project = applyPlatformFilter(await detectProjectType(repoPath), program.opts().platform);
+  }
   await generateGitignore(repoPath, project.platforms);
 
   const projectName = path.basename(repoPath).toLowerCase().replace(/[^a-z0-9]/g, '_') || 'project';
@@ -112,7 +116,30 @@ program
   .version('1.0.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)
-  .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false);
+  .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false)
+  .option('--platform <id>', 'Force a single platform plugin (e.g. node, react, springboot, java, ios, android, flutter, ruby, common). Bypasses auto-detection.');
+
+/**
+ * Apply --platform filter to the detect result.
+ * Returns the (possibly filtered) project. Logs a warning and exits with
+ * code 2 if the requested platform id was not detected in the repo.
+ */
+function applyPlatformFilter(project, platformId) {
+  if (!platformId) return project;
+  const wanted = String(platformId).toLowerCase();
+  const matched = project.platforms.filter(p => p.id === wanted);
+  if (matched.length === 0) {
+    const available = project.platforms.map(p => p.id).join(', ') || '(none)';
+    logger.error(`--platform "${wanted}" not detected in this project. Detected: ${available}`);
+    process.exit(2);
+  }
+  // Always keep `common` for cross-platform .env / .json scanning unless the
+  // user explicitly asked for it. Filtering it out would silently lose env
+  // file detection — surprising and rarely intended.
+  const common = project.platforms.find(p => p.id === 'common');
+  const filtered = (common && wanted !== 'common') ? [common, ...matched] : matched;
+  return { ...project, platforms: filtered };
+}
 
 program
   .command('scan')
@@ -130,7 +157,7 @@ program
     }
 
     const spinner = ora(t('detecting_project')).start();
-    const project = await detectProjectType(repoPath);
+    const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     spinner.succeed(`${t('project_root')} ${repoPath}`);
     const platformNames = project.platforms.map(p => p.name).join(', ');
     spinner.succeed(`${t('detected_platforms')} ${platformNames || 'None (Generic Scan)'}`);
@@ -143,7 +170,7 @@ program
     });
     scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
-    await report(results, repoPath, options);
+    await report(results, repoPath, options, false, project);
   }));
 
 program
@@ -159,7 +186,7 @@ program
       logger.warn('RUNNING IN DRY-RUN MODE: No files will be modified.');
     }
 
-    const project = await detectProjectType(repoPath);
+    const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     const platformNames = project.platforms.map(p => p.name).join(', ');
     logger.info(`Target Platforms: ${platformNames}`);
     
@@ -174,7 +201,7 @@ program
     });
     scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
 
-    const hasSecrets = await report(results, repoPath, {});
+    const hasSecrets = await report(results, repoPath, {}, false, project);
     
     if (hasSecrets) {
       logger.info(`\n${t('tips')}`);
@@ -296,7 +323,7 @@ program
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    const project = await detectProjectType(repoPath);
+    const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     await bridgeProject(repoPath, { dryRun: globalOptions.dryRun, platforms: project.platforms });
   }));
 
@@ -306,8 +333,8 @@ program
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    const project = await detectProjectType(repoPath);
-    await rollbackSecrets(repoPath, { 
+    const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
+    await rollbackSecrets(repoPath, {
       dryRun: globalOptions.dryRun,
       yes: globalOptions.yes,
       platforms: project.platforms
@@ -348,7 +375,7 @@ program
   .action(() => handleAction(async () => {
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
-    const project = await detectProjectType(repoPath);
+    const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     await generateGitignore(repoPath, project.platforms);
   }));
 

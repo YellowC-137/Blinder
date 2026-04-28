@@ -16,7 +16,7 @@ test/regression/
 ├── ios/
 │   ├── run.sh              # 실행 스크립트
 │   ├── sample-app/         # (사용자 추가) Swift+ObjC 최소 Xcode 프로젝트
-│   └── expected-secrets.json  # 사전 박은 secret 위치 + 기대 envVarName
+│   └── expected-secrets.json  # 사전에 정의된 secret 위치 + 기대 envVarName
 ├── android/
 │   ├── run.sh
 │   ├── sample-app/         # (사용자 추가) Kotlin+Java gradle 프로젝트

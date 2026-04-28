@@ -362,6 +362,85 @@ async function runUnitTests() {
     });
   }
 
+  // 6. React
+  const react = platforms.find(p => p.id === 'react');
+  if (react) {
+    function mkTmp5(setup) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blinder-react-'));
+      setup(dir);
+      return dir;
+    }
+    function rmTmp5(dir) { fs.rmSync(dir, { recursive: true, force: true }); }
+
+    async function asyncTest5(name, fn) {
+      try { await fn(); console.log(`✅ PASS: ${name}`); passCount++; }
+      catch (e) { console.error(`❌ FAIL: ${name}\n   ${e.message}`); failCount++; }
+    }
+
+    const { __test } = await import('../src/platforms/frontend/react.js');
+
+    test('React - CRA accessor', () => {
+      __test.setBuildTool('cra');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.REACT_APP_API_KEY');
+    });
+    test('React - Vite accessor', () => {
+      __test.setBuildTool('vite');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'import.meta.env.VITE_API_KEY');
+    });
+    test('React - Next.js accessor (server-side default)', () => {
+      __test.setBuildTool('nextjs');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.API_KEY');
+    });
+    test('React - unknown build tool falls back to CRA', () => {
+      __test.setBuildTool(null);
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.REACT_APP_API_KEY');
+    });
+
+    await asyncTest5('React detect — CRA project (match)', async () => {
+      const dir = mkTmp5(d => fs.writeFileSync(path.join(d, 'package.json'),
+        JSON.stringify({ dependencies: { react: '18.0.0', 'react-scripts': '5.0.0' } })));
+      try { assert.strictEqual(await react.detect(dir), true); }
+      finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React detect — Vite project (match)', async () => {
+      const dir = mkTmp5(d => fs.writeFileSync(path.join(d, 'package.json'),
+        JSON.stringify({ dependencies: { react: '18.0.0' }, devDependencies: { vite: '5.0.0' } })));
+      try { assert.strictEqual(await react.detect(dir), true); }
+      finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React detect — Next.js project (match)', async () => {
+      const dir = mkTmp5(d => fs.writeFileSync(path.join(d, 'package.json'),
+        JSON.stringify({ dependencies: { react: '18.0.0', next: '14.0.0' } })));
+      try { assert.strictEqual(await react.detect(dir), true); }
+      finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React detect — pure Node (NOT react)', async () => {
+      const dir = mkTmp5(d => fs.writeFileSync(path.join(d, 'package.json'),
+        JSON.stringify({ dependencies: { express: '4.0.0' } })));
+      try { assert.strictEqual(await react.detect(dir), false); }
+      finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React detect — no package.json (NOT react)', async () => {
+      const dir = mkTmp5(() => {});
+      try { assert.strictEqual(await react.detect(dir), false); }
+      finally { rmTmp5(dir); }
+    });
+
+    await asyncTest5('React preFix sets buildTool from package.json', async () => {
+      const dir = mkTmp5(d => fs.writeFileSync(path.join(d, 'package.json'),
+        JSON.stringify({ dependencies: { react: '18.0.0' }, devDependencies: { vite: '5.0.0' } })));
+      try {
+        __test.setBuildTool(null);
+        await react.preFix({ repoPath: dir, relPath: '', absPath: '', fileSecrets: [], options: {} });
+        assert.strictEqual(__test.getBuildTool(), 'vite');
+      } finally { rmTmp5(dir); }
+    });
+  }
+
   console.log(`\nUnit Tests Finished: ${passCount} passed, ${failCount} failed.`);
   if (failCount > 0) process.exit(1);
 }

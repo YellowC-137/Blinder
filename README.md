@@ -12,13 +12,14 @@
 
 | 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | 상태 |
 |---|---|---|---|:---:|
-| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ 정식 |
-| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ 정식 |
-| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 정식 |
-| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 정식 |
-| **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ 정식 |
-| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ 정식 |
-| **Spring Boot** | backend | `pom.xml`(spring-boot-starter) 또는 `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ 정식 |
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ 배포완료 |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ 배포완료 |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 배포완료 |
+| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 배포완료 |
+| **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ 배포완료 |
+| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ 배포완료 |
+| **Spring Boot** | backend | `pom.xml`(spring-boot-starter) 또는 `build.gradle`(`org.springframework.boot`) | `.java`, `.kt`, `.properties`, `.yml`, `.yaml`, `.xml` | ✅ 배포완료 |
+| **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ 배포완료 |
 | **Ruby** | backend | `Gemfile` | `.rb` | 🧪 베타 (커뮤니티 PR 환영) |
 
 **구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)
