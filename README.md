@@ -17,7 +17,7 @@
 | **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE 설정 + `f.sh` | ✅ 배포완료 |
 | **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | — | ✅ env 변환 | — | ✅ 배포완료 |
 | **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
-| **JavaScript / Node.js** | backend/frontend | `.js, .mjs, .cjs` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
+| **JavaScript / Node.js** | backend/frontend | `package.json` | `.js, .mjs, .cjs` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
 | **React** | frontend | `package.json` | `.jsx, .tsx` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
 | **Spring Boot (Java)** | backend | `pom.xml, build.gradle` | `.java, .yml, .properties` | — | ✅ `ENV[...]` | — | 🧪 진행중 |
 
