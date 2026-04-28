@@ -10,13 +10,13 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 
 ## 🧩 Supported Platforms / Languages
 
-| Platform | Category | Detection file | Scan extensions | AST verify | Auto-fix | Bridge | Status |
-|---|---|---|---|:---:|:---:|:---:|:---:|
-| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Swift AST | ✅ + advanced (Obj-C `#define`) | ✅ Podfile post_install + Run Script Phase | ✅ Stable |
-| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Kotlin AST | ✅ BuildConfig + manifestPlaceholders | ✅ Auto-injected into `app/build.gradle` | ✅ Stable |
-| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE configs + `f.sh` | ✅ Stable |
-| **Common** (cross-platform) | core | (every project) | `.env`, `.json` | — | ✅ env conversion | — | ✅ Stable |
-| **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 Beta (community PRs welcome) |
+| Platform | Category | Detection file | Scan extensions | Status |
+|---|---|---|---|:---:|
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Stable |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Stable |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ Stable |
+| **Common** (cross-platform) | core | (every project) | `.env`, `.json` | ✅ Stable |
+| **Ruby** | backend | `Gemfile` | `.rb` | 🧪 Beta (community PRs welcome) |
 
 **Structured-file auto-fix** (default-deny + whitelist gating): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties` (permanently blocked) · `.xcconfig` (permanently blocked)
 

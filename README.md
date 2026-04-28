@@ -10,13 +10,13 @@
 
 ## 🧩 지원 플랫폼 / 언어
 
-| 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | AST 검증 | Auto-fix | Bridge | 상태 |
-|---|---|---|---|:---:|:---:|:---:|:---:|
-| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ Swift AST | ✅ + advanced (Obj-C `#define`) | ✅ Podfile post_install + Run Script Phase | ✅ 정식 |
-| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ Kotlin AST | ✅ BuildConfig + manifestPlaceholders | ✅ `app/build.gradle` 자동 주입 | ✅ 정식 |
-| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | — | ✅ `String.fromEnvironment` | ✅ `--dart-define-from-file=.env` + IDE 설정 + `f.sh` | ✅ 정식 |
-| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | — | ✅ env 변환 | — | ✅ 정식 |
-| **Ruby** | backend | `Gemfile` | `.rb` | — | ✅ `ENV[...]` | — | 🧪 베타 (커뮤니티 PR 환영) |
+| 플랫폼 | 카테고리 | 감지 파일 | 스캔 확장자 | 상태 |
+|---|---|---|---|:---:|
+| **iOS** (Swift / Obj-C) | mobile | `*.xcodeproj`, `Podfile`, `Package.swift` | `.swift`, `.m`, `.h`, `.mm`, `.plist`, `.xcconfig` | ✅ 정식 |
+| **Android** (Kotlin / Java) | mobile | `build.gradle`, `AndroidManifest.xml` | `.kt`, `.java`, `.xml`, `.gradle`, `.properties`, `.json` | ✅ 정식 |
+| **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 정식 |
+| **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 정식 |
+| **Ruby** | backend | `Gemfile` | `.rb` | 🧪 베타 (커뮤니티 PR 환영) |
 
 **구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)
 
