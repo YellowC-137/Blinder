@@ -6,6 +6,10 @@ import logger from '../utils/logger.js';
 import ASTProvider from '../ast/ASTProvider.js';
 import readline from 'readline';
 import { patterns } from './patterns.js';
+import { parsePlist, isInfoPlist } from './parsers/plistParser.js';
+import { parseProperties } from './parsers/propertiesParser.js';
+import { parseManifestMetaData, isAndroidManifest } from './parsers/manifestParser.js';
+import { classifyKey } from '../protectors/keyClassifier.js';
 
 /**
  * Heuristic to detect if a match is likely a false positive.
@@ -67,6 +71,78 @@ async function scanSensitiveFiles(repoPath, platforms) {
   }
 
   return warnings;
+}
+
+/**
+ * Structured-format scanner: dispatches to dedicated parsers for Info.plist,
+ * AndroidManifest.xml, .properties, .xcconfig. Detection-only — emits findings
+ * with classifier-determined isFixable so downstream auto-fix gates safely.
+ */
+function scanStructuredFile(filePath, repoPath, content, results, usedEnvNames) {
+  const relPath = path.relative(repoPath, filePath);
+  const base = path.basename(filePath);
+  const ext = path.extname(filePath);
+
+  let entries = [];
+  let fileType = null;
+
+  if (isInfoPlist(filePath)) {
+    fileType = 'plist';
+    entries = parsePlist(content).map(e => ({ key: e.key, value: e.value, line: e.line }));
+  } else if (isAndroidManifest(filePath)) {
+    fileType = 'manifest';
+    entries = parseManifestMetaData(content)
+      .filter(e => e.value !== null)
+      .map(e => ({ key: e.name, value: e.value, line: e.line }));
+  } else if (ext === '.properties' || base === 'gradle.properties' || base === 'local.properties') {
+    fileType = 'properties';
+    entries = parseProperties(content);
+  } else if (ext === '.xcconfig') {
+    fileType = 'xcconfig';
+    entries = parseProperties(content);
+  } else {
+    return;
+  }
+
+  for (const { key, value, line } of entries) {
+    if (!value || typeof value !== 'string') continue;
+    if (value.length < 8) continue;
+    if (/^\$[\(\{]|\$\{|@\{|<inherit/.test(value)) continue;
+    if (/^[\d.\-+\s]+$/.test(value)) continue;
+    if (/^(true|false|yes|no|null|none)$/i.test(value.trim())) continue;
+    const looksSecret = /^[A-Za-z0-9_\-./+=:]{8,}$/.test(value) && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+    const keyHint = /(api|app|client|secret|token|key|password|passwd|auth|credential)/i.test(key);
+    if (!looksSecret && !keyHint) continue;
+
+    const verdict = classifyKey({ fileType, key, filename: base });
+    const sanitized = key.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    let envVarName = sanitized || `STRUCT_${fileType.toUpperCase()}_KEY`;
+    if (usedEnvNames.has(envVarName) && usedEnvNames.get(envVarName) !== value) {
+      let counter = 1;
+      while (usedEnvNames.has(`${envVarName}_${counter}`) && usedEnvNames.get(`${envVarName}_${counter}`) !== value) counter++;
+      envVarName = `${envVarName}_${counter}`;
+    }
+    usedEnvNames.set(envVarName, value);
+
+    results.push({
+      file: relPath,
+      line,
+      match: value,
+      fullMatch: `${key}=${value}`,
+      patternName: `Structured ${fileType} key`,
+      envVarName,
+      severity: verdict.allowed ? 'HIGH' : 'MEDIUM',
+      isFixable: verdict.allowed,
+      isTestKey: false,
+      isSensitiveFile: false,
+      isComment: false,
+      isMultiline: false,
+      content: `${key} = ${value.length > 60 ? value.slice(0, 57) + '...' : value}`,
+      isLikelyExample: false,
+      structuredKey: key,
+      classifierReason: verdict.reason
+    });
+  }
 }
 
 /**
@@ -142,6 +218,8 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
       });
     }
   }
+
+  scanStructuredFile(filePath, repoPath, content, results, usedEnvNames);
 }
 
 async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options) {
