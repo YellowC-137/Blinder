@@ -1,10 +1,88 @@
+<div align="center">
+
 # Blinder 🛡️
 
-[🇰🇷 한국어](./README.md) | [🇺🇸 English](./README_en.md)
+**Secret protection for the AI era — keep your code, lose the secrets.**
 
-**Blinder** is an automated security tool for the AI era designed to prevent sensitive information in your source code from leaking when using AI agents (Cursor, ChatGPT, Claude, etc.).
+[🇰🇷 한국어](./README.md) · [🇺🇸 English](./README_en.md) · [Contributing](./CONTRIBUTING.md)
 
-From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Blinder uses a **plugin architecture** to detect hardcoded API keys across all platforms and process them safely through one of two workflows (`blind` or `mask`).
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A518-brightgreen.svg)](https://nodejs.org/)
+[![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](./LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Flutter%20%7C%20Node%20%7C%20Spring%20%7C%20React%20%7C%20Ruby-orange.svg)](#-supported-platforms--languages)
+[![Plugin Architecture](https://img.shields.io/badge/architecture-plugin--based-purple.svg)](#-adding-a-new-platform-plugin-plugin-architecture)
+[![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](#-group-c-utility-commands)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+
+</div>
+
+> **Blinder** prevents hardcoded API keys, credentials, and certificates from leaking when you hand source code to AI agents (Cursor, ChatGPT, Claude, …).
+>
+> From mobile (iOS · Android · Flutter) to backend (Spring Boot · Node.js · Java · Ruby) and frontend (React/CRA/Vite/Next.js) — Blinder uses a **plugin architecture** to cover every platform, with two safe workflows: `blind` (extract to `.env` for production) or `mask` (read-only copy for AI sharing).
+
+---
+
+## 📑 Table of Contents
+
+- [Why Blinder?](#-why-blinder)
+- [60-Second Quickstart](#-60-second-quickstart)
+- [Supported Platforms / Languages](#-supported-platforms--languages)
+- [Key Features](#-key-features)
+- [Installation](#-installation)
+- [Two Workflows Compared](#-two-workflows-compared)
+- [Command Guide](#-command-guide)
+- [Project Configuration (`.blinderSettings`)](#%EF%B8%8F-project-configuration-blindersettings)
+- [Platform-Specific Auto-fix Examples](#-platform-specific-auto-fix-examples-blind-workflow)
+- [Comparison with Alternatives](#-comparison-with-alternatives)
+- [FAQ](#-faq)
+- [Roadmap](#-roadmap)
+- [Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture)
+- [Common Precautions](#-common-precautions)
+- [Contributing · License · Acknowledgments](#-contributing--license--acknowledgments)
+
+---
+
+## 🤔 Why Blinder?
+
+Now that AI coding agents are part of every dev's workflow, the most common leak scenarios look like this:
+
+| Risk Scenario | How Blinder Solves It |
+|---|---|
+| 🪣 **Sharing a folder "minus `.env`"** — yet hardcoded keys in source still ship | `blind` extracts plain-text keys into `.env` + auto-rewrites with env accessors |
+| 🤖 **Asking AI to "refactor"** — partial keys end up quoted in answers and flow into external training data | `mask` produces a **read-only copy** with all secrets replaced by `__BLINDER_VAR__` tokens |
+| 🧨 **Worried about breaking the build** — moving keys to `.env` means hand-wiring `BuildConfig` / `Info.plist` / `dart-define` | `bridge` idempotently injects per-platform build-system wiring |
+| 🔁 **Merging AI's edits back** — manually flipping tokens back to real secrets is error-prone | `restore` auto-restores from `.blinder_map.json` + auto-fixes missing imports |
+| 🚨 **Need a CI/CD gate** — block PRs that introduce hardcoded secrets | `scan --ci` returns non-zero exit code for pipeline gating |
+
+**One-liner**: detection (scan) + safe production extraction (blind/bridge/rollback) + AI-shareable masking (mask/restore) — all in **one CLI**.
+
+---
+
+## ⚡ 60-Second Quickstart
+
+```bash
+# 1) Install
+npm install -g github:YellowC-137/Blinder
+
+# 2) Move into your project
+cd /path/to/your/project
+
+# 3) Safe preview (no file changes)
+blinder scan --dry-run
+
+# 4-A) Production: extract secrets to .env and wire build system
+blinder blind            # rewrite source + create .env + augment .gitignore
+blinder bridge           # wire BuildConfig / Podfile / dart-define / etc.
+
+# 4-B) Or AI-sharing: produce a masked read-only copy
+blinder mask             # creates maskedProject_<projectName>/
+
+# 5) Need to undo?
+blinder rollback         # revert blind back to hardcoded source
+blinder restore          # merge AI-edited mask copy back + auto-restore tokens
+```
+
+> [!IMPORTANT]
+> **Always `git commit` before running any command.** Blinder modifies build-critical files (`build.gradle`, `Podfile`, `Info.plist`, `.pbxproj`).
 
 ---
 
@@ -24,7 +102,7 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 
 **Structured-file auto-fix** (default-deny + whitelist gating): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties` (permanently blocked) · `.xcconfig` (permanently blocked)
 
-> To add a new platform, see [🔌 Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture) or [CONTRIBUTING.md](./CONTRIBUTING.md).
+> To add a new platform, see [Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture) or [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
@@ -33,30 +111,36 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 - **🔍 AST-Based Precision Engine (Phase-Gate)**: Goes beyond simple regex by using `web-tree-sitter` AST analysis to verify actual string literals. Significantly reduces false positives in comments or non-code areas. (Prioritized for iOS/Android/Flutter)
 - **⚡ Hybrid I/O Optimization**: Switches between `readFileSync` and `readline` streams based on file size to minimize memory overhead in large projects.
 - **🛡️ Auto Environment Variable Conversion (Auto-fix)**: Moves detected secrets to `.env` and replaces them with platform-specific accessors (Dart, Kotlin, Swift, Obj-C, Java, etc.).
-- **🔌 Plugin Architecture**: Add new languages and frameworks easily by inheriting from `BasePlatform`.
+- **🔌 Plugin Architecture**: Add new languages and frameworks easily by inheriting from `BasePlatform`. The core engine knows zero language rules.
+- **🌉 Auto Bridge Integration**: Idempotently injects/removes build-system wiring (BuildConfig · Podfile post_install · dart-define-from-file).
 - **📜 Multi-line Secret Detection**: Detects multi-line sensitive data such as PEM Private Keys and certificates.
 - **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/`. Pipeline integration via `--ci` / `-y` modes.
 - **🗝️ Structured-File Detection + Whitelist**: Parses Info.plist, AndroidManifest meta-data, gradle.properties, etc. at the key level — only SDK keys are eligible for auto-fix (system keys are auto-excluded).
 
 ---
 
-## 🚀 Getting Started
+## 📦 Installation
 
-### Installation
+### Option 1 — Global install (recommended)
 
 ```bash
-# Clone the repository
+npm install -g github:YellowC-137/Blinder
+blinder --version
+```
+
+### Option 2 — Clone source + npm link (for development / contributing)
+
+```bash
 git clone https://github.com/YellowC-137/Blinder.git
 cd Blinder
 npm install
 sudo npm link
 ```
 
-OR
-
-```bash
-npm install -g github:YellowC-137/Blinder
-```
+### Requirements
+- Node.js **18 or newer**
+- macOS / Linux / Windows (PowerShell)
+- For iOS Bridge: macOS + Xcode 14+ recommended
 
 ---
 
@@ -157,7 +241,10 @@ Detect secrets + generate detailed report. No code changes.
 #### C-2. `blinder gitignore` — augment `.gitignore`
 Adds detected platform-specific templates (.env, build/, *.jks, ...) + Blinder-generated files to `.gitignore`.
 
-#### C-3. `blinder help` — help
+#### C-3. `blinder add_platform` — new-platform scaffolder
+Interactively generates one plugin file + auto-registers it in `index.js`. See [Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture).
+
+#### C-4. `blinder help` — help
 Prints all commands and options.
 
 ---
@@ -200,6 +287,13 @@ Customize behavior by creating `.blinderSettings` (JSON) in the project root. Us
 | **Android (Kotlin/Java)** | `"sk_live...456"` | `BuildConfig.STRIPE_LIVE_SECRET_KEY` |
 | **iOS (Swift)** | `"glpat...789"` | `(Bundle.main.object(forInfoDictionaryKey: "GITLAB_TOKEN") as? String ?? "")` |
 | **iOS (Obj-C)** | `NSString *const API_URL = @"..."` | `#define API_URL [[NSBundle mainBundle] objectForInfoDictionaryKey:@"API_URL"]` |
+| **Node.js** | `const KEY = "sk-..."` | `const KEY = process.env.OPENAI_API_KEY` |
+| **React (CRA)** | `apiKey: "AIza..."` | `apiKey: process.env.REACT_APP_FIREBASE_API_KEY` |
+| **React (Vite)** | `apiKey: "AIza..."` | `apiKey: import.meta.env.VITE_FIREBASE_API_KEY` |
+| **React (Next.js, client)** | `apiKey: "AIza..."` | `apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY` |
+| **Spring Boot (Java)** | `@Value("plain-secret")` | `@Value("${SECRET_NAME}")` |
+| **Spring Boot (.yml)** | `password: "abc123"` | `password: ${DB_PASSWORD}` |
+| **Ruby** | `ENDPOINT = "https://hooks.slack.com/..."` | `ENDPOINT = ENV["SLACK_WEBHOOK_URL"]` |
 
 ### ⚠️ Platform-Specific Auto-fix Caveats
 
@@ -221,6 +315,15 @@ Customize behavior by creating `.blinderSettings` (JSON) in the project root. Us
 - Replaced with `String.fromEnvironment('VAR')`.
 - **Required**: Pass `--dart-define-from-file=.env` at build/run time. → bridge auto-adds it to IDE configs and the `f.sh` wrapper.
 
+#### ⚛️ React (CRA / Vite / Next.js)
+- Build tool auto-detected (`react-scripts` / `vite` / `next` deps).
+- **Next.js**: Client/server is determined from file path (`pages/api/*` is server, `pages/*` is client) plus the `'use client'` directive. Client files automatically get the `NEXT_PUBLIC_` prefix.
+
+#### ☕ Spring Boot
+- `@Value("plain-secret")` → `@Value("${VAR}")` auto-migration.
+- If the literal is already a `${prop:default}` placeholder, the user-declared fallback is preserved — auto-conversion is intentionally skipped.
+- `.properties` / `.yml` / `.xml` are rewritten to the `${VAR}` form.
+
 ### 🛡️ Structured-File Auto-fix Policy (Safety Net)
 
 `Info.plist`, `AndroidManifest.xml`, `gradle.properties` are auto-fixed only against a key-name whitelist:
@@ -234,6 +337,95 @@ Customize behavior by creating `.blinderSettings` (JSON) in the project root. Us
 | .xcconfig | (permanently blocked — self-reference risk) | All keys |
 
 Keys outside the whitelist are detected but never auto-fixed — only flagged with a warning to the user.
+
+---
+
+## 🆚 Comparison with Alternatives
+
+| Tool | Primary Goal | Auto-fix | Build-system wiring | AI-sharing mask | Mobile (iOS/Android/Flutter) |
+|---|---|:---:|:---:|:---:|:---:|
+| **Blinder** | Secret protection + auto-migration for the AI era | ✅ | ✅ (BuildConfig · Podfile · dart-define) | ✅ (mask/restore) | ✅ |
+| [Gitleaks](https://github.com/gitleaks/gitleaks) | Secret scanning across git history | ❌ | ❌ | ❌ | partial |
+| [TruffleHog](https://github.com/trufflesecurity/trufflehog) | Secret verification (live-key check) | ❌ | ❌ | ❌ | partial |
+| [git-secrets](https://github.com/awslabs/git-secrets) | Pre-commit hook | ❌ | ❌ | ❌ | ❌ |
+| [detect-secrets](https://github.com/Yelp/detect-secrets) | Baseline-based false-positive management | ❌ | ❌ | ❌ | partial |
+
+> Blinder uniquely bundles **detection + auto-extraction + build wiring + AI-shareable copy** in one tool. If your only need is git-history scanning, Gitleaks/TruffleHog will fit better.
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><strong>Q. What about secrets that are already pushed to git?</strong></summary>
+
+Blinder operates on the **current working tree**. Clean older commits with [BFG Repo-Cleaner](https://rtyley.github.io/bfg-repo-cleaner/) or `git filter-repo`, and **always rotate the secret immediately** afterward.
+</details>
+
+<details>
+<summary><strong>Q. I ran <code>blind</code> and the build broke.</strong></summary>
+
+Almost always caused by skipping `bridge`. Run `blinder bridge` to wire up BuildConfig / Podfile post_install / dart-define. If it's still broken, `blinder rollback` reverts everything instantly.
+</details>
+
+<details>
+<summary><strong>Q. Can I just build the masked copy (<code>maskedProject_*</code>)?</strong></summary>
+
+❌ Never. Every secret is replaced with `__BLINDER_VAR__`, which causes compile errors or NPEs. Don't ask the AI to "build and verify" either. The copy is **read-only**.
+</details>
+
+<details>
+<summary><strong>Q. Does Blinder scan vendor SDK folders (KeySharp, RSKSW, etc.)?</strong></summary>
+
+The default heuristic (detection of `Copyright`, `SDK`, `Third-party` markers) tries to skip them, but it's not 100%. Add them explicitly to `.blinderSettings` `ignorePaths`.
+</details>
+
+<details>
+<summary><strong>Q. How do I integrate this into CI/CD?</strong></summary>
+
+`blinder scan --ci` exits non-zero on detection. Add it as a step in GitHub Actions / GitLab CI / Jenkins to gate PR merges.
+
+```yaml
+# .github/workflows/blinder.yml
+- name: Scan secrets
+  run: npx -y github:YellowC-137/Blinder scan --ci
+```
+</details>
+
+<details>
+<summary><strong>Q. How do I add custom secret patterns?</strong></summary>
+
+Add a regex + severity entry under `customPatterns` in `.blinderSettings`. See the [Project Configuration](#%EF%B8%8F-project-configuration-blindersettings) section for an example.
+</details>
+
+<details>
+<summary><strong>Q. How is the Next.js <code>NEXT_PUBLIC_</code> prefix decided?</strong></summary>
+
+If the file starts with the `'use client'` directive, or it lives under `pages/` (excluding `pages/api/*`), Blinder treats it as client-side and adds the `NEXT_PUBLIC_` prefix. Everything else (App Router default RSC, `lib/`, `utils/`) is treated as server-side and uses bare `process.env.X`.
+</details>
+
+<details>
+<summary><strong>Q. Should I commit <code>.blinder_protect.json</code> / <code>.blinder_map.json</code>?</strong></summary>
+
+❌ Both are auto-added to `.gitignore`. They are local-only metadata. **Never delete them locally** either — without them, exact-position restore/merge is not possible.
+</details>
+
+---
+
+## 🗺️ Roadmap
+
+| Track | Item | Status |
+|---|---|:---:|
+| **Languages/Frameworks** | Python (Django/FastAPI), Go, PHP (Laravel), Rust plugins | 🟡 Planned |
+| **Languages/Frameworks** | Vue.js / Nuxt, SvelteKit, Astro | 🟡 Planned |
+| **AI integration** | MCP (Model Context Protocol) server mode — mask/restore directly from IDE | 🟡 Planned |
+| **Detection engine** | Secret verifier (live-key check) — TruffleHog-style | 🟡 Planned |
+| **Detection engine** | Entropy-based unknown-pattern hypothesis | ✅ Partial (`isPlaceholderValue`) |
+| **CI** | Official actions for GitHub Actions / GitLab CI / Bitbucket Pipelines | 🟡 Planned |
+| **Reports** | SARIF output (GitHub Code Scanning integration) | 🟡 Planned |
+| **Git history** | Helper for cleaning past-commit secrets (BFG wrapper) | 🟡 Considering |
+
+> Suggestions and priority votes welcome on [GitHub Issues](https://github.com/YellowC-137/Blinder/issues).
 
 ---
 
@@ -484,3 +676,34 @@ application-secret.yml
 
 > [!WARNING]
 > **Vendor library build impact**: In-house security libraries (KeySharp, RSKSW, etc.) may have constraints (key-length checks, etc.). Recommended to exclude them via `.blinderSettings` `ignorePaths` first.
+
+> [!CAUTION]
+> **Rotate any secret that has been exposed**: Blinder is not a post-incident cleanup tool. Any key that has touched git history, backups, or external copies must be rotated to a fresh value immediately.
+
+---
+
+## 🤝 Contributing · License · Acknowledgments
+
+### Contributing
+Plugins for new platforms, bug reports, doc improvements, and pattern additions are all welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+- 🐛 **Bug reports**: [GitHub Issues](https://github.com/YellowC-137/Blinder/issues)
+- 💡 **Feature requests**: [GitHub Discussions](https://github.com/YellowC-137/Blinder/discussions)
+- 🔌 **New-platform PRs**: `blinder add_platform` → refine the generated file → PR
+
+### License
+
+[ISC License](./LICENSE) © Blinder Contributors.
+
+### Acknowledgments
+
+- AST engine: [`web-tree-sitter`](https://github.com/tree-sitter/tree-sitter) + [`tree-sitter-wasms`](https://github.com/Menci/tree-sitter-wasms)
+- CLI / UX: [`commander`](https://github.com/tj/commander.js), [`inquirer`](https://github.com/SBoudrias/Inquirer.js), [`chalk`](https://github.com/chalk/chalk), [`ora`](https://github.com/sindresorhus/ora)
+- Prior art that inspired us: [Gitleaks](https://github.com/gitleaks/gitleaks), [TruffleHog](https://github.com/trufflesecurity/trufflehog), [git-secrets](https://github.com/awslabs/git-secrets), [detect-secrets](https://github.com/Yelp/detect-secrets)
+
+<div align="center">
+
+**Lose the secrets, keep the code.**
+Thanks to everyone who uses and contributes to Blinder. ⭐ Star us if you find it useful.
+
+</div>
