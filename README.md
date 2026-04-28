@@ -17,6 +17,7 @@
 | **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ 정식 |
 | **Common** (cross-platform) | core | (모든 프로젝트) | `.env`, `.json` | ✅ 정식 |
 | **Node.js** | backend | `package.json` (frontend deps 없음) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ 정식 |
+| **Java** | backend | `pom.xml` 또는 `build.gradle` (Spring/Android 제외) 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ 정식 |
 | **Ruby** | backend | `Gemfile` | `.rb` | 🧪 베타 (커뮤니티 PR 환영) |
 
 **구조화 파일 자동치환** (default-deny + 화이트리스트 게이팅): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties`(영구차단) · `.xcconfig`(영구차단)

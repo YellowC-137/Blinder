@@ -4,6 +4,7 @@ import android from './mobile/android.js';
 import flutter from './mobile/flutter.js';
 import ruby from './backend/ruby.js';
 import node from './backend/node.js';
+import java from './backend/java.js';
 
 export const platforms = [
   common,
@@ -11,7 +12,8 @@ export const platforms = [
   android,
   flutter,
   ruby,
-  node
+  node,
+  java
 ];
 
 export default platforms;

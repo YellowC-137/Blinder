@@ -17,6 +17,7 @@ From mobile (iOS, Android, Flutter) to backend (Spring Boot, Node.js, etc.), Bli
 | **Flutter** (Dart) | mobile | `pubspec.yaml` | `.dart`, `.yaml` | ✅ Stable |
 | **Common** (cross-platform) | core | (every project) | `.env`, `.json` | ✅ Stable |
 | **Node.js** | backend | `package.json` (no frontend deps) | `.js`, `.mjs`, `.cjs`, `.ts` | ✅ Stable |
+| **Java** | backend | `pom.xml` or `build.gradle` (excl. Spring/Android) or `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ Stable |
 | **Ruby** | backend | `Gemfile` | `.rb` | 🧪 Beta (community PRs welcome) |
 
 **Structured-file auto-fix** (default-deny + whitelist gating): Info.plist · AndroidManifest meta-data · `gradle.properties` · `local.properties` (permanently blocked) · `.xcconfig` (permanently blocked)

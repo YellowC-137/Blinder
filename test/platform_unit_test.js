@@ -177,6 +177,79 @@ async function runUnitTests() {
     });
   }
 
+  // 6. Java
+  const java = platforms.find(p => p.id === 'java');
+  if (java) {
+    function mkTmp3(setup) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blinder-java-'));
+      setup(dir);
+      return dir;
+    }
+    function rmTmp3(dir) { fs.rmSync(dir, { recursive: true, force: true }); }
+
+    async function asyncTest3(name, fn) {
+      try { await fn(); console.log(`✅ PASS: ${name}`); passCount++; }
+      catch (e) { console.error(`❌ FAIL: ${name}\n   ${e.message}`); failCount++; }
+    }
+
+    test('Java - .java replacement', () => {
+      assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.java'), 'System.getenv("MY_KEY")');
+    });
+    test('Java - .properties replacement', () => {
+      assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.properties'), '${MY_KEY}');
+    });
+    test('Java - .xml replacement', () => {
+      assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.xml'), '${MY_KEY}');
+    });
+
+    await asyncTest3('Java detect — pure Maven (match)', async () => {
+      const dir = mkTmp3(d => fs.writeFileSync(path.join(d, 'pom.xml'),
+        '<project><dependencies><dependency><groupId>org.junit</groupId></dependency></dependencies></project>'));
+      try { assert.strictEqual(await java.detect(dir), true); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — Spring Boot pom.xml (NOT java)', async () => {
+      const dir = mkTmp3(d => fs.writeFileSync(path.join(d, 'pom.xml'),
+        '<project><dependency><artifactId>spring-boot-starter-web</artifactId></dependency></project>'));
+      try { assert.strictEqual(await java.detect(dir), false); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — Spring Boot Gradle (NOT java)', async () => {
+      const dir = mkTmp3(d => fs.writeFileSync(path.join(d, 'build.gradle'),
+        'plugins { id "org.springframework.boot" version "3.0.0" }'));
+      try { assert.strictEqual(await java.detect(dir), false); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — Android Gradle (NOT java)', async () => {
+      const dir = mkTmp3(d => fs.writeFileSync(path.join(d, 'build.gradle'),
+        'apply plugin: "com.android.application"'));
+      try { assert.strictEqual(await java.detect(dir), false); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — pure Gradle (match)', async () => {
+      const dir = mkTmp3(d => fs.writeFileSync(path.join(d, 'build.gradle'),
+        'apply plugin: "java"\ndependencies { implementation "org.apache.commons:commons-lang3:3.12.0" }'));
+      try { assert.strictEqual(await java.detect(dir), true); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — Maven src layout only (match)', async () => {
+      const dir = mkTmp3(d => fs.mkdirSync(path.join(d, 'src/main/java/com/example'), { recursive: true }));
+      try { assert.strictEqual(await java.detect(dir), true); }
+      finally { rmTmp3(dir); }
+    });
+
+    await asyncTest3('Java detect — empty dir (NOT java)', async () => {
+      const dir = mkTmp3(() => {});
+      try { assert.strictEqual(await java.detect(dir), false); }
+      finally { rmTmp3(dir); }
+    });
+  }
+
   console.log(`\nUnit Tests Finished: ${passCount} passed, ${failCount} failed.`);
   if (failCount > 0) process.exit(1);
 }
