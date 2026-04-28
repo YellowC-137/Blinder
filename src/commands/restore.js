@@ -185,8 +185,14 @@ export async function restoreFromMasked(repoPath, options = {}) {
   }
 
   if (cleanup && !options.dryRun) {
-    fs.rmSync(maskDir, { recursive: true, force: true });
-    logger.success('Cleaned up masked folder.');
+    try {
+      fs.rmSync(maskDir, { recursive: true, force: true });
+      logger.success('Cleaned up masked folder.');
+    } catch (err) {
+      // Cleanup is best-effort. ENOTEMPTY (e.g. macOS Finder created
+      // .DS_Store after our walk) shouldn't fail the whole restore.
+      logger.warn(`Cleanup partial: ${err.code || err.name}: ${err.message}. Remove ${maskDir} manually if needed.`);
+    }
   }
 }
 

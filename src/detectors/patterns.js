@@ -22,9 +22,17 @@ export const patterns = [
     severity: 'HIGH'
   },
   {
-    name: 'AWS Access Key',
+    name: 'AWS Access Key ID',
     regex: /\bAKIA[0-9A-Z]{16}\b/g,
     severity: 'HIGH'
+  },
+  {
+    // AWS Secret Access Key — 40 base64-ish chars in proximity to AWS context.
+    // Matches contexts like aws_secret_access_key=..., AWS_SECRET=..., or after
+    // "secret" keyword. Avoids matching arbitrary 40-char strings.
+    name: 'AWS Secret Access Key',
+    regex: /\b(?:aws[_-]?secret[_-]?access[_-]?key|aws[_-]?secret|AWS_SECRET_ACCESS_KEY|AWS_SECRET)\s*[:=]\s*@?["']?([A-Za-z0-9/+=]{40})["']?/gi,
+    severity: 'CRITICAL'
   },
   {
     name: 'Firebase API Key',
@@ -75,6 +83,13 @@ export const patterns = [
     regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9_]{8}\/B[A-Z0-9_]{8}\/[A-Za-z0-9_]{24}/g,
     severity: 'HIGH'
   },
+  {
+    // Slack Bot/User/App tokens — registered before Generic Token so it wins.
+    // Formats: xoxb- (bot), xoxp- (user), xoxa- (workspace), xoxr- (refresh), xoxs- (legacy)
+    name: 'Slack Bot Token',
+    regex: /\b(xox[abprs]-[A-Za-z0-9-]{10,})\b/g,
+    severity: 'CRITICAL'
+  },
 
   // ─── Cryptographic Material ───
   {
@@ -87,7 +102,10 @@ export const patterns = [
   // ─── Database Connection Strings (보안지침 §1: 인프라 정보) ───
   {
     name: 'Database Connection String',
-    regex: /\b((?:mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>]{10,})/gi,
+    // Exclude `}` from the character class so a JDBC URL inside a Spring
+    // `${VAR:jdbc:...}` placeholder default does not eat the closing brace
+    // of the outer placeholder (#4.3).
+    regex: /\b((?:mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>}]{10,})/gi,
     severity: 'CRITICAL'
   },
 
@@ -102,9 +120,25 @@ export const patterns = [
   // ─── Endpoint & Server URLs ───
   {
     name: 'Endpoint URL',
-    // Captures full URL, skips public schemas, and excludes URLs with string interpolation ($, \(, ${) to avoid matching non-static secrets.
-    // Improved boundary to ensure it doesn't leave trailing slashes or colons in some edge cases.
-    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com))(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;]*[^\s"'<>;.,])?)/gi,
+    // Captures full URL while skipping common non-secret/public URLs.
+    //
+    // Domain whitelist (skipped via negative lookahead):
+    //   - schemas/specs: schemas.android.com, w3.org, w3id.org, apache.org,
+    //                    ns.adobe.com, schema.org, openid.net, purl.org,
+    //                    purl.archive.org, ostatus.org, fedibird.com
+    //   - vendor docs: apple.com, developer.apple.com, github.com, gitlab.com,
+    //                  bitbucket.org, kisa.or.kr, googletagmanager.com,
+    //                  facebook.com, firebase.google.com, google.com,
+    //                  microsoft.com, adobe.com
+    //   - dev/local: localhost, 127.0.0.1, 0.0.0.0, ::1, *.local, *.test,
+    //                *.example, example.com, example.org, example.net,
+    //                *.internal, *.lan
+    //   - documentation hosts: docs.*, mastodon.* (wiki/info hosts)
+    //
+    // Excludes URLs containing interpolation ($, \(, ${) and trailing escape
+    // chars (\, }) to prevent regex from eating closing brackets in property
+    // files (Spring ${VAR:default-url} syntax).
+    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|w3id\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com|example\.com|example\.org|example\.net|joinmastodon\.org|schema\.org|openid\.net|purl\.org|purl\.archive\.org|ostatus\.org|fedibird\.com)|localhost(?:[:\/]|$)|127\.0\.0\.1(?:[:\/]|$)|0\.0\.0\.0(?:[:\/]|$)|\[::1\]|(?:[a-zA-Z0-9.-]+\.)?(?:local|test|example|internal|lan)(?:[:\/]|$)|docs\.)(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;\\}]*[^\s"'<>;.,\\}])?)/gi,
     severity: 'MEDIUM'
   },
 

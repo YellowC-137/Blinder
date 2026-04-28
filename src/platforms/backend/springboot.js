@@ -62,7 +62,22 @@ export default definePlatform({
     '**/.gradle/**',
     '**/.mvn/**',
     '**/out/**',
-    '**/bin/**'
+    '**/bin/**',
+    // i18n message bundles — natural-language text, never secrets (#4.8)
+    '**/messages*.properties',
+    '**/messages_*.properties',
+    '**/ValidationMessages*.properties',
+    // Gradle wrapper distribution URL is fixed launcher metadata (#4.9)
+    '**/gradle/wrapper/gradle-wrapper.properties',
+    // K8s manifests use ${...} syntax that conflicts with Spring placeholders
+    // and breaks DNS resolution if rewritten to ${ENV_NAME} (#4.6)
+    '**/k8s/**',
+    '**/kubernetes/**',
+    '**/helm/**',
+    '**/charts/**',
+    // DTD / schema files contain reference URLs, not secrets
+    '**/*.dtd',
+    '**/*.xsd'
   ],
 
   getGitignoreTemplate: () => `
@@ -108,19 +123,32 @@ bin/
 
   /**
    * Stage 1 — @Value("plain-secret") → @Value("${VAR_NAME}")
-   * 평문 리터럴이 들어간 @Value 만 처리. 이미 ${...} placeholder인 경우 무시.
+   * 평문 리터럴이 들어간 @Value 만 처리. 이미 ${...} placeholder 인 경우는
+   * 사용자가 선언한 fallback 일 가능성이 높아 자동 변환을 보류한다 (#4.2).
    */
   applyAdvancedFix: (context) => {
     const { lineContent, match, envVarName, ext } = context;
     if (ext !== '.java' && ext !== '.kt') return { handled: false };
     if (!lineContent.includes('@Value')) return { handled: false };
 
-    // @Value("..."), @Value(value="...") — placeholder가 아닌 평문일 때만
     const valueRegex = /@Value\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']\s*\)/;
     const m = lineContent.match(valueRegex);
     if (!m) return { handled: false };
     const literal = m[1];
-    if (literal.startsWith('${') || literal.startsWith('#{')) return { handled: false };
+
+    // ${prop:default} or #{SpEL} — secret embedded in the default segment is
+    // a deliberate fallback. Auto-injecting System.getenv() inside the SpEL
+    // string both breaks Java syntax and silently changes runtime semantics
+    // (Spring evaluates the default as a literal string, not as code). Mark
+    // handled with no rewrite so the basic-fix pass also skips it.
+    if (literal.startsWith('${') || literal.startsWith('#{')) {
+      return {
+        handled: true,
+        lineContent,
+        injectedText: '',
+        replacedText: ''
+      };
+    }
     if (!literal.includes(match)) return { handled: false };
 
     const replaced = lineContent.replace(

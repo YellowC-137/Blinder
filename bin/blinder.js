@@ -117,7 +117,18 @@ program
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)
   .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false)
-  .option('--platform <id>', 'Force a single platform plugin (e.g. node, react, springboot, java, ios, android, flutter, ruby, common). Bypasses auto-detection.');
+  .option('--platform <id>', 'Force a single platform plugin (e.g. node, react, springboot, java, ios, android, flutter, ruby, common). Bypasses auto-detection. React build-tool aliases (nextjs, vite, cra) resolve to react.');
+
+// React build-tool variants share the `react` plugin; the build tool is
+// resolved at runtime from package.json (see detectReactBuildTool). Accepting
+// the variant names as --platform aliases lets users target a React project
+// without remembering that they all map to the same plugin id.
+const PLATFORM_ALIASES = {
+  nextjs: 'react',
+  next: 'react',
+  vite: 'react',
+  cra: 'react'
+};
 
 /**
  * Apply --platform filter to the detect result.
@@ -126,11 +137,13 @@ program
  */
 function applyPlatformFilter(project, platformId) {
   if (!platformId) return project;
-  const wanted = String(platformId).toLowerCase();
+  const requested = String(platformId).toLowerCase();
+  const wanted = PLATFORM_ALIASES[requested] || requested;
   const matched = project.platforms.filter(p => p.id === wanted);
   if (matched.length === 0) {
     const available = project.platforms.map(p => p.id).join(', ') || '(none)';
-    logger.error(`--platform "${wanted}" not detected in this project. Detected: ${available}`);
+    const aliasNote = wanted !== requested ? ` (alias for "${wanted}")` : '';
+    logger.error(`--platform "${requested}"${aliasNote} not detected in this project. Detected: ${available}`);
     process.exit(2);
   }
   // Always keep `common` for cross-platform .env / .json scanning unless the

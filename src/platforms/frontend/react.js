@@ -1,12 +1,45 @@
+import fs from 'fs';
 import { definePlatform } from '../definePlatform.js';
-import { readPackageJson, hasDep, detectReactBuildTool } from '../../utils/packageJsonReader.js';
+import { readPackageJson, hasRuntimeDep, detectReactBuildTool } from '../../utils/packageJsonReader.js';
 
 // Build-tool detection runs once per repo via preFix and is cached here so
 // getAutoFixReplacement (which lacks repoPath) can read it. CLI runs target
 // one repo per invocation, so a single module-level slot is sufficient.
 let cachedBuildTool = null;
 
-function pickAccessor(buildTool, envVarName) {
+// Per-file client-side flag for Next.js. Set in preFix, read in
+// getAutoFixReplacement. Next.js exposes env vars to the browser bundle only
+// when prefixed with NEXT_PUBLIC_; server-side code uses bare process.env.X.
+let currentFileClientSide = false;
+
+/**
+ * isNextjsClientSideFile
+ *
+ * Heuristic to decide whether a Next.js file ships to the browser bundle.
+ *
+ * - File starts with "use client" directive → client (overrides path)
+ * - pages/api/** → server (API routes)
+ * - pages/** (non-api) → client (Pages Router hydrates everything client-side)
+ * - app/** without directive → server (App Router default = RSC)
+ * - Anything else (lib/, utils/, components/) → server unless directive present
+ */
+function isNextjsClientSideFile(relPath, absPath) {
+  const norm = relPath.replace(/\\/g, '/');
+
+  if (absPath) {
+    try {
+      const head = fs.readFileSync(absPath, 'utf8').slice(0, 512);
+      if (/^\s*['"]use client['"]/m.test(head)) return true;
+    } catch { /* ignore */ }
+  }
+
+  if (/(^|\/)pages\/api\//.test(norm)) return false;
+  if (/(^|\/)pages\//.test(norm)) return true;
+
+  return false;
+}
+
+function pickAccessor(buildTool, envVarName, isClientSide = false) {
   switch (buildTool) {
     case 'cra':
       // CRA exposes only REACT_APP_* env vars to the bundle
@@ -14,9 +47,12 @@ function pickAccessor(buildTool, envVarName) {
     case 'vite':
       return `import.meta.env.VITE_${envVarName}`;
     case 'nextjs':
-      // Conservative default: server-side accessor. Client-only secrets need
-      // NEXT_PUBLIC_ prefix and explicit user opt-in (see warning in plugin).
-      return `process.env.${envVarName}`;
+      // Client-side files need NEXT_PUBLIC_ prefix to reach the browser
+      // bundle. Server-side files (App Router default, pages/api/*, lib/*)
+      // can use bare process.env.X.
+      return isClientSide
+        ? `process.env.NEXT_PUBLIC_${envVarName}`
+        : `process.env.${envVarName}`;
     default:
       return `process.env.${envVarName}`;
   }
@@ -28,14 +64,14 @@ export default definePlatform({
   category: 'frontend',
   astLanguage: 'tsx',
 
-  // Detect: package.json with `react` as direct or peer/dev dependency.
-  // Note: order in src/platforms/index.js places React before node so that a
-  // React project does not double-match Node (Node detect already excludes
-  // frontend projects via isFrontendProject helper).
+  // Detect: package.json with `react` in production dependencies.
+  // devDependencies/peerDependencies don't count — backend frameworks (e.g.,
+  // Strapi) often list react as a peer dep for admin tooling but are not
+  // React frontend projects.
   detect: async (repoPath) => {
     const pkg = readPackageJson(repoPath);
     if (!pkg) return false;
-    return hasDep(pkg, 'react');
+    return hasRuntimeDep(pkg, 'react');
   },
 
   commonExtensions: ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx'],
@@ -80,21 +116,27 @@ out/
 `,
 
   preFix: async (context) => {
-    const pkg = readPackageJson(context.repoPath);
-    cachedBuildTool = detectReactBuildTool(pkg);
-    if (!cachedBuildTool) {
-      // Defensive: react is present (detect returned true) but no known build
-      // tool. Default to CRA-style behavior with a warning.
-      cachedBuildTool = 'cra';
-      try {
-        const { default: logger } = await import('../../utils/logger.js');
-        logger.warn('[react] Unknown build tool — falling back to CRA-style REACT_APP_* prefix. Add react-scripts, vite, or next to deps for explicit detection.');
-      } catch { /* logger optional */ }
+    if (cachedBuildTool === null) {
+      const pkg = readPackageJson(context.repoPath);
+      cachedBuildTool = detectReactBuildTool(pkg);
+      if (!cachedBuildTool) {
+        // Defensive: react is present (detect returned true) but no known build
+        // tool. Default to CRA-style behavior with a warning.
+        cachedBuildTool = 'cra';
+        try {
+          const { default: logger } = await import('../../utils/logger.js');
+          logger.warn('[react] Unknown build tool — falling back to CRA-style REACT_APP_* prefix. Add react-scripts, vite, or next to deps for explicit detection.');
+        } catch { /* logger optional */ }
+      }
     }
+
+    currentFileClientSide = cachedBuildTool === 'nextjs'
+      ? isNextjsClientSideFile(context.relPath, context.absPath)
+      : false;
   },
 
   getAutoFixReplacement: (match, envVarName, ext, options) => {
-    return pickAccessor(cachedBuildTool || 'cra', envVarName);
+    return pickAccessor(cachedBuildTool || 'cra', envVarName, currentFileClientSide);
   }
 });
 
@@ -102,6 +144,9 @@ out/
 // without triggering preFix lifecycle.
 export const __test = {
   pickAccessor,
+  isNextjsClientSideFile,
   setBuildTool: (bt) => { cachedBuildTool = bt; },
-  getBuildTool: () => cachedBuildTool
+  getBuildTool: () => cachedBuildTool,
+  setClientSide: (v) => { currentFileClientSide = v; },
+  resetCache: () => { cachedBuildTool = null; currentFileClientSide = false; }
 };

@@ -16,7 +16,16 @@ export async function rollbackSecrets(repoPath, options = {}) {
 
   if (report.codeRestored) {
     logger.success(`Source code restored: ${report.restoreCount} changes applied.`);
-    if (report.skipCount > 0) logger.warn(`${report.skipCount} skipped.`);
+    if (report.skipCount > 0) {
+      const r = report.skipReasons || {};
+      const parts = [];
+      if (r.alreadyRestored) parts.push(`already restored: ${r.alreadyRestored}`);
+      if (r.accessorNotFound) parts.push(`accessor edited: ${r.accessorNotFound}`);
+      if (r.secretMissing) parts.push(`missing in .env: ${r.secretMissing}`);
+      if (r.fileNotFound) parts.push(`file not found: ${r.fileNotFound}`);
+      const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+      logger.warn(`${report.skipCount} skipped${detail}.`);
+    }
   }
 
   report.bridgeResults.forEach(res => {

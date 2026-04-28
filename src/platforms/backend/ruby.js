@@ -2,21 +2,109 @@ import fs from 'fs';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
 
+/**
+ * findEnclosingRubyLiteral
+ *
+ * Locates the string literal containing [matchStart, matchEnd) on a single
+ * Ruby source line. Recognizes ", ', and supports backslash escapes. Returns
+ * { start, end, quoteChar } or null.
+ */
+function findEnclosingRubyLiteral(lineContent, matchStart, matchEnd) {
+  let inString = false;
+  let curChar = '';
+  let curStart = -1;
+
+  for (let i = 0; i < matchStart; i++) {
+    const c = lineContent[i];
+    if (c === '\\') { i++; continue; }
+    if (!inString) {
+      if (c === '"' || c === "'") {
+        inString = true;
+        curChar = c;
+        curStart = i;
+      }
+    } else if (c === curChar) {
+      inString = false;
+      curChar = '';
+      curStart = -1;
+    }
+  }
+
+  if (!inString) return null;
+  const openIdx = curStart;
+  const openChar = curChar;
+
+  for (let i = matchEnd; i < lineContent.length; i++) {
+    const c = lineContent[i];
+    if (c === '\\') { i++; continue; }
+    if (c === openChar) {
+      return { start: openIdx, end: i + 1, quoteChar: openChar };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * isPartOfMultilineConcat
+ *
+ * Detects whether the line is part of a Ruby string concatenation chain
+ * (line continuation `\` on prev line, or trailing `\` on current line, or
+ * leading `+` / `<<` operator). In these contexts replacing a string literal
+ * with a bare ENV[...] expression breaks parsing — we need an interpolated
+ * string instead so the chain stays string-typed.
+ */
+function isPartOfMultilineConcat(lineContent, prevLine, nextLine) {
+  if (prevLine && /\\\s*$/.test(prevLine)) return true;
+  if (/\\\s*$/.test(lineContent)) return true;
+  if (/^\s*[+]\s*['"]/.test(lineContent)) return true;
+  if (/['"]\s*[+]\s*$/.test(lineContent)) return true;
+  return false;
+}
+
 export default definePlatform({
   id: 'ruby',
   name: 'ruby',
   category: 'backend',
 
-  // 프로젝트 감지: gemgile가 있으면 ruby 프로젝트로 인식
   detect: async (repoPath) => {
     return fs.existsSync(path.join(repoPath, 'Gemfile'));
   },
 
-  // 스캔 대상 확장자
-  commonExtensions: [".rb"],
+  commonExtensions: ['.rb'],
 
-  // 환경 변수 접근자 코드 생성
+  applyAdvancedFix: async ({ lineContent, prevLine, nextLine, match, envVarName, ext }) => {
+    if (ext !== '.rb') return { handled: false };
+
+    const matchIdx = lineContent.indexOf(match);
+    if (matchIdx < 0) return { handled: false };
+
+    const literal = findEnclosingRubyLiteral(lineContent, matchIdx, matchIdx + match.length);
+    if (!literal) return { handled: false };
+
+    // String concat chains require interpolated form to keep the result
+    // string-typed; standalone literals can use bare ENV[...].
+    const accessor = isPartOfMultilineConcat(lineContent, prevLine, nextLine)
+      ? `"#{ENV['${envVarName}']}"`
+      : `ENV["${envVarName}"]`;
+
+    const replacedText = lineContent.substring(literal.start, literal.end);
+    const newLine = lineContent.substring(0, literal.start) + accessor + lineContent.substring(literal.end);
+
+    return {
+      handled: true,
+      lineContent: newLine,
+      injectedText: accessor,
+      replacedText
+    };
+  },
+
   getAutoFixReplacement: (match, envVarName, ext, options) => {
     return `ENV["${envVarName}"]`;
   }
 });
+
+export const __test = {
+  findEnclosingRubyLiteral,
+  isPartOfMultilineConcat
+};
