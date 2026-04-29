@@ -11,6 +11,7 @@ import { performMasking } from '../services/maskingService.js';
 
 export async function maskFiles(repoPath, options = {}) {
   let targetPath = '';
+  let additionalIgnores = '';
   if (!options.yes) {
     const response = await inquirer.prompt([
       {
@@ -19,10 +20,22 @@ export async function maskFiles(repoPath, options = {}) {
         message: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
         default: '',
         suffix: chalk.gray(' (e.g., src/features/login)')
+      },
+      {
+        type: 'input',
+        name: 'additionalIgnores',
+        message: 'Are there any folders or files you want to EXCLUDE from masking? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
+        default: ''
       }
     ]);
     targetPath = response.targetPath;
+    additionalIgnores = response.additionalIgnores;
   }
+
+  const userIgnoreList = additionalIgnores
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
 
   const absoluteTarget = targetPath ? path.resolve(repoPath, targetPath) : repoPath;
   if (!fs.existsSync(absoluteTarget)) {
@@ -114,11 +127,16 @@ export async function maskFiles(repoPath, options = {}) {
     // 12. DB 데이터 덤프 추가
     '**/*.sql', '**/*.sql.gz', '**/dump.sql',
     '**/*.bson', '**/*.mdb', '**/*.accdb', '**/*.dbf',
-    ...(options.ignore || [])
+    ...(options.ignore || []),
+    ...userIgnoreList
   ];
 
+  if (userIgnoreList.length) {
+    logger.info(`Excluding user-specified patterns: ${userIgnoreList.join(', ')}`);
+  }
+
   logger.info('Indexing files and scanning for secrets...');
-  
+
   const relTarget = path.relative(repoPath, absoluteTarget) || '.';
   const allFiles = await glob(`${relTarget}/**/*`, {
     cwd: repoPath,
@@ -127,7 +145,11 @@ export async function maskFiles(repoPath, options = {}) {
     absolute: false
   });
 
-  const results = await scanProject(repoPath, project.platforms, options);
+  const scanOptions = {
+    ...options,
+    ignore: [...(options.ignore || []), ...userIgnoreList]
+  };
+  const results = await scanProject(repoPath, project.platforms, scanOptions);
   
   logger.info(`Masking project into ${maskDir}...`);
   await performMasking(repoPath, allFiles, results, maskDir, options);
