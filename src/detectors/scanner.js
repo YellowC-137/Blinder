@@ -614,7 +614,41 @@ function dedupeResults(results, allPatterns) {
     kept.push(...accepted);
   }
 
-  return [...standalone, ...kept];
+  return reindexEnvVarNames([...standalone, ...kept]);
+}
+
+/**
+ * reindexEnvVarNames
+ *
+ * After dedup, envVarNames may contain non-sequential indexes (e.g.
+ * `ENDPOINT_URL_321`) because the scanner's per-pattern counter advanced
+ * for matches that were later subsumed or filtered. Re-walk the kept
+ * results in stable order and reassign indexes per (baseName, value) so
+ * users see `_1, _2, _3, ...` instead of `_5, _28, _321`.
+ *
+ * Same value across multiple findings keeps the same index — only
+ * distinct values consume new indexes.
+ */
+function reindexEnvVarNames(results) {
+  const baseCounters = new Map(); // baseName → next index
+  const valueIndex = new Map();   // baseName|value → assigned name
+  const stripIndex = (name) => name.replace(/_\d+$/, '');
+
+  for (const r of results) {
+    if (r.isSensitiveFile || !r.envVarName) continue;
+    const base = stripIndex(r.envVarName);
+    const key = `${base}|${r.match}`;
+    if (valueIndex.has(key)) {
+      r.envVarName = valueIndex.get(key);
+      continue;
+    }
+    const next = baseCounters.get(base) || 0;
+    const newName = next === 0 ? base : `${base}_${next}`;
+    valueIndex.set(key, newName);
+    baseCounters.set(base, next + 1);
+    r.envVarName = newName;
+  }
+  return results;
 }
 
 function getLineNumber(content, index) {

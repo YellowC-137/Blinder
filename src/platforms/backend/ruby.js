@@ -73,8 +73,17 @@ export default definePlatform({
 
   commonExtensions: ['.rb'],
 
-  applyAdvancedFix: async ({ lineContent, prevLine, nextLine, match, envVarName, ext }) => {
+  applyAdvancedFix: async ({ lineContent, prevLine, nextLine, match, envVarName, ext, relPath }) => {
     if (ext !== '.rb') return { handled: false };
+
+    // Ruby/Rails test trees (spec/, test/, features/, fixtures/, factories/)
+    // contain intentional dummy passwords (`123456`, `mastodonadmin`) — auto-
+    // rewriting them to ENV[...] breaks fixture-driven specs. Scan still
+    // surfaces the finding (LOW severity via isTestKey); we just skip the
+    // source rewrite for these paths.
+    if (relPath && /(?:^|\/)(?:spec|test|features|fixtures|factories)(?:\/|$)/.test(relPath.replace(/\\/g, '/'))) {
+      return { handled: true, lineContent, injectedText: '', replacedText: '' };
+    }
 
     const matchIdx = lineContent.indexOf(match);
     if (matchIdx < 0) return { handled: false };

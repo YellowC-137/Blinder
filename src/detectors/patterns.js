@@ -80,7 +80,7 @@ export const patterns = [
   },
   {
     name: 'Slack Webhook',
-    regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9_]{8}\/B[A-Z0-9_]{8}\/[A-Za-z0-9_]{24}/g,
+    regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9_]{8}\/B[A-Z0-9_]{8}\/[A-Za-z0-9_]{24,}/g,
     severity: 'HIGH'
   },
   {

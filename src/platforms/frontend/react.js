@@ -115,6 +115,26 @@ out/
 .env.production
 `,
 
+  // applyAdvancedFix
+  //
+  // Skip auto-fix when the match sits inside a zod (or similar validator)
+  // fallback chain — `.default(...)`, `.catch(...)`, `.or(...)`. These are
+  // intentional fallback values and rewriting them to `process.env.X` breaks
+  // the validator's contract: typing of `default()` requires a literal of the
+  // schema's inferred type, but `process.env.X` is `string | undefined`.
+  // Returning `handled:true, injectedText:''` signals "no-op" — the line is
+  // left untouched and no migration is recorded.
+  applyAdvancedFix: async ({ lineContent, match }) => {
+    const fallbackChain = /\.(?:default|catch|or)\s*\(\s*[`'"][^`'")]*$/;
+    const matchIdx = lineContent.indexOf(match);
+    if (matchIdx === -1) return { handled: false };
+    const before = lineContent.slice(0, matchIdx);
+    if (fallbackChain.test(before)) {
+      return { handled: true, injectedText: '', replacedText: '', lineContent };
+    }
+    return { handled: false };
+  },
+
   preFix: async (context) => {
     if (cachedBuildTool === null) {
       const pkg = readPackageJson(context.repoPath);
