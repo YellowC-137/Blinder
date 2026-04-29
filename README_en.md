@@ -262,8 +262,7 @@ Customize behavior by creating `.blinderSettings` (JSON) in the project root. Us
 ```json
 {
   "ignorePaths": [
-    "Library/RSKSW/**",
-    "Library/mVaccine/**",
+    "Library/myCustomSDK/**",
     "**/test/mocks/**"
   ],
   "customPatterns": [
@@ -360,7 +359,7 @@ Almost always caused by skipping `bridge`. Run `blinder bridge` to wire up Build
 </details>
 
 <details>
-<summary><strong>Q. Does Blinder scan vendor SDK folders (KeySharp, RSKSW, etc.)?</strong></summary>
+<summary><strong>Q. Does Blinder scan vendor SDK folders (myCustomSDK, etc.)?</strong></summary>
 
 The default heuristic (detection of `Copyright`, `SDK`, `Third-party` markers) tries to skip them, but it's not 100%. Add them explicitly to `.blinderSettings` `ignorePaths`.
 </details>
@@ -643,7 +642,7 @@ application-secret.yml
 > **Managing `.env` files**: Blinder auto-adds `.env` to `.gitignore`, but verify manually before final commit that `.env` is not tracked.
 
 > [!WARNING]
-> **Vendor library build impact**: In-house security libraries (KeySharp, RSKSW, etc.) may have constraints (key-length checks, etc.). Recommended to exclude them via `.blinderSettings` `ignorePaths` first.
+> **Vendor library build impact**: In-house security libraries may have constraints (key-length checks, etc.). Recommended to exclude them via `.blinderSettings` `ignorePaths` first.
 
 > [!CAUTION]
 > **Rotate any secret that has been exposed**: Blinder is not a post-incident cleanup tool. Any key that has touched git history, backups, or external copies must be rotated to a fresh value immediately.

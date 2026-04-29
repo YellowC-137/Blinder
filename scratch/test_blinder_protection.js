@@ -18,15 +18,6 @@ async function test() {
         #define MACRO_SECRET @"macro_val"
     `);
 
-    // File with Third-party Heuristic (Copyright header)
-    fs.writeFileSync(path.join(testRepo, 'LibrarySDK.m'), `
-        /**
-         * Copyright (c) 2024 RSKSW Security.
-         * All rights reserved.
-         */
-        #define SDK_INTERNAL_KEY @"rsksw_private_key"
-    `);
-
     // Folder to be ignored via .blinderrc
     const ignoreDir = path.join(testRepo, 'ExternalLib');
     fs.mkdirSync(ignoreDir);
