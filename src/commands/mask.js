@@ -8,28 +8,37 @@ import logger from '../utils/logger.js';
 import { scanProject } from '../detectors/scanner.js';
 import { detectProjectType } from '../utils/detector.js';
 import { performMasking } from '../services/maskingService.js';
+import { t } from '../utils/i18n.js';
 
 export async function maskFiles(repoPath, options = {}) {
   let targetPath = '';
   let additionalIgnores = '';
+  let scanComments = options.scanComments === true;
   if (!options.yes) {
     const response = await inquirer.prompt([
       {
         type: 'input',
         name: 'targetPath',
-        message: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
+        message: t('prompt_target_subdir'),
         default: '',
-        suffix: chalk.gray(' (e.g., src/features/login)')
+        suffix: chalk.gray(t('prompt_target_subdir_hint'))
       },
       {
         type: 'input',
         name: 'additionalIgnores',
-        message: 'Are there any folders or files you want to EXCLUDE from masking? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
+        message: t('prompt_exclude_dirs_mask'),
         default: ''
+      },
+      {
+        type: 'confirm',
+        name: 'scanComments',
+        message: t('prompt_scan_comments'),
+        default: false
       }
     ]);
     targetPath = response.targetPath;
     additionalIgnores = response.additionalIgnores;
+    scanComments = response.scanComments;
   }
 
   const userIgnoreList = additionalIgnores
@@ -39,7 +48,7 @@ export async function maskFiles(repoPath, options = {}) {
 
   const absoluteTarget = targetPath ? path.resolve(repoPath, targetPath) : repoPath;
   if (!fs.existsSync(absoluteTarget)) {
-    logger.error(`Path not found: ${absoluteTarget}`);
+    logger.error(t('mask_path_not_found', { path: absoluteTarget }));
     return;
   }
 
@@ -132,10 +141,10 @@ export async function maskFiles(repoPath, options = {}) {
   ];
 
   if (userIgnoreList.length) {
-    logger.info(`Excluding user-specified patterns: ${userIgnoreList.join(', ')}`);
+    logger.info(t('excluding_user_patterns', { patterns: userIgnoreList.join(', ') }));
   }
 
-  logger.info('Indexing files and scanning for secrets...');
+  logger.info(t('mask_indexing'));
 
   const relTarget = path.relative(repoPath, absoluteTarget) || '.';
   const allFiles = await glob(`${relTarget}/**/*`, {
@@ -147,15 +156,16 @@ export async function maskFiles(repoPath, options = {}) {
 
   const scanOptions = {
     ...options,
-    ignore: [...(options.ignore || []), ...userIgnoreList]
+    ignore: [...(options.ignore || []), ...userIgnoreList],
+    scanComments
   };
   const results = await scanProject(repoPath, project.platforms, scanOptions);
   
-  logger.info(`Masking project into ${maskDir}...`);
+  logger.info(t('mask_into', { dir: maskDir }));
   await performMasking(repoPath, allFiles, results, maskDir, options);
 
-  logger.header('Masking Complete');
-  logger.info(`Safe copy of project available in: ${maskDir}`);
-  logger.success(`Secret mapping saved: ${maskDir}/.blinder_map.json`);
-  logger.warn('Note: These files are for AI context. Use original files for production.');
+  logger.header(t('mask_complete'));
+  logger.info(t('mask_safe_copy', { dir: maskDir }));
+  logger.success(t('mask_mapping_saved', { path: `${maskDir}/.blinder_map.json` }));
+  logger.warn(t('mask_note_ai'));
 }

@@ -277,7 +277,7 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
         // not surrounding identifiers (e.g., `apiKey` in `apiKey = "..."`).
         const valueOffsetInMatch = match[0].indexOf(matchValue);
         const valueOffset = match.index + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
-        const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset);
+        const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset, { allowComments: options.scanComments === true });
         if (!isValid) continue;
       }
 
@@ -288,6 +288,7 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
       const isComment = isCommentLine(currentLineText, platforms);
 
       if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
+      if (isComment && !options.scanComments) continue;
 
       const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
       const isTest = isTestKey(currentLineText, filePath, matchValue);
@@ -348,11 +349,14 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
         if (astLang && !options.skipAST) {
            const valueOffsetInMatch = match[0].indexOf(matchValue);
            const valueOffset = byteOffset + match.index + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
-           const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset);
+           const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset, { allowComments: options.scanComments === true });
            if (!isValid) continue;
         }
 
         if (isLowConfidenceMatch(matchValue, pattern.name)) continue;
+
+        const lineIsComment = isCommentLine(line, platforms);
+        if (lineIsComment && !options.scanComments) continue;
 
         const isTest = isTestKey(line, filePath, matchValue);
         const envVarName = getEnvVarName(pattern, '', '', usedEnvNames, matchValue);
@@ -368,7 +372,7 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
           isFixable: pattern.isFixable !== false,
           isTestKey: isTest,
           isSensitiveFile: false,
-          isComment: isCommentLine(line, platforms),
+          isComment: lineIsComment,
           isMultiline: false,
           content: line.trim(),
           isLikelyExample: isFalsePositive(line, filePath)

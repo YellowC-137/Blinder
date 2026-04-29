@@ -6,6 +6,7 @@ import inquirer from 'inquirer';
 import { applyAutoFixes, prepareEnvContent } from '../services/protectionService.js';
 import { t } from '../utils/i18n.js';
 
+
 export async function protectSecrets(repoPath, scanResults, options = {}) {
   // Filter out sensitive file warnings
   const codeSecrets = scanResults.filter(r => !r.isSensitiveFile);
@@ -15,8 +16,23 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     return;
   }
 
+  // Commented-out secret lines are NOT auto-replaced — they're already inert
+  // code and rewriting them to env-var calls would introduce dead env lookups.
+  // Surface them so the user can delete the lines manually.
+  const commentedSecrets = codeSecrets.filter(r => r.isComment);
+  const liveSecrets = codeSecrets.filter(r => !r.isComment);
+
+  if (commentedSecrets.length > 0) {
+    logger.warn(t('commented_protect_warn', { count: commentedSecrets.length }));
+    commentedSecrets.forEach(r => {
+      logger.info(`  - ${r.file}:${r.line}  ${r.patternName}`);
+      logger.info(`      ${r.content}`);
+    });
+    logger.info(t('commented_protect_hint'));
+  }
+
   // Group results
-  const fixableSecrets = codeSecrets.filter(r => r.isFixable !== false);
+  const fixableSecrets = liveSecrets.filter(r => r.isFixable !== false);
   const prodReady = fixableSecrets.filter(r => !r.isTestKey);
   const testKeys = fixableSecrets.filter(r => r.isTestKey);
 

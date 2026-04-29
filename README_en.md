@@ -115,6 +115,9 @@ blinder restore          # merge AI-edited mask copy back + auto-restore tokens
 - **📜 Multi-line Secret Detection**: Detects multi-line sensitive data such as PEM Private Keys and certificates.
 - **📊 Automated Reports & CI Support**: Saves scan history to `blinder_reports/`. Pipeline integration via `--ci` / `-y` modes.
 - **🗝️ Structured-File Detection + Whitelist**: Parses Info.plist, AndroidManifest meta-data, gradle.properties, etc. at the key level — only SDK keys are eligible for auto-fix (system keys are auto-excluded).
+- **💬 Opt-in Commented-Secret Scan**: For config files that toggle test/prod values via comments, `blind`/`mask` ask "Also scan secrets in commented-out code?". Findings are reported in a separate section but auto-fix is intentionally skipped — manual deletion is recommended. (Available directly via `scan --scan-comments`.)
+- **🚫 Interactive Directory Exclusion**: `blind`/`mask` prompt for additional folders to exclude (third-party SDKs, build artifacts, etc.) as a comma-separated glob list, applied immediately.
+- **🌐 Multilingual Output (한국어 / English)**: On first run, an interactive language picker appears (`1. English` / `2. 한국어`). All subsequent output is rendered in the chosen language. Switch later with `blinder set_language ko|en`.
 
 ---
 
@@ -141,6 +144,26 @@ sudo npm link
 - macOS / Linux / Windows (PowerShell)
 - For iOS Bridge: macOS + Xcode 14+ recommended
 
+### 🌐 First Run — Language Selection
+
+The first time you run any command (e.g., `blinder scan`) after installation, you'll see this prompt:
+
+```text
+👋 Welcome to Blinder / Blinder에 오신 것을 환영합니다
+? Choose your language / 사용할 언어를 선택하세요
+  ❯ 1. English
+    2. 한국어
+```
+
+The choice is persisted to `~/.blinder/config.json`, and every subsequent command — descriptions, prompts, logs, error messages — renders in that language. In non-TTY environments (CI / pipes / `--yes`), Blinder automatically writes `en` so pipelines are never blocked.
+
+Switch later:
+
+```bash
+blinder set_language ko    # switch to 한국어
+blinder set_language en    # switch to English
+```
+
 ---
 
 ## 🔀 Two Workflows Compared
@@ -166,9 +189,19 @@ Commands are **grouped by purpose**, with paired undo/merge commands inside each
 
 #### A-1. `blinder blind` — extract secrets + auto-replace
 Detect secrets → generate `.env` → rewrite source with env accessors → update `.gitignore`. (`scan` + `protect` + `gitignore` combined)
-- **Interactive mode**: Reviews target file list and prompts for additional folder exclusions (e.g., third-party SDKs).
+
+**Interactive prompts** (in order):
+1. **Scan comments?** — "Also scan secrets inside commented-out code?" Useful for config files that toggle test/prod values via comments. Default `No`.
+2. **Commit confirmation** — "Have you committed your current changes and are you ready to proceed?" Safety gate.
+3. **Additional excludes** — Comma-separated glob patterns for third-party SDK / vendor folders (`**/ExtLib/**, **/Temp/**`). Press Enter to skip.
+4. **Choose how to proceed** — Auto-fix / Manual / Exit.
+
+Flags:
 - `-y, --yes`: Auto-answers all prompts. Suitable for CI/CD.
 - `--dry-run`: Preview changes without modifying files.
+
+> [!NOTE]
+> **Commented-secret handling**: When opted in, commented findings are **never auto-fixed** (the line is dead code; rewriting to env lookups is meaningless). They appear in a separate `💬 Commented-out Secrets` section and are flagged for manual deletion.
 
 > [!CAUTION]
 > **Modifies original source directly**: Build-critical files like `build.gradle`, `.pbxproj`, `Info.plist` are rewritten. **Always `git commit` first.**
@@ -203,6 +236,15 @@ Copies the entire project (or a specified subdirectory) to `maskedProject_<proje
 - Backups / IDE temp files (`*.bak`, `.idea/workspace.xml`, ...)
 - DB dumps, compile outputs, archives
 
+**Interactive prompts** (in order):
+1. **Subdirectory to mask** — Press Enter for the entire project, or pass a path like `src/features/login`.
+2. **Additional excludes** — Comma-separated glob patterns (`**/ExtLib/**, **/allatori/**`). Excluded paths are skipped from both the copy AND the secret scan.
+3. **Scan comments?** — Same prompt as `blind`.
+
+Options:
+- `-o, --output <dir>`: Output folder name. Default: `maskedProject_<projectName>/`.
+- `-y, --yes`: Auto-answers everything (entire project / no excludes / comments not scanned).
+
 A `.blinder_map.json` is saved inside the copy and used by `restore` to map secrets back.
 
 > [!CAUTION]
@@ -236,6 +278,8 @@ Safely brings **all code changes + new files** the AI made in the masked copy ba
 Detect secrets + generate detailed report. No code changes.
 - `--ci`: Non-zero exit on detection → blocks CI pipelines.
 - `-o <file>`: Write JSON output.
+- `--include-examples`: Include matches inside `test/example` folders.
+- `--scan-comments`: Also scan secrets inside commented-out code. Reported in a separate `💬 Commented-out Secrets` section (auto-fix never applied).
 
 #### C-2. `blinder gitignore` — augment `.gitignore`
 Adds detected platform-specific templates (.env, build/, *.jks, ...) + Blinder-generated files to `.gitignore`.
@@ -243,7 +287,10 @@ Adds detected platform-specific templates (.env, build/, *.jks, ...) + Blinder-g
 #### C-3. `blinder add_platform` — new-platform scaffolder
 Interactively generates one plugin file + auto-registers it in `index.js`. See [Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture).
 
-#### C-4. `blinder help` — help
+#### C-4. `blinder set_language <ko|en>` — switch CLI language
+Switches CLI output between 한국어 and English. Persisted to `~/.blinder/config.json` and applied immediately. The first-run prompt usually handles the initial choice — this command is for changing your mind later.
+
+#### C-5. `blinder help` — help
 Prints all commands and options.
 
 ---
@@ -383,9 +430,27 @@ Add a regex + severity entry under `customPatterns` in `.blinderSettings`. See t
 </details>
 
 <details>
+<summary><strong>Q. Are commented-out secrets (e.g., test/prod toggles) detected?</strong></summary>
+
+By default, **no** — commented lines are skipped to limit false positives. You can opt in via the `blind`/`mask` interactive prompt ("Also scan secrets inside commented-out code?") or directly via `blinder scan --scan-comments`.
+
+When opted in, commented findings appear in a separate `💬 Commented-out Secrets` section but **auto-fix is intentionally skipped** — the line is dead code, so rewriting it to an env lookup adds nothing. Blinder instead recommends deleting the line manually.
+
+⚠️ Note: a prod URL/key parked in a comment is still a leaked secret if it lands in git. If found, rotate the secret and delete the line.
+</details>
+
+<details>
 <summary><strong>Q. How is the Next.js <code>NEXT_PUBLIC_</code> prefix decided?</strong></summary>
 
 If the file starts with the `'use client'` directive, or it lives under `pages/` (excluding `pages/api/*`), Blinder treats it as client-side and adds the `NEXT_PUBLIC_` prefix. Everything else (App Router default RSC, `lib/`, `utils/`) is treated as server-side and uses bare `process.env.X`.
+</details>
+
+<details>
+<summary><strong>Q. How do I change the CLI output language?</strong></summary>
+
+The first command after install pops a `1. English` / `2. 한국어` picker. After that, switch any time with `blinder set_language ko` or `blinder set_language en`. Config lives at `~/.blinder/config.json`.
+
+In non-TTY environments (CI / pipes), Blinder writes `en` automatically so pipelines aren't blocked by the first-run prompt.
 </details>
 
 <details>

@@ -66,7 +66,7 @@ class ASTProvider {
   /**
    * 시크릿 후보가 실제 문자열 리터럴 내부인지 검증
    */
-  async validateMatch(filePath, langId, matchValue, startOffset) {
+  async validateMatch(filePath, langId, matchValue, startOffset, opts = {}) {
     if (!this.initialized && !(await this.init())) return true; // Fallback to Regex
 
     try {
@@ -75,10 +75,10 @@ class ASTProvider {
 
       const sourceCode = fs.readFileSync(filePath, 'utf8');
       const tree = this.parser.parse(sourceCode);
-      
+
       // 해당 오프셋에 있는 노드 찾기
       const node = tree.rootNode.descendantForIndex(startOffset);
-      
+
       if (!node) return false;
 
       // 노드 타입 검사 (언어별로 다를 수 있음)
@@ -86,8 +86,9 @@ class ASTProvider {
       const isString = type.includes('string') || type.includes('literal') || type.includes('text');
       const isComment = type.includes('comment');
 
-      // 주석 내부에 있으면 시크릿으로 간주하지 않음 (선택 사항, 보안 정책에 따라 다름)
-      if (isComment) return false;
+      // 주석 내부에 있으면 기본은 거부. 단, 사용자가 명시적으로 주석 스캔을 옵트인한 경우(opts.allowComments)에는
+      // 정규식이 이미 시크릿 형태를 확정했으므로 매치를 통과시킨다.
+      if (isComment) return opts.allowComments === true;
 
       // 문자열 리터럴 내부인지 확인
       return isString;

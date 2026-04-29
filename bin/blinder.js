@@ -18,7 +18,41 @@ import { maskFiles } from '../src/commands/mask.js';
 import { restoreFromMasked } from '../src/commands/restore.js';
 import { addPlatform } from '../src/commands/add_platform.js';
 import { t } from '../src/utils/i18n.js';
-import { getGlobalConfig, saveGlobalConfig } from '../src/utils/globalConfig.js';
+import { getGlobalConfig, saveGlobalConfig, isLanguageConfigured } from '../src/utils/globalConfig.js';
+
+/**
+ * First-run gate: when ~/.blinder/config.json does not exist, prompt the user
+ * to choose a language before any other CLI output. Skipped for set_language
+ * (the user is already configuring it explicitly), help/help-flag, and any
+ * non-interactive invocation (--yes / no TTY) so CI is not blocked.
+ */
+async function ensureLanguageOnFirstRun(argv) {
+  if (isLanguageConfigured()) return;
+
+  const yesFlag = argv.includes('-y') || argv.includes('--yes');
+  const skipCmds = ['set_language', 'help', '--help', '-h', '--version', '-V'];
+  if (skipCmds.some(c => argv.includes(c))) return;
+  if (yesFlag || !process.stdin.isTTY) {
+    saveGlobalConfig({ language: 'en' });
+    return;
+  }
+
+  console.log('\n👋 Welcome to Blinder / Blinder에 오신 것을 환영합니다');
+  const { language } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'language',
+      message: 'Choose your language / 사용할 언어를 선택하세요',
+      choices: [
+        { name: '1. English', value: 'en' },
+        { name: '2. 한국어', value: 'ko' }
+      ],
+      default: 'en'
+    }
+  ]);
+  saveGlobalConfig({ language });
+  console.log(t('lang_saved', { lang: language }));
+}
 
 const program = new Command();
 
@@ -78,7 +112,7 @@ async function report(results, repoPath, options, skipConfirm = false, project =
   const contentMatches = results.filter(r => !r.isSensitiveFile);
 
   if (fileWarnings.length > 0) {
-    logger.warn(`\n🚨 Sensitive Files Detected (${fileWarnings.length}):`);
+    logger.warn(t('section_sensitive_files', { count: fileWarnings.length }));
     fileWarnings.forEach(res => {
       logger.error(`  [${res.severity}] ${res.file}`);
       logger.info(`     → ${res.content}`);
@@ -86,13 +120,26 @@ async function report(results, repoPath, options, skipConfirm = false, project =
     logger.divider();
   }
 
-  if (contentMatches.length > 0) {
-    logger.info(`\n🔍 Hardcoded Secrets (${contentMatches.length}):`);
-    contentMatches.forEach(res => {
+  const liveMatches = contentMatches.filter(r => !r.isComment);
+  const commentedMatches = contentMatches.filter(r => r.isComment);
+
+  if (liveMatches.length > 0) {
+    logger.info(t('section_hardcoded', { count: liveMatches.length }));
+    liveMatches.forEach(res => {
       const severityPrefix = res.isTestKey ? '[TEST KEY] ' : (res.isLikelyExample ? '[EXAMPLE] ' : `[${res.severity}] `);
       logger.warn(`  ${severityPrefix}${res.file}:${res.line} - ${res.patternName}`);
       logger.info(`     Match: ${logger.maskSecret(res.match)}`);
     });
+  }
+
+  if (commentedMatches.length > 0) {
+    logger.info(t('section_commented', { count: commentedMatches.length }));
+    commentedMatches.forEach(res => {
+      logger.warn(`  [COMMENT] ${res.file}:${res.line} - ${res.patternName}`);
+      logger.info(`     Match: ${logger.maskSecret(res.match)}`);
+      logger.info(`     Line:  ${res.content}`);
+    });
+    logger.info(t('commented_recommend_delete'));
   }
 
   if (options.output) {
@@ -159,6 +206,7 @@ program
   .description(t('scan_desc'))
   .option('-o, --output <file>', 'Save scan results to a JSON file')
   .option('--include-examples', 'Include matches found in test/example files', false)
+  .option('--scan-comments', 'Also scan secrets inside commented-out code', false)
   .option('--ci', 'Fail with exit code 1 if secrets are found', false)
   .action((options) => handleAction(async () => {
     const globalOptions = program.opts();
@@ -179,7 +227,8 @@ program
     const results = await scanProject(repoPath, project.platforms, {
       includeExamples: options.includeExamples,
       customPatterns: config.customPatterns,
-      ignore: config.ignorePaths
+      ignore: config.ignorePaths,
+      scanComments: options.scanComments
     });
     scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
@@ -193,45 +242,58 @@ program
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    logger.header('Blinder - Blind Protection');
-    
+    logger.header(t('rerunning_blind'));
+
     if (globalOptions.dryRun) {
-      logger.warn('RUNNING IN DRY-RUN MODE: No files will be modified.');
+      logger.warn(t('dryrun_warn'));
     }
 
     const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     const platformNames = project.platforms.map(p => p.name).join(', ');
-    logger.info(`Target Platforms: ${platformNames}`);
-    
+    logger.info(t('target_platforms', { names: platformNames }));
+
     if (!globalOptions.dryRun) {
       await generateGitignore(repoPath, project.platforms);
     }
 
-    const scanSpinner = ora('Scanning for secrets...').start();
+    let scanComments = globalOptions.yes ? false : null;
+    if (scanComments === null) {
+      const response = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'scanComments',
+          message: t('prompt_scan_comments'),
+          default: false
+        }
+      ]);
+      scanComments = response.scanComments;
+    }
+
+    const scanSpinner = ora(t('scanning_secrets')).start();
     const results = await scanProject(repoPath, project.platforms, {
       customPatterns: config.customPatterns,
-      ignore: config.ignorePaths
+      ignore: config.ignorePaths,
+      scanComments
     });
-    scanSpinner.succeed(`Scan complete. Found ${results.length} potential secrets.`);
+    scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
     const hasSecrets = await report(results, repoPath, {}, false, project);
-    
+
     if (hasSecrets) {
       logger.info(`\n${t('tips')}`);
       logger.divider();
-      logger.warn('⚠️  CAUTION: Build Configuration Modification');
-      logger.info('   This tool may modify your project\'s core build files (build.gradle, .pbxproj, etc.)');
-      logger.info('   when performing auto-fixes or environment bridging.');
-      logger.warn('   Please ensure you have committed all changes to Git before proceeding.');
+      logger.warn(t('caution_build_modify'));
+      logger.info(t('caution_build_detail'));
+      logger.warn(t('caution_commit_first'));
       logger.divider();
-      
+
       let confirmSafety = globalOptions.yes;
       if (!confirmSafety) {
         const response = await inquirer.prompt([
           {
             type: 'confirm',
             name: 'confirmSafety',
-            message: 'Have you committed your current changes and are you ready to proceed?',
+            message: t('prompt_committed'),
             default: false
           }
         ]);
@@ -239,22 +301,22 @@ program
       }
 
       if (!confirmSafety) {
-        logger.info('Operation cancelled by user for safety.');
+        logger.info(t('cancel_for_safety'));
         return;
       }
 
-      // --- New: File Review & Interactive Ignore Phase ---
+      // --- File Review & Interactive Ignore Phase ---
       let currentResults = results;
       const uniqueFiles = [...new Set(currentResults.map(r => r.file))];
-      logger.info(`\nThe following files are targeted for Auto-fix:\n${uniqueFiles.map(f => `  - ${f}`).join('\n')}`);
-      
+      logger.info(t('files_for_autofix', { files: uniqueFiles.map(f => `  - ${f}`).join('\n') }));
+
       let additionalIgnores = '';
       if (!globalOptions.yes) {
         const response = await inquirer.prompt([
           {
             type: 'input',
             name: 'additionalIgnores',
-            message: 'Are there any folders or files you want to EXCLUDE? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
+            message: t('prompt_exclude_dirs_blind'),
             default: ''
           }
         ]);
@@ -263,21 +325,21 @@ program
 
       if (additionalIgnores.trim()) {
         const ignoreList = additionalIgnores.split(',').map(p => p.trim());
-        logger.info(`Applying additional filters: ${ignoreList.join(', ')}...`);
-        
-        const scanSpinner = ora('Re-scanning with new filters...').start();
+        logger.info(t('applying_filters', { filters: ignoreList.join(', ') }));
+
+        const scanSpinner = ora(t('rescanning')).start();
         currentResults = await scanProject(repoPath, project.platforms, {
           customPatterns: config.customPatterns,
-          ignore: [...(config.ignorePaths || []), ...ignoreList]
+          ignore: [...(config.ignorePaths || []), ...ignoreList],
+          scanComments
         });
-        scanSpinner.succeed(`Scan updated. Remaining secrets to fix: ${currentResults.length}`);
-        
+        scanSpinner.succeed(t('scan_updated', { count: currentResults.length }));
+
         if (currentResults.length === 0) {
-          logger.info('No secrets remaining after filtering. Exiting.');
+          logger.info(t('no_remaining_after_filter'));
           return;
         }
       }
-      // ----------------------------------------------------
 
       let choice = globalOptions.yes ? 'auto' : null;
       if (!choice) {
@@ -285,11 +347,11 @@ program
           {
             type: 'rawlist',
             name: 'choice',
-            message: 'Choose how to proceed with secret protection:',
+            message: t('prompt_choose_proceed'),
             choices: [
-              { name: 'Auto-fix (Recommended: Automatically replace secrets with environment variable calls)', value: 'auto' },
-              { name: 'Manual (Generate .env but perform code migration manually)', value: 'manual' },
-              { name: 'Exit (Do nothing and exit)', value: 'exit' }
+              { name: t('choice_auto'), value: 'auto' },
+              { name: t('choice_manual'), value: 'manual' },
+              { name: t('choice_exit'), value: 'exit' }
             ]
           }
         ]);
@@ -297,13 +359,13 @@ program
       }
 
       if (choice === 'auto' || choice === 'manual') {
-        await protectSecrets(repoPath, currentResults, { 
+        await protectSecrets(repoPath, currentResults, {
           dryRun: globalOptions.dryRun,
           mode: choice,
           platforms: project.platforms
         });
       } else {
-        logger.info('Operation skipped by user.');
+        logger.info(t('user_skipped'));
       }
     }
     
@@ -317,7 +379,7 @@ program
           {
             type: 'confirm',
             name: 'runBridge',
-            message: 'Would you like to run "blinder bridge" now to automate .env integration with native builds?',
+            message: t('prompt_run_bridge'),
             default: true
           }
         ]);
@@ -362,7 +424,7 @@ program
     const globalOptions = program.opts();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
-    logger.info('\n💡 TIP: You can customize masked output paths via ".blinderSettings" file.');
+    logger.info(t('mask_tip_settings'));
     await maskFiles(repoPath, { ...options, ...globalOptions, ...config, maskOutput: options.output });
   }));
 
@@ -420,4 +482,5 @@ program
     program.help();
   });
 
+await ensureLanguageOnFirstRun(process.argv);
 program.parse();

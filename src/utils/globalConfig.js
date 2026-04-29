@@ -30,3 +30,12 @@ export function saveGlobalConfig(config) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
   return updated;
 }
+
+/**
+ * Returns true when ~/.blinder/config.json was explicitly written (first-run
+ * language selection has happened). Mere presence of an in-memory default does
+ * not count — we want to detect fresh installs to trigger the language prompt.
+ */
+export function isLanguageConfigured() {
+  return fs.existsSync(CONFIG_FILE);
+}
