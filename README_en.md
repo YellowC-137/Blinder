@@ -34,10 +34,9 @@
 - [Platform-Specific Auto-fix Examples](#-platform-specific-auto-fix-examples-blind-workflow)
 - [Comparison with Alternatives](#-comparison-with-alternatives)
 - [FAQ](#-faq)
-- [Roadmap](#-roadmap)
 - [Adding a New Platform Plugin](#-adding-a-new-platform-plugin-plugin-architecture)
 - [Common Precautions](#-common-precautions)
-- [Contributing · License · Acknowledgments](#-contributing--license--acknowledgments)
+- [Contributing · License](#-contributing--license)
 
 ---
 
@@ -340,20 +339,6 @@ Keys outside the whitelist are detected but never auto-fixed — only flagged wi
 
 ---
 
-## 🆚 Comparison with Alternatives
-
-| Tool | Primary Goal | Auto-fix | Build-system wiring | AI-sharing mask | Mobile (iOS/Android/Flutter) |
-|---|---|:---:|:---:|:---:|:---:|
-| **Blinder** | Secret protection + auto-migration for the AI era | ✅ | ✅ (BuildConfig · Podfile · dart-define) | ✅ (mask/restore) | ✅ |
-| [Gitleaks](https://github.com/gitleaks/gitleaks) | Secret scanning across git history | ❌ | ❌ | ❌ | partial |
-| [TruffleHog](https://github.com/trufflesecurity/trufflehog) | Secret verification (live-key check) | ❌ | ❌ | ❌ | partial |
-| [git-secrets](https://github.com/awslabs/git-secrets) | Pre-commit hook | ❌ | ❌ | ❌ | ❌ |
-| [detect-secrets](https://github.com/Yelp/detect-secrets) | Baseline-based false-positive management | ❌ | ❌ | ❌ | partial |
-
-> Blinder uniquely bundles **detection + auto-extraction + build wiring + AI-shareable copy** in one tool. If your only need is git-history scanning, Gitleaks/TruffleHog will fit better.
-
----
-
 ## ❓ FAQ
 
 <details>
@@ -409,23 +394,6 @@ If the file starts with the `'use client'` directive, or it lives under `pages/`
 
 ❌ Both are auto-added to `.gitignore`. They are local-only metadata. **Never delete them locally** either — without them, exact-position restore/merge is not possible.
 </details>
-
----
-
-## 🗺️ Roadmap
-
-| Track | Item | Status |
-|---|---|:---:|
-| **Languages/Frameworks** | Python (Django/FastAPI), Go, PHP (Laravel), Rust plugins | 🟡 Planned |
-| **Languages/Frameworks** | Vue.js / Nuxt, SvelteKit, Astro | 🟡 Planned |
-| **AI integration** | MCP (Model Context Protocol) server mode — mask/restore directly from IDE | 🟡 Planned |
-| **Detection engine** | Secret verifier (live-key check) — TruffleHog-style | 🟡 Planned |
-| **Detection engine** | Entropy-based unknown-pattern hypothesis | ✅ Partial (`isPlaceholderValue`) |
-| **CI** | Official actions for GitHub Actions / GitLab CI / Bitbucket Pipelines | 🟡 Planned |
-| **Reports** | SARIF output (GitHub Code Scanning integration) | 🟡 Planned |
-| **Git history** | Helper for cleaning past-commit secrets (BFG wrapper) | 🟡 Considering |
-
-> Suggestions and priority votes welcome on [GitHub Issues](https://github.com/YellowC-137/Blinder/issues).
 
 ---
 
@@ -699,7 +667,6 @@ Plugins for new platforms, bug reports, doc improvements, and pattern additions 
 
 - AST engine: [`web-tree-sitter`](https://github.com/tree-sitter/tree-sitter) + [`tree-sitter-wasms`](https://github.com/Menci/tree-sitter-wasms)
 - CLI / UX: [`commander`](https://github.com/tj/commander.js), [`inquirer`](https://github.com/SBoudrias/Inquirer.js), [`chalk`](https://github.com/chalk/chalk), [`ora`](https://github.com/sindresorhus/ora)
-- Prior art that inspired us: [Gitleaks](https://github.com/gitleaks/gitleaks), [TruffleHog](https://github.com/trufflesecurity/trufflehog), [git-secrets](https://github.com/awslabs/git-secrets), [detect-secrets](https://github.com/Yelp/detect-secrets)
 
 <div align="center">
 
