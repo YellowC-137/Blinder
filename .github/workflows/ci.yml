@@ -18,7 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20', '22']
+        # inquirer@13 → @inquirer/core 가 node:util.styleText 사용 (Node 20.12+ 필요)
+        node: ['20', '22']
     steps:
       - uses: actions/checkout@v4
 
