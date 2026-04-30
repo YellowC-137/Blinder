@@ -1,0 +1,50 @@
+name: 🎯 오탐 / 누락 신고
+description: Blinder 가 시크릿 아닌 것을 시크릿으로 잡거나, 진짜 시크릿을 놓침
+title: "[Detection] "
+labels: ["detection"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 종류
+      options:
+        - False Positive (시크릿 아닌데 잡음)
+        - False Negative (시크릿인데 못 잡음)
+    validations:
+      required: true
+
+  - type: input
+    id: pattern_name
+    attributes:
+      label: 패턴명 (False Positive 의 경우)
+      description: "scan 결과의 patternName (예: 'Generic API Key', 'Endpoint URL')"
+
+  - type: textarea
+    id: snippet
+    attributes:
+      label: 코드 스니펫
+      description: "실제 시크릿은 마스킹 후 첨부. 패턴 매칭에 영향 없는 형태로 더미화."
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: file_ext
+    attributes:
+      label: 파일 확장자
+      placeholder: ".swift / .kt / .dart / .js / .properties / .plist 등"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 왜 오탐 / 누락이라 판단했나
+      description: "False Positive: 왜 시크릿 아닌지 / False Negative: 왜 시크릿인지"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 제안하는 패턴 / 화이트리스트 / 휴리스틱 (선택)

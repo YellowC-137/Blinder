@@ -1,0 +1,114 @@
+name: 🐛 버그 리포트
+description: 동작 이상 / 크래시 / 오탐 / 누락 신고
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **보안 취약점은 여기서 신고하지 마세요** — Security Advisory 사용.
+
+        가능한 한 재현 가능한 minimal repro 를 첨부해주세요. 시크릿이 포함된 실제 코드는 마스킹 후 첨부.
+
+  - type: input
+    id: blinder_version
+    attributes:
+      label: Blinder 버전
+      description: "`node bin/blinder.js --version` 출력"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node 버전
+      description: "`node --version` 출력 (20.12+ 필수)"
+      placeholder: "v20.13.1"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 14.5 / Ubuntu 22.04 / Windows 11"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 영향 받는 플랫폼 플러그인
+      multiple: true
+      options:
+        - common (cross-platform)
+        - ios
+        - android
+        - flutter
+        - react (Vite/CRA/Next)
+        - node
+        - java
+        - springboot
+        - ruby
+        - 모름
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: 실행한 명령
+      options:
+        - blind
+        - scan
+        - mask
+        - restore
+        - bridge
+        - rollback
+        - gitignore
+        - add_platform
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 단계
+      description: "1) ... 2) ... 3) ..."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작 / 에러 로그
+      description: "DEBUG=1 환경변수 켜고 stack trace 첨부 권장"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: .blinderSettings 내용 (있다면)
+      render: json
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 체크리스트
+      options:
+        - label: 시크릿이 포함된 부분은 마스킹 후 첨부했습니다
+          required: true
+        - label: 동일 이슈가 이미 등록됐는지 검색했습니다
+          required: true
