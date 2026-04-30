@@ -6,39 +6,18 @@ import logger from '../utils/logger.js';
 import ASTProvider from '../ast/ASTProvider.js';
 import readline from 'readline';
 import { patterns } from './patterns.js';
-import { parsePlist, isInfoPlist } from './parsers/plistParser.js';
-import { parseProperties } from './parsers/propertiesParser.js';
-import { parseManifestMetaData, isAndroidManifest } from './parsers/manifestParser.js';
-import { classifyKey } from '../protectors/keyClassifier.js';
-
-/**
- * Heuristic to detect if a match is likely a false positive.
- */
-function isFalsePositive(line, filePath) {
-  const lowerLine = line.toLowerCase();
-  const lowerPath = filePath.toLowerCase();
-
-  const ignoreKeywords = ['example', 'sample', 'placeholder', 'demo', 'mock', 'dummy'];
-  return ignoreKeywords.some(kw => lowerPath.includes(kw) || lowerLine.includes(kw));
-}
-
-/**
- * Specifically detects if a match is a 'Test' key.
- */
-function isTestKey(line, filePath, matchValue) {
-  const lowerLine = line.toLowerCase();
-  const lowerPath = filePath.toLowerCase();
-  const lowerMatch = matchValue.toLowerCase();
-
-  return lowerPath.includes('test') || lowerLine.includes('test') || lowerMatch.includes('test');
-}
-
-/**
- * Heuristic to detect if a line is a comment using platform specific regex.
- */
-function isCommentLine(line, platforms) {
-  return platforms.some(p => p.commentRegex && p.commentRegex.test(line));
-}
+// 661 LOC 모놀리스에서 분리된 헬퍼/구조화 스캐너 모듈
+import {
+  isFalsePositive,
+  isTestKey,
+  isCommentLine,
+  collectXmlCommentRanges,
+  isLowConfidenceMatch,
+  extractMatchDetails,
+  getEnvVarName,
+  getLineNumber
+} from './scannerHelpers.js';
+import { scanStructuredFile } from './structuredScanner.js';
 
 /**
  * Scans for sensitive files that should never be committed.
@@ -73,172 +52,6 @@ async function scanSensitiveFiles(repoPath, platforms) {
   return warnings;
 }
 
-/**
- * Structured-format scanner: dispatches to dedicated parsers for Info.plist,
- * AndroidManifest.xml, .properties, .xcconfig. Detection-only — emits findings
- * with classifier-determined isFixable so downstream auto-fix gates safely.
- */
-function scanStructuredFile(filePath, repoPath, content, results, usedEnvNames) {
-  const relPath = path.relative(repoPath, filePath);
-  const base = path.basename(filePath);
-  const ext = path.extname(filePath);
-
-  let entries = [];
-  let fileType = null;
-
-  if (isInfoPlist(filePath)) {
-    fileType = 'plist';
-    entries = parsePlist(content).map(e => ({ key: e.key, value: e.value, line: e.line }));
-  } else if (isAndroidManifest(filePath)) {
-    fileType = 'manifest';
-    entries = parseManifestMetaData(content)
-      .filter(e => e.value !== null)
-      .map(e => ({ key: e.name, value: e.value, line: e.line }));
-  } else if (ext === '.properties' || base === 'gradle.properties' || base === 'local.properties') {
-    fileType = 'properties';
-    entries = parseProperties(content);
-  } else if (ext === '.xcconfig') {
-    fileType = 'xcconfig';
-    entries = parseProperties(content);
-  } else {
-    return;
-  }
-
-  for (const { key, value, line } of entries) {
-    if (!value || typeof value !== 'string') continue;
-    if (value.length < 8) continue;
-    if (/^\$[\(\{]|\$\{|@\{|<inherit/.test(value)) continue;
-    if (/^[\d.\-+\s]+$/.test(value)) continue;
-    if (/^(true|false|yes|no|null|none)$/i.test(value.trim())) continue;
-    const looksSecret = /^[A-Za-z0-9_\-./+=:]{8,}$/.test(value) && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
-    const keyHint = /(api|app|client|secret|token|key|password|passwd|auth|credential)/i.test(key);
-    if (!looksSecret && !keyHint) continue;
-
-    const verdict = classifyKey({ fileType, key, filename: base });
-    const sanitized = key.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    let envVarName = sanitized || `STRUCT_${fileType.toUpperCase()}_KEY`;
-    if (usedEnvNames.has(envVarName) && usedEnvNames.get(envVarName) !== value) {
-      let counter = 1;
-      while (usedEnvNames.has(`${envVarName}_${counter}`) && usedEnvNames.get(`${envVarName}_${counter}`) !== value) counter++;
-      envVarName = `${envVarName}_${counter}`;
-    }
-    usedEnvNames.set(envVarName, value);
-
-    results.push({
-      file: relPath,
-      line,
-      match: value,
-      fullMatch: `${key}=${value}`,
-      patternName: `Structured ${fileType} key`,
-      envVarName,
-      severity: verdict.allowed ? 'HIGH' : 'MEDIUM',
-      isFixable: verdict.allowed,
-      isTestKey: false,
-      isSensitiveFile: false,
-      isComment: false,
-      isMultiline: false,
-      content: `${key} = ${value.length > 60 ? value.slice(0, 57) + '...' : value}`,
-      isLikelyExample: false,
-      structuredKey: key,
-      classifierReason: verdict.reason
-    });
-  }
-}
-
-/**
- * collectXmlCommentRanges
- *
- * Returns [start, end) byte offsets of every XML/HTML metadata block — both
- * comments (`<!-- ... -->`) and declarations (`<!DOCTYPE ... >`,
- * `<!ENTITY ... >`). Used to skip URL/secret matches that sit inside
- * documentation references or schema declarations (pom.xml comments,
- * checkstyle DOCTYPE URLs are common cases).
- */
-function collectXmlCommentRanges(content) {
-  const ranges = [];
-  let i = 0;
-  while (i < content.length) {
-    const open = content.indexOf('<!', i);
-    if (open === -1) break;
-    if (content.startsWith('<!--', open)) {
-      const close = content.indexOf('-->', open + 4);
-      if (close === -1) { ranges.push([open, content.length]); break; }
-      ranges.push([open, close + 3]);
-      i = close + 3;
-    } else {
-      const close = content.indexOf('>', open + 2);
-      if (close === -1) { ranges.push([open, content.length]); break; }
-      ranges.push([open, close + 1]);
-      i = close + 1;
-    }
-  }
-  return ranges;
-}
-
-/**
- * shannonEntropy
- *
- * Bits-per-char of the input string. Random/cryptographic secrets typically
- * score >= 3.5; placeholder/dummy strings (xxxxx, password, changeme) score
- * much lower because they're either short, repeating, or natural-language.
- */
-function shannonEntropy(s) {
-  if (!s) return 0;
-  const counts = new Map();
-  for (const c of s) counts.set(c, (counts.get(c) || 0) + 1);
-  let entropy = 0;
-  for (const n of counts.values()) {
-    const p = n / s.length;
-    entropy -= p * Math.log2(p);
-  }
-  return entropy;
-}
-
-/**
- * isPlaceholderValue
- *
- * Common dummy / placeholder strings that pattern matchers occasionally hit.
- * Matched case-insensitively against the trimmed value; near-uniform repeats
- * (xxxxx, *****) caught separately by the entropy gate.
- */
-function isPlaceholderValue(value) {
-  const v = value.trim().toLowerCase();
-  const literals = new Set([
-    'password', 'passwd', 'changeme', 'change-me', 'changethis',
-    'your_secret_here', 'your-secret-here', 'your_api_key', 'your-api-key',
-    'placeholder', 'example', 'sample', 'todo', 'tbd',
-    'secret', 'token', 'apikey', 'api_key', 'api-key',
-    'string', 'value', 'replace_me', 'replace-me'
-  ]);
-  if (literals.has(v)) return true;
-  if (/^x{4,}$/i.test(v)) return true;
-  if (/^\*{4,}$/.test(v)) return true;
-  if (/^[._\-]{3,}$/.test(v)) return true;
-  return false;
-}
-
-/**
- * Detects if a match is likely a false positive based on length, content, and variable name.
- */
-function isLowConfidenceMatch(matchValue, patternName, varName = '') {
-  if (varName) {
-    const blacklist = /(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE|TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT|STR_KEY|PARAM_|FIELD_|ATTR_|PROP_|VAL_)/i;
-    if (blacklist.test(varName)) return true;
-  }
-
-  if (isPlaceholderValue(matchValue)) return true;
-
-  if (patternName.includes('Config String') || patternName.includes('Macro String') || patternName.includes('Generic')) {
-    if (matchValue.length < 8) return true;
-    if (/^\d+$/.test(matchValue)) return true;
-    // Generic catch-all patterns need stronger entropy gating — a 20-char
-    // repeating placeholder (e.g. "your_secret_here_yes") otherwise sneaks in.
-    if (matchValue.length >= 16 && shannonEntropy(matchValue) < 3.0) return true;
-  }
-
-  return false;
-}
-
 async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options) {
   let content;
   try {
@@ -266,10 +79,9 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
   const inXmlComment = (offset) => xmlCommentRanges.some(([s, e]) => offset >= s && offset < e);
 
   for (const pattern of allPatterns) {
-    pattern.regex.lastIndex = 0;
-    let match;
-
-    while ((match = pattern.regex.exec(content)) !== null) {
+    // .matchAll() 은 lastIndex 공유 없이 fresh iterator 반환 — 동시성 안전
+    // (이전: pattern.regex.exec 루프는 모듈 전역 정규식의 lastIndex 를 공유)
+    for (const match of content.matchAll(pattern.regex)) {
       let { matchValue, varName } = extractMatchDetails(pattern, match, content, ext);
 
       if (astLang && !options.skipAST) {
@@ -334,10 +146,9 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
     lineNumber++;
     for (const pattern of allPatterns) {
       if (pattern.multiline) continue;
-      
-      pattern.regex.lastIndex = 0;
-      let match;
-      while ((match = pattern.regex.exec(line)) !== null) {
+
+      // matchAll 사용 — lastIndex 공유 회피
+      for (const match of line.matchAll(pattern.regex)) {
         let matchValue = match[0];
         if (pattern.name.includes('Objective-C') && match[1]) matchValue = match[2];
         else {
@@ -381,69 +192,6 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
     }
     byteOffset += Buffer.byteLength(line, 'utf8') + 1;
   }
-}
-
-function extractMatchDetails(pattern, match, content, ext) {
-  let matchValue = match[0];
-  let varName = '';
-
-  if (pattern.name === 'Objective-C Config String' && match[1]) {
-    varName = match[1];
-    matchValue = match[2];
-  } else if (pattern.name === 'Objective-C Macro String' && match[1]) {
-    varName = match[1];
-    matchValue = match[2];
-  } else {
-    for (let g = match.length - 1; g >= 1; g--) {
-      if (match[g] !== undefined) {
-        matchValue = match[g];
-        break;
-      }
-    }
-  }
-
-  if (!varName && (ext === '.m' || ext === '.h' || ext === '.mm')) {
-    const lineStart = content.lastIndexOf('\n', match.index) + 1;
-    const preMatch = content.substring(lineStart, match.index);
-    const lookbackRegex = /(?:NSString\s*\*\s*const|const\s+NSString\s*\*|#define)\s+([a-zA-Z0-9_]+)\s*(?:=|)\s*@?\s*["']?$/i;
-    const varMatch = preMatch.trim().match(lookbackRegex);
-    if (varMatch) varName = varMatch[1];
-  }
-
-  return { matchValue, varName };
-}
-
-function sanitizeEnvName(raw) {
-  // POSIX-compatible env var name: only [A-Z0-9_]. Replace any non-alphanumeric
-  // (including / from "Network Host / Domain", spaces, dashes) with _.
-  // Collapse consecutive _ and strip leading/trailing _.
-  return raw
-    .toUpperCase()
-    .replace(/[^A-Z0-9_]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function getEnvVarName(pattern, varName, match2, usedEnvNames, matchValue) {
-  let baseEnvName = sanitizeEnvName(pattern.name);
-  if ((pattern.name === 'Objective-C Config String' || pattern.name === 'Objective-C Macro String') && varName) {
-    baseEnvName = sanitizeEnvName(varName);
-  } else if (pattern.name === 'Objective-C Config Number' && match2) {
-    baseEnvName = sanitizeEnvName(match2);
-  }
-  if (!baseEnvName) baseEnvName = 'SECRET';
-
-  let envVarName = baseEnvName;
-  const existingValue = usedEnvNames.get(envVarName);
-  if (existingValue && existingValue !== matchValue) {
-    let counter = 1;
-    while (usedEnvNames.has(`${baseEnvName}_${counter}`) && usedEnvNames.get(`${baseEnvName}_${counter}`) !== matchValue) {
-      counter++;
-    }
-    envVarName = `${baseEnvName}_${counter}`;
-  }
-  usedEnvNames.set(envVarName, matchValue);
-  return envVarName;
 }
 
 export async function scanProject(repoPath, platforms, options = {}) {
@@ -522,12 +270,28 @@ export async function scanProject(repoPath, platforms, options = {}) {
     ...platformIgnores, ...(options.ignore || [])
   ];
 
+  // .blinderSettings 추가 ignorePaths 병합
+  // - silent catch 제거: 잘못된 JSON 사용자 알림 위해 logger.warn 출력
+  // - 스키마 검증(타입/배열) 추가: 잘못된 설정으로 downstream 크래시 방지
+  // 참고: bin/blinder.js 호출 경로는 이미 utils/config.js loadConfig 가
+  // 동일 파일을 검증해 options.ignore 로 전달하므로 여기 호출은 안전망 역할.
   const rcPath = path.join(repoPath, '.blinderSettings');
   if (fs.existsSync(rcPath)) {
     try {
-      const rcContent = JSON.parse(fs.readFileSync(rcPath, 'utf8'));
-      if (Array.isArray(rcContent.ignorePaths)) ignorePatterns.push(...rcContent.ignorePaths);
-    } catch (err) {}
+      const raw = fs.readFileSync(rcPath, 'utf8');
+      const rcContent = JSON.parse(raw);
+      if (!rcContent || typeof rcContent !== 'object' || Array.isArray(rcContent)) {
+        throw new Error('루트는 JSON 객체여야 합니다');
+      }
+      if (rcContent.ignorePaths !== undefined) {
+        if (!Array.isArray(rcContent.ignorePaths)) {
+          throw new Error('"ignorePaths" 는 배열이어야 합니다');
+        }
+        ignorePatterns.push(...rcContent.ignorePaths);
+      }
+    } catch (err) {
+      logger.warn(`.blinderSettings 파싱 실패 (${err.message}). 기본 ignore 패턴만 사용합니다.`);
+    }
   }
 
   const extList = Array.from(extensions);
@@ -655,7 +419,3 @@ function reindexEnvVarNames(results) {
   return results;
 }
 
-function getLineNumber(content, index) {
-  const prefix = content.substring(0, index);
-  return prefix.split('\n').length;
-}

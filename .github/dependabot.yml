@@ -1,0 +1,30 @@
+# Dependabot 자동 업데이트 — Blinder 의존성 보안 추적
+# - npm: 주간
+# - github-actions: 주간 (CI workflow 자체 업데이트)
+# 보안도구이므로 patch/minor 자동 머지 보다 먼저 PR 리뷰 필수.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      tree-sitter:
+        patterns:
+          - "tree-sitter-*"
+          - "web-tree-sitter"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ci"

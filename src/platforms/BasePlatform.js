@@ -77,6 +77,14 @@ export class BasePlatform {
   }
 
   // Lifecycle Hooks
+  //
+  // [에러 시맨틱]
+  //   - preFix:  실패하면 protectionService 가 throw 를 상위로 전파해 해당 파일 abort.
+  //              플랫폼이 fix 전제조건을 검증하는 자리이므로 실패 = fix 거부 의미.
+  //   - postFix: 실패해도 전체 플로우 계속 진행 (logger.warn 만 남김).
+  //              이미 적용된 fix 를 되돌리는 트랜잭션 책임은 플랫폼이 자체 처리.
+  //
+  // 자세한 호출 위치는 src/services/protectionService.js 참고.
   async preFix(context) { if (this._preFix) await this._preFix(context); }
   async postFix(context) { if (this._postFix) await this._postFix(context); }
 }

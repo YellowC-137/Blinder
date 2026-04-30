@@ -2,15 +2,26 @@ import fs from 'fs';
 import { definePlatform } from '../definePlatform.js';
 import { readPackageJson, hasRuntimeDep, detectReactBuildTool } from '../../utils/packageJsonReader.js';
 
-// Build-tool detection runs once per repo via preFix and is cached here so
-// getAutoFixReplacement (which lacks repoPath) can read it. CLI runs target
-// one repo per invocation, so a single module-level slot is sufficient.
-let cachedBuildTool = null;
+// 빌드툴 / 클라이언트사이드 플래그를 repoPath 별로 캐시.
+// 이전 구현은 모듈 전역 `let` 사용 — CLI 단일 호출 한정으로는 동작하지만
+// 단위 테스트에서 상태 leak / 동시 호출 시 race 발생. Map 으로 격리.
+//
+// 키: 정규화된 repoPath (string)
+// 값: { buildTool: 'cra'|'vite'|'nextjs', clientSide: boolean }
+const repoState = new Map();
 
-// Per-file client-side flag for Next.js. Set in preFix, read in
-// getAutoFixReplacement. Next.js exposes env vars to the browser bundle only
-// when prefixed with NEXT_PUBLIC_; server-side code uses bare process.env.X.
-let currentFileClientSide = false;
+// 현재 처리 중인 repoPath — getAutoFixReplacement 시그니처에 repoPath 가 없어
+// preFix 에서 단일 변수로 전달. CLI 는 한 번에 한 리포만 처리하므로 안전.
+let activeRepoPath = null;
+
+function getState(repoPath) {
+  let s = repoState.get(repoPath);
+  if (!s) {
+    s = { buildTool: null, clientSide: false };
+    repoState.set(repoPath, s);
+  }
+  return s;
+}
 
 /**
  * isNextjsClientSideFile
@@ -136,13 +147,15 @@ out/
   },
 
   preFix: async (context) => {
-    if (cachedBuildTool === null) {
+    activeRepoPath = context.repoPath;
+    const state = getState(activeRepoPath);
+
+    if (state.buildTool === null) {
       const pkg = readPackageJson(context.repoPath);
-      cachedBuildTool = detectReactBuildTool(pkg);
-      if (!cachedBuildTool) {
-        // Defensive: react is present (detect returned true) but no known build
-        // tool. Default to CRA-style behavior with a warning.
-        cachedBuildTool = 'cra';
+      state.buildTool = detectReactBuildTool(pkg);
+      if (!state.buildTool) {
+        // 방어 분기: react 는 감지됐지만 알려진 빌드툴 없음. CRA 동작으로 fallback.
+        state.buildTool = 'cra';
         try {
           const { default: logger } = await import('../../utils/logger.js');
           logger.warn('[react] Unknown build tool — falling back to CRA-style REACT_APP_* prefix. Add react-scripts, vite, or next to deps for explicit detection.');
@@ -150,23 +163,34 @@ out/
       }
     }
 
-    currentFileClientSide = cachedBuildTool === 'nextjs'
+    state.clientSide = state.buildTool === 'nextjs'
       ? isNextjsClientSideFile(context.relPath, context.absPath)
       : false;
   },
 
   getAutoFixReplacement: (match, envVarName, ext, options) => {
-    return pickAccessor(cachedBuildTool || 'cra', envVarName, currentFileClientSide);
+    const state = activeRepoPath ? getState(activeRepoPath) : { buildTool: 'cra', clientSide: false };
+    return pickAccessor(state.buildTool || 'cra', envVarName, state.clientSide);
   }
 });
 
-// Test-only export so unit tests can inject build tool deterministically
-// without triggering preFix lifecycle.
+// 단위 테스트 전용 — preFix 라이프사이클 거치지 않고 상태 주입.
 export const __test = {
   pickAccessor,
   isNextjsClientSideFile,
-  setBuildTool: (bt) => { cachedBuildTool = bt; },
-  getBuildTool: () => cachedBuildTool,
-  setClientSide: (v) => { currentFileClientSide = v; },
-  resetCache: () => { cachedBuildTool = null; currentFileClientSide = false; }
+  setBuildTool: (bt) => {
+    const repo = activeRepoPath || '__test__';
+    activeRepoPath = repo;
+    getState(repo).buildTool = bt;
+  },
+  getBuildTool: () => activeRepoPath ? getState(activeRepoPath).buildTool : null,
+  setClientSide: (v) => {
+    const repo = activeRepoPath || '__test__';
+    activeRepoPath = repo;
+    getState(repo).clientSide = v;
+  },
+  resetCache: () => {
+    repoState.clear();
+    activeRepoPath = null;
+  }
 };

@@ -36,16 +36,34 @@ restore_dir() {
   mv "$backup" "$src"
 }
 
+## 타임아웃 래퍼: 회귀 테스트가 무한 hang 되는 것 방지 (Gradle/Xcode 빌드 멈춤 등)
+## 환경변수 BLINDER_REGRESSION_TIMEOUT 으로 override 가능 (기본 600s).
+## macOS 는 기본 timeout 명령 없음 → gtimeout (coreutils) 사용 또는 fallback.
+BLINDER_REGRESSION_TIMEOUT="${BLINDER_REGRESSION_TIMEOUT:-600}"
+
+with_timeout() {
+  local secs="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --foreground "${secs}s" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout --foreground "${secs}s" "$@"
+  else
+    # timeout 미설치 환경 fallback — 그냥 실행 (CI 에 coreutils 설치 권장)
+    color_yellow "  [warn] 'timeout' not installed; running without limit"
+    "$@"
+  fi
+}
+
 run_blinder_blind() {
   local target="$1"
-  color_blue "→ blinder blind --yes (target: $target)"
-  (cd "$target" && node "$BLINDER_BIN" blind --yes)
+  color_blue "→ blinder blind --yes (target: $target, timeout: ${BLINDER_REGRESSION_TIMEOUT}s)"
+  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node "$BLINDER_BIN" blind --yes)
 }
 
 run_blinder_restore() {
   local target="$1"
-  color_blue "→ blinder restore --yes"
-  (cd "$target" && node "$BLINDER_BIN" restore --yes)
+  color_blue "→ blinder restore --yes (timeout: ${BLINDER_REGRESSION_TIMEOUT}s)"
+  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node "$BLINDER_BIN" restore --yes)
 }
 
 verify_expected() {

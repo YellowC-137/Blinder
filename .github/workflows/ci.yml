@@ -1,0 +1,51 @@
+# Blinder CI
+# - 단위 + 통합 테스트만 실행 (회귀 테스트는 Xcode/Gradle 의존성 때문에 별도 워크플로 권장)
+# - Node 18, 20, 22 매트릭스 — package.json engines 와 정합
+# - .env 누출 방지: 루트에 .env 가 트랙되지 않는지 확인하는 가드 잡 추가
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+  secret-leak-guard:
+    name: Repo .env / map leak guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure tracked tree contains no .env / .blinder_map.json
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|\.blinder_map\.json$|^maskedProject_'; then
+            echo "::error::시크릿/마스크 산출물이 트랙됨 — .gitignore 확인"
+            exit 1
+          fi
+          echo "OK: 시크릿/마스크 산출물 트랙 없음"

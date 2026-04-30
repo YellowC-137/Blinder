@@ -164,7 +164,27 @@ program
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)
   .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false)
-  .option('--platform <id>', 'Force a single platform plugin (e.g. node, react, springboot, java, ios, android, flutter, ruby, common). Bypasses auto-detection. React build-tool aliases (nextjs, vite, cra) resolve to react.');
+  .option('--platform <id>', 'Force a single platform plugin (e.g. node, react, springboot, java, ios, android, flutter, ruby, common). Bypasses auto-detection. React build-tool aliases (nextjs, vite, cra) resolve to react.')
+  // 전역 옵션 + 환경변수 + 추천 워크플로를 --help 출력에 포함시킴.
+  // 기존엔 커맨드별 help 만 있어 신규 사용자가 -p/--platform 등 글로벌 플래그
+  // 존재 자체를 모르는 경우가 많았음.
+  .addHelpText('after', `
+환경변수 (Environment variables):
+  DEBUG=1                       에러 발생 시 stack trace 출력
+  BLINDER_REGRESSION_TIMEOUT=N  회귀 테스트 타임아웃(초, 기본 600)
+
+워크플로 (Typical workflow):
+  1) blinder scan              # 시크릿 탐지만
+  2) blinder blind             # 탐지 + .env 분리 + 자동 치환 + bridge
+  3) blinder mask              # AI 에이전트용 마스킹 디렉터리 생성
+  4) blinder restore           # AI 가 수정한 마스크 디렉터리를 원본에 반영
+  5) blinder rollback          # blind 결과 되돌리기
+
+예시:
+  blinder scan -p ./my-app --ci
+  blinder blind --platform react --dry-run
+  blinder restore --diff
+`);
 
 // React build-tool variants share the `react` plugin; the build tool is
 // resolved at runtime from package.json (see detectReactBuildTool). Accepting

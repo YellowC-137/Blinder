@@ -46,13 +46,22 @@ PLIST_PATH="\${BUILT_PRODUCTS_DIR}/\${INFOPLIST_PATH}"
 echo "🛡️ Blinder: Loading .env from \$ENV_FILE"
 while read -r line || [[ -n "\$line" ]]; do
     if [[ ! "\$line" =~ ^# ]] && [[ "\$line" =~ = ]]; then
-        # Safe trim and parsing using sed instead of xargs to protect URL special characters (&, ?, etc.)
+        # 안전 trim + URL의 &, ? 보존 위해 xargs 대신 sed 사용
         key=\$(echo "\${line%%=*}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         value=\$(echo "\${line#*=}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"\$//' -e "s/^'//" -e "s/'\$//")
-        
+
+        # 키 형식 검증: 영숫자 + 언더스코어만 허용 (PlistBuddy 명령 인젝션 방지)
+        if [[ ! "\$key" =~ ^[A-Za-z_][A-Za-z0-9_]*\$ ]]; then
+            echo "⚠️ Blinder: Skipping invalid key '\$key' (only [A-Za-z_][A-Za-z0-9_]* allowed)"
+            continue
+        fi
+
+        # 값 내부의 \\ 와 " 를 escape — PlistBuddy -c 인자 파싱 깨짐 방지
+        esc_value=\$(printf '%s' "\$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g')
+
         if [ -n "\$key" ]; then
-            /usr/libexec/PlistBuddy -c "Set :\$key \\"\$value\\"" "\$PLIST_PATH" 2>/dev/null || \\
-            /usr/libexec/PlistBuddy -c "Add :\$key string \\"\$value\\"" "\$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :\$key \\"\$esc_value\\"" "\$PLIST_PATH" 2>/dev/null || \\
+            /usr/libexec/PlistBuddy -c "Add :\$key string \\"\$esc_value\\"" "\$PLIST_PATH"
         fi
     fi
 done < "\$ENV_FILE"
@@ -99,10 +108,19 @@ while read -r line || [[ -n "$line" ]]; do
     if [[ ! "$line" =~ ^# ]] && [[ "$line" =~ = ]]; then
         key=$(echo "\${line%%=*}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         value=$(echo "\${line#*=}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
-        
+
+        # 키 형식 검증: 영숫자 + 언더스코어만 (인젝션 방지)
+        if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            echo "⚠️ Blinder: Skipping invalid key '$key'"
+            continue
+        fi
+
+        # 값 내부 \\ 및 " escape — PlistBuddy 인자 파싱 보호
+        esc_value=$(printf '%s' "$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g')
+
         if [ -n "$key" ]; then
-            /usr/libexec/PlistBuddy -c "Set :$key \\"$value\\"" "$PLIST_PATH" 2>/dev/null || \\
-            /usr/libexec/PlistBuddy -c "Add :$key string \\"$value\\"" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :$key \\"$esc_value\\"" "$PLIST_PATH" 2>/dev/null || \\
+            /usr/libexec/PlistBuddy -c "Add :$key string \\"$esc_value\\"" "$PLIST_PATH"
         fi
     fi
 done < "$ENV_FILE"

@@ -18,6 +18,17 @@ const logger = {
   header: (msg) => {
     console.log('\n' + chalk.bold.cyan(msg));
     logger.divider();
+  },
+  /**
+   * 일관된 finding 포맷 — CI 에서 grep 으로 파싱하기 쉬운 한 줄 형식.
+   * 사용 예: logger.finding({ severity: 'HIGH', file: 'a.js', line: 12, patternName: 'AWS Key', match: 'AKIA...' })
+   * 출력: `[HIGH] a.js:12 — AWS Key — AKIA...`
+   */
+  finding: ({ severity, file, line, patternName, match, masked = true }) => {
+    const sev = `[${(severity || 'INFO').toUpperCase()}]`;
+    const loc = line != null && line !== 0 ? `${file}:${line}` : file;
+    const valuePart = match ? ` — ${masked ? logger.maskSecret(match) : match}` : '';
+    console.log(`${sev} ${loc} — ${patternName}${valuePart}`);
   }
 };
 
