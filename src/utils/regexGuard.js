@@ -85,6 +85,8 @@ export function validateCustomPattern(p) {
   };
 }
 
+import { t } from './i18n.js';
+
 /**
  * customPatterns 배열 전체 검증.
  * 거부된 항목은 logger 경고로 알리고 통과한 것만 반환.
@@ -97,7 +99,7 @@ export function sanitizeCustomPatterns(rawPatterns, logger) {
     if (result.ok) {
       safe.push(result.pattern);
     } else if (logger) {
-      logger.warn(`customPatterns[${i}] (${p?.name || '익명'}) 거부: ${result.reason}`);
+      logger.warn(t('regex_guard_rejected', { i, name: p?.name || t('regex_anonymous'), reason: result.reason }));
     }
   });
   return safe;

@@ -18,6 +18,7 @@ import {
   getLineNumber
 } from './scannerHelpers.js';
 import { scanStructuredFile } from './structuredScanner.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * Scans for sensitive files that should never be committed.
@@ -39,7 +40,7 @@ async function scanSensitiveFiles(repoPath, platforms) {
         line: 0,
         match: path.basename(filePath),
         fullMatch: path.basename(filePath),
-        patternName: `Sensitive File: ${path.basename(filePath)}`,
+        patternName: t('scanner_sensitive_file_pattern', { file: path.basename(filePath) }),
         severity: sf.severity,
         isTestKey: false,
         isSensitiveFile: true,
@@ -57,7 +58,7 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch (err) {
-    logger.warn(`Could not read file ${filePath}: ${err.message}`);
+    logger.warn(t('scanner_read_err', { file: filePath, msg: err.message }));
     return;
   }
   const lines = content.split('\n');
@@ -132,7 +133,7 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
   try {
     fileStream = fs.createReadStream(filePath);
   } catch (err) {
-    logger.warn(`Could not create read stream for ${filePath}: ${err.message}`);
+    logger.warn(t('scanner_stream_err', { file: filePath, msg: err.message }));
     return;
   }
   const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
@@ -290,7 +291,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
         ignorePatterns.push(...rcContent.ignorePaths);
       }
     } catch (err) {
-      logger.warn(`.blinderSettings 파싱 실패 (${err.message}). 기본 ignore 패턴만 사용합니다.`);
+      logger.warn(t('scanner_settings_parse_err', { msg: err.message }));
     }
   }
 
@@ -315,7 +316,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
         await scanSmallFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options);
       }
     } catch (err) {
-      logger.warn(`Scan failed for ${filePath}: ${err.message}`);
+      logger.warn(t('scanner_scan_failed', { file: filePath, msg: err.message }));
     }
   }
 

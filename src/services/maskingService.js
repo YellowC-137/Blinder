@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * performMasking
@@ -74,7 +75,7 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
       mappingData.fileHashes[relPath] = await calculateHash(destPath);
       mappingData.allFiles.push(relPath);
     } catch (err) {
-      logger.error(`Failed to process file ${relPath} for masking: ${err.message}`);
+      logger.error(t('masking_file_failed', { file: relPath, msg: err.message }));
       // Continue with other files even if one fails
     }
   }

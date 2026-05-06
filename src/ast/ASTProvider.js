@@ -43,7 +43,7 @@ class ASTProvider {
       this.initialized = true;
       return true;
     } catch (err) {
-      logger.error(`AST Engine initialization failed: ${err.stack || err.message}`);
+      logger.error(t('ast_init_failed', { msg: err.stack || err.message }));
       this.disabled = true;
       return false;
     }
@@ -56,9 +56,9 @@ class ASTProvider {
     if (this.languages.has(langId)) return this.languages.get(langId);
 
     const wasmPath = path.join(this.wasmDir, `tree-sitter-${langId}.wasm`);
-    logger.debug(`Loading WASM from: ${wasmPath}`);
+    logger.debug(t('ast_wasm_loading', { path: wasmPath }));
     if (!fs.existsSync(wasmPath)) {
-      throw new Error(`WASM grammar for ${langId} not found at ${wasmPath}`);
+      throw new Error(t('ast_wasm_not_found', { lang: langId, path: wasmPath }));
     }
 
     try {
@@ -72,8 +72,8 @@ class ASTProvider {
         this.languages.set(langId, lang);
         return lang;
       } catch (innerErr) {
-        logger.debug(`Language.load error for ${langId}: ${innerErr.stack || innerErr.message}`);
-        throw new Error(`Failed to load ${langId} grammar: ${innerErr.message || 'Unknown error'}`);
+        logger.debug(t('ast_load_err', { lang: langId, msg: innerErr.stack || innerErr.message }));
+        throw new Error(t('ast_load_failed', { lang: langId, msg: innerErr.message || 'Unknown error' }));
       }
     }
   }
@@ -113,7 +113,7 @@ class ASTProvider {
       return isString;
     } catch (err) {
       // AST 실패 시 디버그 로그만 남기고 조용히 Regex 결과로 대체
-      logger.debug(`AST validation skipped for ${path.basename(filePath)}: ${err.message}`);
+      logger.debug(t('ast_skipped', { file: path.basename(filePath), msg: err.message }));
       return true; // 에러 시 안전하게 정규식 결과 신뢰 (Fallback)
     }
   }

@@ -44,7 +44,7 @@ export function loadConfig(repoPath) {
 
       logger.debug(t('config_loaded'));
     } catch (error) {
-      logger.warn(`Failed to parse .blinderSettings: ${error.message}. Using defaults.`);
+      logger.warn(t('config_parse_err', { msg: error.message }));
     }
   }
 

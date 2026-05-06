@@ -171,6 +171,10 @@ const translations = {
     protect_manual_desc: '마이그레이션을 완료하려면, 소스 코드의 하드코딩된 시크릿을 환경 변수 호출로 대체하세요:',
     protect_manual_examples: '구현 예시:',
     protect_manual_success: '.env 파일에 시크릿이 업데이트되었습니다. 이제 해당 변수들을 사용할 수 있습니다.',
+    protect_manual_flutter: '- {platform}:   String.fromEnvironment(\'VAR_NAME\')',
+    protect_manual_ios: '- {platform}:       xcconfig 또는 ProcessInfo.processInfo.environment["VAR_NAME"] 사용',
+    protect_manual_android: '- {platform}:   BuildConfig.VAR_NAME 사용',
+    protect_manual_node: '- {platform}:   process.env.VAR_NAME 사용',
 
     // Gitignore command
     gitignore_already_contains: '.gitignore 파일에 이미 {name} 섹션이 있습니다. 건너뜁니다.',
@@ -236,7 +240,49 @@ const translations = {
     // CLI Main
     error_unexpected: '예기치 않은 오류가 발생했습니다:',
     report_generated: '자동 보고서가 생성되었습니다: blinder_reports/{file}',
-    ci_secrets_found: 'CI 모드에서 시크릿이 발견되었습니다. 상태 코드 1로 종료합니다.'
+    ci_secrets_found: 'CI 모드에서 시크릿이 발견되었습니다. 상태 코드 1로 종료합니다.',
+
+    // Bridge Utils
+    android_bridge_exists: '이미 {relPath}에 브릿지가 존재합니다. 업데이트 중...',
+    android_bridge_success: 'Android 브릿지가 {relPath}에 주입되었습니다',
+    android_bridge_no_config: '{relPath}에서 defaultConfig 블록을 찾을 수 없습니다. 수동 설정이 필요합니다.',
+    ios_bridge_applying: '{path}에 CocoaPods 주입 적용 중...',
+    flutter_intellij_updated: 'IntelliJ 실행 설정 {file}이(가) 업데이트되었습니다.',
+
+    // Scanner
+    scanner_read_err: '파일을 읽을 수 없습니다 ({file}): {msg}',
+    scanner_stream_err: '파일 읽기 스트림을 생성할 수 없습니다 ({file}): {msg}',
+    scanner_settings_parse_err: '.blinderSettings 파싱 실패 ({msg}). 기본 ignore 패턴만 사용합니다.',
+    scanner_scan_failed: '{file} 스캔 실패: {msg}',
+    scanner_sensitive_file_pattern: '민감 파일: {file}',
+
+    // AST Provider
+    ast_init_failed: 'AST 엔진 초기화 실패: {msg}',
+    ast_wasm_loading: 'WASM 로딩 중: {path}',
+    ast_wasm_not_found: '{lang}용 WASM 문법 파일을 찾을 수 없습니다: {path}',
+    ast_load_err: '{lang} Language.load 오류: {msg}',
+    ast_load_failed: '{lang} 문법 로드 실패: {msg}',
+    ast_skipped: '{file}에 대한 AST 검증 건너뜀: {msg}',
+
+    // Base Platform
+    platform_detect_not_impl: '[{name}] detect() 메서드가 구현되지 않았습니다.',
+
+    // Services
+    service_prefix_failed: '{file}에서 {name}의 preFix 훅 실패: {msg}',
+    service_read_failed: '파일 읽기 실패 ({file}): {msg}',
+    service_json_skip: '{file}에 대한 auto-fix 건너뜀: .json 파일은 수동 런타임 보간이 필요합니다 (시크릿 {count}개가 .env에만 기록됨).',
+    service_write_failed: '파일 쓰기 실패 ({file}): {msg}',
+    service_postfix_failed: '{file} ({env})에 대한 postFix 훅 실패: {msg}',
+
+    // Masking
+    masking_file_failed: '{file} 마스킹 처리 실패: {msg}',
+
+    // Regex Guard
+    regex_guard_rejected: '사용자 패턴 {i} ({name}) 거부됨: {reason}',
+    regex_anonymous: '익명',
+
+    // Config
+    config_parse_err: '.blinderSettings 파싱 실패: {msg}. 기본 설정을 사용합니다.'
   },
   en: {
     // CLI descriptions
@@ -408,6 +454,10 @@ const translations = {
     protect_manual_desc: 'To complete the migration, please replace the hardcoded secrets in your source code with environment variable lookups:',
     protect_manual_examples: 'Implementation Examples:',
     protect_manual_success: 'The .env file has been updated with your secrets. You can now use these variables.',
+    protect_manual_flutter: '- {platform}:   String.fromEnvironment(\'VAR_NAME\')',
+    protect_manual_ios: '- {platform}:       Use xcconfig or ProcessInfo.processInfo.environment["VAR_NAME"]',
+    protect_manual_android: '- {platform}:   Use BuildConfig.VAR_NAME',
+    protect_manual_node: '- {platform}:   process.env.VAR_NAME',
 
     // Gitignore command
     gitignore_already_contains: '.gitignore already contains {name} section. Skipping.',
@@ -473,7 +523,49 @@ const translations = {
     // CLI Main
     error_unexpected: 'An unexpected error occurred:',
     report_generated: 'Automatic report generated: blinder_reports/{file}',
-    ci_secrets_found: 'Secrets found in CI mode. Terminating with status 1.'
+    ci_secrets_found: 'Secrets found in CI mode. Terminating with status 1.',
+
+    // Bridge Utils
+    android_bridge_exists: 'Bridge already exists in {relPath}. Updating...',
+    android_bridge_success: 'Android bridge injected into {relPath}',
+    android_bridge_no_config: 'Could not find defaultConfig block in {relPath}. Manual setup required.',
+    ios_bridge_applying: 'Applying CocoaPods injection to {path}...',
+    flutter_intellij_updated: 'IntelliJ run config {file} updated.',
+
+    // Scanner
+    scanner_read_err: 'Could not read file {file}: {msg}',
+    scanner_stream_err: 'Could not create read stream for {file}: {msg}',
+    scanner_settings_parse_err: 'Failed to parse .blinderSettings ({msg}). Using default ignore patterns.',
+    scanner_scan_failed: 'Scan failed for {file}: {msg}',
+    scanner_sensitive_file_pattern: 'Sensitive File: {file}',
+
+    // AST Provider
+    ast_init_failed: 'AST Engine initialization failed: {msg}',
+    ast_wasm_loading: 'Loading WASM from: {path}',
+    ast_wasm_not_found: 'WASM grammar for {lang} not found at {path}',
+    ast_load_err: 'Language.load error for {lang}: {msg}',
+    ast_load_failed: 'Failed to load {lang} grammar: {msg}',
+    ast_skipped: 'AST validation skipped for {file}: {msg}',
+
+    // Base Platform
+    platform_detect_not_impl: '[{name}] detect() method not implemented.',
+
+    // Services
+    service_prefix_failed: 'preFix hook failed for {name} on {file}: {msg}',
+    service_read_failed: 'Failed to read file {file}: {msg}',
+    service_json_skip: 'Skipped auto-fix for {file}: .json files require manual runtime interpolation ({count} secret(s) recorded in .env only).',
+    service_write_failed: 'Failed to write file {file}: {msg}',
+    service_postfix_failed: 'PostFix hook failed for {file} ({env}): {msg}',
+
+    // Masking
+    masking_file_failed: 'Failed to process file {file} for masking: {msg}',
+
+    // Regex Guard
+    regex_guard_rejected: 'customPatterns[{i}] ({name}) rejected: {reason}',
+    regex_anonymous: 'anonymous',
+
+    // Config
+    config_parse_err: 'Failed to parse .blinderSettings: {msg}. Using defaults.'
   }
 };
 

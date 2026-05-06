@@ -109,14 +109,6 @@ export const patterns = [
     severity: 'CRITICAL'
   },
 
-  // ─── IPv4 Address (보안지침 §1: 인프라 정보 - Public 및 Private 모두 포함) ───
-  {
-    name: 'IPv4 Address',
-    regex: /\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
-    severity: 'MEDIUM',
-    isFixable: false
-  },
-
   // ─── Endpoint & Server URLs ───
   {
     name: 'Endpoint URL',
@@ -148,6 +140,14 @@ export const patterns = [
     // Added negative lookahead to prevent matching "http" or "https" as a domain when it's just part of a full URL.
     regex: /\b[a-zA-Z0-9_]*(?:ip|host|domain|addr)\b\s*[:=]\s*@?["']((?!https?:\/\/)[a-zA-Z0-9.\-]{4,})["']/gi,
     severity: 'MEDIUM'
+  },
+
+  // ─── IPv4 Address (보안지침 §1: 인프라 정보 - Public 및 Private 모두 포함) ───
+  {
+    name: 'IPv4 Address',
+    regex: /\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    severity: 'MEDIUM',
+    isFixable: false
   },
 
   // ─── Network Port Configs (e.g., let icrpPt = "10500") ───

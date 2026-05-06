@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * BasePlatform - 플러그인 인터페이스 강제화를 위한 기반 클래스
@@ -32,7 +33,7 @@ export class BasePlatform {
    */
   async detect(repoPath) {
     if (this._detect) return await this._detect(repoPath);
-    throw new Error(`[${this.name}] detect() method not implemented.`);
+    throw new Error(t('platform_detect_not_impl', { name: this.name }));
   }
 
   /**
