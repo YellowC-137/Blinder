@@ -1,7 +1,8 @@
 import path from 'path';
-import Parser from 'web-tree-sitter';
+// import Parser from 'web-tree-sitter';
 import fs from 'fs';
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * ASTProvider - web-tree-sitter를 활용한 다국어 AST 분석 엔진
@@ -17,9 +18,22 @@ class ASTProvider {
 
   /**
    * 트리시터 초기화 및 언어 로드
+   *
+   * WebAssembly가 비활성화된 환경(--jitless 등)에서는
+   * 에러 스팸 없이 조용히 disabled 상태로 전환한다.
    */
   async init() {
     if (this.initialized) return true;
+
+    // Node v24.8.0 에서는 WASM 관련 Turboshaft 컴파일러 버그로 SIGSEGV가 간헐적으로 발생함.
+    // 안전을 위해 완전히 비활성화 (disabled = true) 하고 regex fallback을 타게 함.
+    if (!this._warnedNoWasm) {
+      this._warnedNoWasm = true;
+      logger.debug(t('ast_engine_disabled'));
+    }
+    this.disabled = true;
+    return false;
+
     try {
       const selfWasmPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/web-tree-sitter/tree-sitter.wasm');
       await Parser.init({
@@ -30,6 +44,7 @@ class ASTProvider {
       return true;
     } catch (err) {
       logger.error(`AST Engine initialization failed: ${err.stack || err.message}`);
+      this.disabled = true;
       return false;
     }
   }
@@ -65,8 +80,12 @@ class ASTProvider {
 
   /**
    * 시크릿 후보가 실제 문자열 리터럴 내부인지 검증
+   *
+   * AST 엔진이 비활성화(disabled)된 경우 정규식 결과를 그대로 신뢰한다.
    */
   async validateMatch(filePath, langId, matchValue, startOffset, opts = {}) {
+    // WASM 비활성화 상태면 즉시 regex fallback
+    if (this.disabled) return true;
     if (!this.initialized && !(await this.init())) return true; // Fallback to Regex
 
     try {

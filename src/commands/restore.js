@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import * as Diff from 'diff';
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 import { 
   findMaskedDirectory, 
   detectChanges, 
@@ -16,34 +17,34 @@ export async function restoreFromMasked(repoPath, options = {}) {
     : findMaskedDirectory(repoPath);
 
   if (!maskDir) {
-    logger.error('Mapping file (.blinder_map.json) not found in any directory.');
-    logger.info('Please run "blinder mask" first, or specify the directory with -o.');
+    logger.error(t('restore_no_map'));
+    logger.info(t('restore_run_mask_first'));
     return;
   }
 
   const mapPath = path.join(maskDir, '.blinder_map.json');
   if (!fs.existsSync(mapPath)) {
-    logger.error(`Mapping file (.blinder_map.json) not found in: ${maskDir}`);
+    logger.error(t('restore_no_map_in_dir', { dir: maskDir }));
     return;
   }
 
-  logger.header('Blinder - Restore AI Changes');
+  logger.header(t('restore_header'));
   const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-  logger.info(`Source: ${maskDir}`);
-  logger.info(`Masked at: ${mapData.createdAt}`);
+  logger.info(t('restore_source', { dir: maskDir }));
+  logger.info(t('restore_masked_at', { date: mapData.createdAt }));
   if (options.paths && options.paths.length > 0) {
-    logger.info(`Target Paths: ${options.paths.join(', ')}`);
+    logger.info(t('restore_target_paths', { paths: options.paths.join(', ') }));
   }
 
-  const spinner = logger.info('Analyzing changes...');
+  const spinner = logger.info(t('restore_analyzing'));
   const changes = detectChanges(maskDir, repoPath, mapData, options);
 
   logger.divider();
-  logger.info('📋 AI-Agent Work Summary:');
-  if (changes.modified.length > 0) changes.modified.forEach(f => logger.success(`  ✏️  Modified: ${f}`));
-  if (changes.added.length > 0) changes.added.forEach(f => logger.success(`  ➕ Added:    ${f}`));
-  if (changes.deleted.length > 0) logger.warn(`  🗑️  Deleted:  ${changes.deleted.length} files`);
-  logger.info(`  📊 Total: ${changes.modified.length} modified / ${changes.added.length} added / ${changes.deleted.length} deleted (${changes.unchanged} unchanged)`);
+  logger.info(t('restore_summary_title'));
+  if (changes.modified.length > 0) changes.modified.forEach(f => logger.success(t('restore_modified', { file: f })));
+  if (changes.added.length > 0) changes.added.forEach(f => logger.success(t('restore_added', { file: f })));
+  if (changes.deleted.length > 0) logger.warn(t('restore_deleted_count', { count: changes.deleted.length }));
+  logger.info(t('restore_total_stats', { mod: changes.modified.length, add: changes.added.length, del: changes.deleted.length, unchanged: changes.unchanged }));
 
   // Integrity Check
   const missingTags = [];
@@ -57,22 +58,22 @@ export async function restoreFromMasked(repoPath, options = {}) {
   }
 
   if (missingTags.length > 0) {
-    logger.warn(`\n⚠️  Missing Redaction Tags Detected (${missingTags.length} instances):`);
-    logger.info('These tags were present before, but AI has modified or removed them.');
+    logger.warn(t('restore_missing_tags_title', { count: missingTags.length }));
+    logger.info(t('restore_missing_tags_desc'));
     
     let force = options.auto || options.yes;
     if (!force) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
         name: 'force',
-        message: 'Proceed with restoration anyway?',
+        message: t('restore_prompt_proceed'),
         default: true
       }]);
       force = prompt.force;
     }
     if (!force) return;
   } else {
-    logger.success('\n✔ Tag Integrity Check: All BLINDER tags are present.');
+    logger.success(t('restore_integrity_check_ok'));
   }
 
   const plannedModifications = [];
@@ -92,7 +93,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
       const repaired = repairMissingImports(f, originalContent, content);
       if (repaired.fixed > 0) {
         content = repaired.content;
-        logger.warn(`  🔧 Auto-repaired ${repaired.fixed} missing import(s) in: ${f}`);
+        logger.warn(t('restore_auto_repaired', { count: repaired.fixed, file: f }));
       }
     }
     plannedModifications.push({ file: f, newContent: content });
@@ -103,7 +104,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
   }
 
   if (changes.modified.length === 0 && changes.added.length === 0 && changes.deleted.length === 0) {
-    logger.info('No files to restore or all requested paths are unchanged.');
+    logger.info(t('restore_nothing'));
     return;
   }
 
@@ -112,7 +113,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',
       name: 'confirm',
-      message: 'Apply these changes to your root project?',
+      message: t('restore_prompt_apply'),
       default: true
     }]);
     confirm = prompt.confirm;
@@ -124,9 +125,9 @@ export async function restoreFromMasked(repoPath, options = {}) {
   for (const mod of plannedModifications) {
     try {
       if (!options.dryRun) fs.writeFileSync(path.join(repoPath, mod.file), mod.newContent);
-      logger.success(`✔ Restored: ${mod.file}`);
+      logger.success(t('restore_restored_file', { file: mod.file }));
     } catch (err) {
-      logger.error(`Failed to restore file ${mod.file}: ${err.message}`);
+      logger.error(t('restore_restore_failed', { file: mod.file, msg: err.message }));
     }
   }
 
@@ -139,9 +140,9 @@ export async function restoreFromMasked(repoPath, options = {}) {
         fs.mkdirSync(path.dirname(destPath), { recursive: true });
         fs.copyFileSync(srcPath, destPath);
       }
-      logger.success(`✔ Added: ${f}`);
+      logger.success(t('restore_added_file', { file: f }));
     } catch (err) {
-      logger.error(`Failed to add file ${f}: ${err.message}`);
+      logger.error(t('restore_add_failed', { file: f, msg: err.message }));
     }
   }
 
@@ -155,7 +156,7 @@ export async function restoreFromMasked(repoPath, options = {}) {
       const prompt = await inquirer.prompt([{
         type: 'confirm',
         name: 'shouldDelete',
-        message: `File "${f}" was deleted in the masked environment. Delete from original project?`,
+        message: t('restore_prompt_delete', { file: f }),
         default: false
       }]);
       shouldDelete = prompt.shouldDelete;
@@ -164,21 +165,21 @@ export async function restoreFromMasked(repoPath, options = {}) {
     if (shouldDelete && !options.dryRun) {
       try {
         fs.unlinkSync(destPath);
-        logger.warn(`✔ Deleted: ${f}`);
+        logger.warn(t('restore_deleted_file', { file: f }));
       } catch (err) {
-        logger.error(`Failed to delete file ${f}: ${err.message}`);
+        logger.error(t('restore_delete_failed', { file: f, msg: err.message }));
       }
     }
   }
 
-  logger.header('Restore Complete');
+  logger.header(t('restore_complete'));
   
   let cleanup = options.auto || options.yes;
   if (!cleanup) {
     const prompt = await inquirer.prompt([{
       type: 'confirm',
       name: 'cleanup',
-      message: 'Clean up the temporary masked directory?',
+      message: t('restore_prompt_cleanup'),
       default: true
     }]);
     cleanup = prompt.cleanup;
@@ -187,17 +188,17 @@ export async function restoreFromMasked(repoPath, options = {}) {
   if (cleanup && !options.dryRun) {
     try {
       fs.rmSync(maskDir, { recursive: true, force: true });
-      logger.success('Cleaned up masked folder.');
+      logger.success(t('restore_cleanup_success'));
     } catch (err) {
       // Cleanup is best-effort. ENOTEMPTY (e.g. macOS Finder created
       // .DS_Store after our walk) shouldn't fail the whole restore.
-      logger.warn(`Cleanup partial: ${err.code || err.name}: ${err.message}. Remove ${maskDir} manually if needed.`);
+      logger.warn(t('restore_cleanup_partial', { errCode: err.code || err.name, errMsg: err.message, dir: maskDir }));
     }
   }
 }
 
 function showDiffsPreview(repoPath, plannedModifications) {
-  logger.header('Diff Preview');
+  logger.header(t('restore_diff_preview'));
   for (const mod of plannedModifications) {
     const originalPath = path.join(repoPath, mod.file);
     const originalContent = fs.existsSync(originalPath) ? fs.readFileSync(originalPath, 'utf8') : '';

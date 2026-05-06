@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * Generates platform-specific .gitignore content using platform plugins.
@@ -23,15 +24,15 @@ export async function generateGitignore(repoPath, platforms) {
       const marker = `# --- BLINDER ${section.toUpperCase()} ---`;
       
       if (newContent.includes(marker)) {
-        logger.info(`.gitignore already contains ${platform.name} section. Skipping.`);
+        logger.info(t('gitignore_already_contains', { name: platform.name }));
         continue;
       }
 
       newContent += `\n${marker}\n${template}\n`;
-      logger.success(`Added ${platform.name} section to .gitignore`);
+      logger.success(t('gitignore_added_section', { name: platform.name }));
     }
   }
 
   fs.writeFileSync(gitignorePath, newContent);
-  logger.success('.gitignore updated successfully!');
+  logger.success(t('gitignore_updated_success'));
 }

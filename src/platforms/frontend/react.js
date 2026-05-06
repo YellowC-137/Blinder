@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { definePlatform } from '../definePlatform.js';
 import { readPackageJson, hasRuntimeDep, detectReactBuildTool } from '../../utils/packageJsonReader.js';
+import { t } from '../../utils/i18n.js';
 
 // 빌드툴 / 클라이언트사이드 플래그를 repoPath 별로 캐시.
 // 이전 구현은 모듈 전역 `let` 사용 — CLI 단일 호출 한정으로는 동작하지만
@@ -158,7 +159,7 @@ out/
         state.buildTool = 'cra';
         try {
           const { default: logger } = await import('../../utils/logger.js');
-          logger.warn('[react] Unknown build tool — falling back to CRA-style REACT_APP_* prefix. Add react-scripts, vite, or next to deps for explicit detection.');
+          logger.warn(t('react_unknown_build_tool'));
         } catch { /* logger optional */ }
       }
     }

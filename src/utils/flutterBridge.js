@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import logger from './logger.js';
+import { t } from './i18n.js';
 
 /**
  * Automates Flutter .env integration by modifying IDE launch configs.
@@ -34,11 +35,11 @@ export async function setupFlutterBridge(repoPath) {
           }
           
           fs.writeFileSync(launchJsonPath, content);
-          logger.success('VS Code launch.json updated with --dart-define-from-file');
+          logger.success(t('flutter_vscode_updated'));
           updated = true;
       }
     } catch (err) {
-      logger.warn('Failed to update VS Code launch.json automatically.');
+      logger.warn(t('flutter_vscode_update_failed'));
     }
   }
 
@@ -65,9 +66,9 @@ export async function setupFlutterBridge(repoPath) {
   }
 
   if (!updated) {
-    logger.info('No IDE configurations found to automate Flutter .env loading.');
+    logger.info(t('flutter_no_ide_configs'));
   } else {
-    logger.success('Flutter .env automation applied to IDE configurations.');
+    logger.success(t('flutter_ide_applied'));
   }
 
   // 3. Command Line Wrapper: f.sh
@@ -80,13 +81,13 @@ flutter "$@" --dart-define-from-file=.env
 
   try {
     fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
-    logger.success('Flutter CLI wrapper generated: f.sh');
+    logger.success(t('flutter_cli_wrapper_gen'));
     updated = true;
   } catch (err) {
-    logger.warn('Failed to create f.sh wrapper.');
+    logger.warn(t('flutter_cli_wrapper_failed'));
   }
 
   if (updated) {
-    logger.info('Manual Tip: Use "./f.sh run" to ensure .env is loaded in terminal.');
+    logger.info(t('flutter_manual_tip'));
   }
 }

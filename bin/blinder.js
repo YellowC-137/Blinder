@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --no-wasm-tier-up
 
 import fs from 'fs';
 import path from 'path';
@@ -63,7 +63,7 @@ async function handleAction(action) {
   try {
     await action();
   } catch (error) {
-    logger.error('An unexpected error occurred:');
+    logger.error(t('error_unexpected'));
     logger.error(error.message);
     if (process.env.DEBUG) {
       console.error(error);
@@ -95,7 +95,7 @@ async function report(results, repoPath, options, skipConfirm = false, project =
   const reportPath = path.join(reportDir, reportFilename);
 
   fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
-  logger.success(`Automatic report generated: blinder_reports/${reportFilename}`);
+  logger.success(t('report_generated', { file: reportFilename }));
 
   if (results.length === 0) {
     logger.success(t('no_secrets'));
@@ -150,7 +150,7 @@ async function report(results, repoPath, options, skipConfirm = false, project =
 
   // CI Mode check
   if (options.ci && results.length > 0) {
-    logger.error('Secrets found in CI mode. Terminating with status 1.');
+    logger.error(t('ci_secrets_found'));
     process.exit(1);
   }
 

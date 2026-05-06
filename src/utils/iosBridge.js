@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import logger from './logger.js';
+import { t } from './i18n.js';
 
 const IOS_SETUP_SCRIPT = `#!/bin/bash
 # Blinder iOS Setup Script
@@ -20,13 +21,13 @@ if ! command -v /usr/libexec/PlistBuddy &> /dev/null; then
 fi
 
 echo ""
-echo "To automatically load .env into your app, follow these steps in Xcode:"
-echo "1. Open your project in Xcode."
-echo "2. Select your Target -> Build Phases -> + -> New Run Script Phase."
-echo "3. Name it 'Blinder Env Loader' and move it to the VERY END of the Build Phases."
-echo "4. 🚨 UNCHECK 'Based on dependency analysis' (Crucial for reading .env properly)."
-echo "5. 🚨 Go to 'Build Settings' tab -> Search 'User Script Sandboxing' -> Set to 'NO'."
-echo "6. Paste the following script into the phase:"
+echo "${t('ios_bridge_steps_title')}"
+echo "${t('ios_bridge_step1')}"
+echo "${t('ios_bridge_step2')}"
+echo "${t('ios_bridge_step3')}"
+echo "${t('ios_bridge_step4')}"
+echo "${t('ios_bridge_step5')}"
+echo "${t('ios_bridge_step6')}"
 echo ""
 echo "----------------------------------------------------------------"
 cat << 'EOF'
@@ -70,7 +71,7 @@ echo "✅ Blinder: Info.plist updated successfully."
 EOF
 echo "----------------------------------------------------------------"
 echo ""
-echo "✅ Setup script generated. Follow the instructions above to finalize."
+echo "${t('ios_setup_script_success')}"
 `;
 
 const BLINDER_RUBY_HOOK = `
@@ -174,12 +175,12 @@ async function injectToPodfile(repoPath) {
         /(post_install\s+do\s+\|installer\|)/,
         `$1\n  blinder_post_install(installer)`
       );
-      logger.info('  [+] Injected hook into existing post_install block.');
+      logger.info(t('ios_hook_injected_existing'));
     }
   } else {
     // Create a new post_install block
     content += `\npost_install do |installer|\n  blinder_post_install(installer)\nend\n`;
-    logger.info('  [+] Created new post_install block with blinder hook.');
+    logger.info(t('ios_hook_injected_new'));
   }
 
   fs.writeFileSync(podfilePath, content);
@@ -190,7 +191,7 @@ export async function setupIosBridge(repoPath) {
   const scriptPath = path.join(repoPath, 'blinder-ios-setup.sh');
   fs.writeFileSync(scriptPath, IOS_SETUP_SCRIPT, { mode: 0o755 });
 
-  logger.success('iOS integration script generated: blinder-ios-setup.sh');
+  logger.success(t('ios_bridge_script_gen'));
 
   // Try Podfile-based automated injection
   const autoInjected = await injectToPodfile(repoPath);
@@ -199,21 +200,21 @@ export async function setupIosBridge(repoPath) {
     try {
       execFileSync('sh', [scriptPath], { stdio: 'inherit', cwd: repoPath });
     } catch (err) {
-      logger.error(`iOS bridge setup failed: ${err.message}`);
+      logger.error(t('ios_bridge_setup_failed', { msg: err.message }));
     }
 
-    logger.header('⚠️ IMPORTANT: Manual Xcode Setup Required');
-    logger.warn('No Podfile found. You MUST manually configure Xcode to load environment variables.');
-    logger.info('\nFollow these steps to finalize integration (Essential for Xcode 15+):');
-    logger.info('1. Open your project in Xcode.');
-    logger.info('2. Go to Target -> Build Phases -> + -> New Run Script Phase.');
-    logger.info('3. Name it "Blinder Env Loader" and move it to the VERY BOTTOM.');
-    logger.error('4. 🚨 CRUCIAL: Uncheck "Based on dependency analysis".');
-    logger.error('5. 🚨 CRUCIAL (Xcode 15+): Go to Build Settings -> Search "Sandboxing" -> Set "User Script Sandboxing" to "NO".');
-    logger.info('6. The code to paste was displayed above (or find it in blinder-ios-setup.sh).\n');
+    logger.header(t('ios_bridge_manual_req'));
+    logger.warn(t('ios_bridge_no_podfile'));
+    logger.info(t('ios_bridge_steps_title'));
+    logger.info(t('ios_bridge_step1'));
+    logger.info(t('ios_bridge_step2'));
+    logger.info(t('ios_bridge_step3'));
+    logger.error(t('ios_bridge_step4'));
+    logger.error(t('ios_bridge_step5'));
+    logger.info(t('ios_bridge_step6'));
   } else {
-    logger.success('Successfully injected Blinder hooks into Podfile.');
-    logger.info('🚨 IMPORTANT: Run "pod install" in your iOS directory to apply changes to Xcode.');
-    logger.info('   Note: If you encounter "Permission Denied" errors during build, ensure "User Script Sandboxing" is set to "NO" in Xcode Build Settings.');
+    logger.success(t('ios_bridge_pod_success'));
+    logger.info(t('ios_bridge_pod_install'));
+    logger.info(t('ios_bridge_pod_note'));
   }
 }

@@ -3,6 +3,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import logger from '../utils/logger.js';
 import { performRollback, cleanGitignore } from '../services/rollbackService.js';
+import { t } from '../utils/i18n.js';
 
 export async function rollbackSecrets(repoPath, options = {}) {
   const metadataPath = path.join(repoPath, '.blinder_protect.json');
@@ -10,12 +11,12 @@ export async function rollbackSecrets(repoPath, options = {}) {
   const envExamplePath = path.join(repoPath, '.env.example');
   const reportsDir = path.join(repoPath, 'blinder_reports');
 
-  logger.header('Blinder - Rollback');
+  logger.header(t('rollback_header'));
 
   const report = await performRollback(repoPath, options);
 
   if (report.codeRestored) {
-    logger.success(`Source code restored: ${report.restoreCount} changes applied.`);
+    logger.success(t('rollback_success', { count: report.restoreCount }));
     if (report.skipCount > 0) {
       const r = report.skipReasons || {};
       const parts = [];
@@ -24,13 +25,13 @@ export async function rollbackSecrets(repoPath, options = {}) {
       if (r.secretMissing) parts.push(`missing in .env: ${r.secretMissing}`);
       if (r.fileNotFound) parts.push(`file not found: ${r.fileNotFound}`);
       const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
-      logger.warn(`${report.skipCount} skipped${detail}.`);
+      logger.warn(t('rollback_skipped', { count: report.skipCount, detail }));
     }
   }
 
   report.bridgeResults.forEach(res => {
-    if (res.success) logger.success(`Removed bridge for ${res.name}`);
-    else logger.error(`Failed to teardown bridge for ${res.name}: ${res.error}`);
+    if (res.success) logger.success(t('rollback_bridge_success', { name: res.name }));
+    else logger.error(t('rollback_bridge_failed', { name: res.name, error: res.error }));
   });
 
   const filesToClean = [];
@@ -40,12 +41,12 @@ export async function rollbackSecrets(repoPath, options = {}) {
   if (fs.existsSync(reportsDir)) filesToClean.push({ path: reportsDir, label: 'blinder_reports/', isDir: true });
 
   if (filesToClean.length === 0 && !report.codeRestored) {
-    logger.info('Nothing to clean up. Project is already in original state.');
+    logger.info(t('rollback_nothing'));
     return;
   }
 
   if (filesToClean.length > 0) {
-    logger.info(`\n📋 Files to clean up:`);
+    logger.info(t('rollback_files_title'));
     filesToClean.forEach(f => logger.info(`  • ${f.label}`));
 
     let confirmCleanup = options.yes;
@@ -53,7 +54,7 @@ export async function rollbackSecrets(repoPath, options = {}) {
       const response = await inquirer.prompt([{
         type: 'confirm',
         name: 'confirmCleanup',
-        message: 'Delete these files to fully rollback?',
+        message: t('rollback_prompt_delete'),
         default: true
       }]);
       confirmCleanup = response.confirmCleanup;
@@ -63,14 +64,14 @@ export async function rollbackSecrets(repoPath, options = {}) {
       for (const f of filesToClean) {
         if (f.isDir) fs.rmSync(f.path, { recursive: true, force: true });
         else fs.unlinkSync(f.path);
-        logger.success(`Deleted: ${f.label}`);
+        logger.success(t('rollback_deleted', { label: f.label }));
       }
 
       if (cleanGitignore(repoPath)) {
-        logger.success('Restored: .gitignore (Removed Blinder sections)');
+        logger.success(t('rollback_gitignore'));
       }
     }
   }
 
-  logger.header('Rollback Complete');
+  logger.header(t('rollback_complete'));
 }

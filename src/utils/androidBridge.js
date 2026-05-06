@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import logger from './logger.js';
 import fg from 'fast-glob';
+import { t } from './i18n.js';
 
 const { glob } = fg;
 
@@ -56,7 +57,7 @@ export async function setupAndroidBridge(repoPath) {
   });
 
   if (gradleFiles.length === 0) {
-    logger.warn('No Android app build.gradle found. Skipping Android bridge.');
+    logger.warn(t('android_no_gradle'));
     return;
   }
 
@@ -103,7 +104,7 @@ export async function setupAndroidBridge(repoPath) {
         logger.success(`Android bridge injected into ${relPath}`);
         
         // 3. Inform about Proguard/R8 if necessary
-        logger.info('   Note: If using Proguard/R8, ensure BuildConfig is not obfuscated if you read it via reflection.');
+        logger.info(t('android_proguard_note'));
     } else {
         logger.error(`Could not find defaultConfig block in ${relPath}. Manual setup required.`);
     }

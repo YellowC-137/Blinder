@@ -12,7 +12,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   const codeSecrets = scanResults.filter(r => !r.isSensitiveFile);
 
   if (codeSecrets.length === 0) {
-    logger.success('No secrets found to protect!');
+    logger.success(t('protect_no_secrets'));
     return;
   }
 
@@ -37,7 +37,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   const testKeys = fixableSecrets.filter(r => r.isTestKey);
 
   if (fixableSecrets.length === 0) {
-    logger.success('No fixable secrets found. Generating reports only.');
+    logger.success(t('protect_no_fixable'));
     return;
   }
 
@@ -47,9 +47,9 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
   let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
   let envExampleContent = fs.existsSync(envExamplePath) ? fs.readFileSync(envExamplePath, 'utf8') : '';
 
-  logger.header('Blinder - Secret Protection');
+  logger.header(t('protect_header'));
   if (options.dryRun) {
-    logger.warn('RUNNING IN DRY-RUN MODE: No files will be modified.');
+    logger.warn(t('dryrun_warn'));
   }
   
   let fixMode = options.mode;
@@ -59,10 +59,10 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
       {
         type: 'rawlist',
         name: 'fixMode',
-        message: 'Choose protection method:',
+        message: t('prompt_choose_proceed'),
         choices: [
-          { name: 'Auto-fix (Recommend: Fully automatic migration)', value: 'auto' },
-          { name: 'Manual (Provide instructions for manual migration)', value: 'manual' }
+          { name: t('choice_auto'), value: 'auto' },
+          { name: t('choice_manual'), value: 'manual' }
         ]
       }
     ]);
@@ -74,7 +74,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
 
   // Stage 1: Production-ready keys
   if (prodReady.length > 0) {
-    logger.info(`Processing ${prodReady.length} production-ready secrets...`);
+    logger.info(t('protect_processing_prod', { count: prodReady.length }));
     const results = await processSecretGroupInteraction(prodReady, isAutoMode);
     
     const envUpdate = prepareEnvContent(results, envContent);
@@ -91,7 +91,7 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
         {
           type: 'confirm',
           name: 'includeTests',
-          message: `Found ${testKeys.length} test-related keys. Would you like to process them as well?`,
+          message: t('prompt_include_tests', { count: testKeys.length }),
           default: false
         }
       ]);
@@ -111,11 +111,11 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
     if (!options.dryRun) {
       fs.writeFileSync(envPath, envContent);
       fs.writeFileSync(envExamplePath, envExampleContent);
-      logger.success('.env and .env.example updated!');
+      logger.success(t('protect_env_updated'));
     }
     
     if (fixMode === 'auto') {
-      logger.info(options.dryRun ? 'Plan: Applying Auto-fix to source code...' : 'Applying Auto-fix to source code...');
+      logger.info(options.dryRun ? t('protect_plan_autofix') : t('protect_apply_autofix'));
       const migrations = await applyAutoFixes(repoPath, allSelectedSecrets, options);
       
       if (!options.dryRun && migrations.length > 0) {
@@ -126,13 +126,13 @@ export async function protectSecrets(repoPath, scanResults, options = {}) {
           migrations: migrations
         };
         fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-        logger.success('Rollback metadata saved to .blinder_protect.json');
+        logger.success(t('protect_metadata_saved'));
       }
     } else {
       showManualInstructions();
     }
   } else {
-    logger.info('No secrets selected for migration.');
+    logger.info(t('protect_no_selection'));
   }
 }
 
@@ -155,13 +155,13 @@ async function processSecretGroupInteraction(group, autoFix = false) {
         {
           type: 'confirm',
           name: 'confirm',
-          message: `${label} Found secret "${logger.maskSecret(secretValue)}" in ${file}:${line}. Migrate to ${envVarName}?`,
+          message: t('protect_prompt_migrate', { label, secret: logger.maskSecret(secretValue), file, line, env: envVarName }),
           default: !isTestKey
         }
       ]);
       confirm = prompt.confirm;
     } else {
-      logger.info(`${label} Automatically migrating "${logger.maskSecret(secretValue)}" from ${file}:${line}`);
+      logger.info(t('protect_auto_migrating', { label, secret: logger.maskSecret(secretValue), file, line }));
     }
 
     if (confirm) {
@@ -172,14 +172,14 @@ async function processSecretGroupInteraction(group, autoFix = false) {
 }
 
 function showManualInstructions() {
-  logger.header('Manual Action Required');
-  logger.info('To complete the migration, please replace the hardcoded secrets in your source code with environment variable lookups:');
+  logger.header(t('protect_manual_req'));
+  logger.info(t('protect_manual_desc'));
   logger.divider();
-  logger.info(chalk.bold('Implementation Examples:'));
+  logger.info(chalk.bold(t('protect_manual_examples')));
   logger.info(`- ${chalk.yellow('Flutter')}:   String.fromEnvironment('VAR_NAME')`);
   logger.info(`- ${chalk.yellow('iOS')}:       Use xcconfig or ProcessInfo.processInfo.environment["VAR_NAME"]`);
   logger.info(`- ${chalk.yellow('Android')}:   Use BuildConfig.VAR_NAME`);
   logger.info(`- ${chalk.yellow('Node.js')}:   process.env.VAR_NAME`);
   logger.divider();
-  logger.success('The .env file has been updated with your secrets. You can now use these variables.');
+  logger.success(t('protect_manual_success'));
 }
