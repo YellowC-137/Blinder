@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 const { glob } = fg;
+import pLimit from 'p-limit';
 import logger from '../utils/logger.js';
 import ASTProvider from '../ast/ASTProvider.js';
 import readline from 'readline';
@@ -56,7 +57,7 @@ async function scanSensitiveFiles(repoPath, platforms) {
 async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options) {
   let content;
   try {
-    content = fs.readFileSync(filePath, 'utf8');
+    content = await fs.promises.readFile(filePath, 'utf8');
   } catch (err) {
     logger.warn(t('scanner_read_err', { file: filePath, msg: err.message }));
     return;
@@ -102,6 +103,7 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
 
       if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
       if (isComment && !options.scanComments) continue;
+      if (pattern.postFilter && !pattern.postFilter(match[0])) continue;
 
       const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
       const isTest = isTestKey(currentLineText, filePath, matchValue);
@@ -214,6 +216,32 @@ function findBlinderSettings(startPath) {
   }
 }
 
+/**
+ * 프로젝트 루트의 .gitignore를 파싱하여 fast-glob 패턴으로 변환.
+ * - /secret → secret        (루트 상대 경로)
+ * - secrets/ → **/secrets/** (디렉토리 전체)
+ * - secret.key → **/secret.key (파일명 전체)
+ * negation(!), 공줄, 주석은 무시.
+ */
+function loadGitignorePatterns(repoPath) {
+  const gitignorePath = path.join(repoPath, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) return [];
+  try {
+    return fs.readFileSync(gitignorePath, 'utf8')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#') && !line.startsWith('!'))
+      .map(p => {
+        if (p.startsWith('/')) p = p.slice(1);
+        if (p.endsWith('/')) return `**/${p}**`;
+        if (!p.includes('/')) return `**/${p}`;
+        return p;
+      });
+  } catch {
+    return [];
+  }
+}
+
 export async function scanProject(repoPath, platforms, options = {}) {
   const results = [];
   const extensions = new Set();
@@ -290,6 +318,11 @@ export async function scanProject(repoPath, platforms, options = {}) {
     ...platformIgnores, ...(options.ignore || [])
   ];
 
+  // .gitignore 패턴 자동 적용
+  const gitignorePatterns = loadGitignorePatterns(repoPath);
+  if (gitignorePatterns.length > 0) ignorePatterns.push(...gitignorePatterns);
+
+
   // .blinderSettings 추가 ignorePaths 병합
   // - silent catch 제거: 잘못된 JSON 사용자 알림 위해 logger.warn 출력
   // - 스키마 검증(타입/배열) 추가: 잘못된 설정으로 downstream 크래시 방지
@@ -322,11 +355,11 @@ export async function scanProject(repoPath, platforms, options = {}) {
   const files = await glob(globPattern, { cwd: repoPath, ignore: ignorePatterns, absolute: true });
   const allPatterns = [...patterns, ...(options.customPatterns || [])];
 
-  for (const filePath of files) {
+  const limit = pLimit(16); // WASM OOM 방지: 최대 16개 동시 처리
+  const tasks = files.map(filePath => limit(async () => {
     try {
-      const ext = path.extname(filePath);
-      const stat = fs.statSync(filePath);
-      if (stat.size > 2 * 1024 * 1024) continue;
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size > 2 * 1024 * 1024) return;
 
       const isLargeFile = stat.size > 500 * 1024;
       if (isLargeFile) {
@@ -337,7 +370,8 @@ export async function scanProject(repoPath, platforms, options = {}) {
     } catch (err) {
       logger.warn(t('scanner_scan_failed', { file: filePath, msg: err.message }));
     }
-  }
+  }));
+  await Promise.all(tasks);
 
   const fileWarnings = await scanSensitiveFiles(repoPath, platforms);
   results.push(...fileWarnings);

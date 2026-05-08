@@ -127,11 +127,38 @@ export const patterns = [
     //                *.internal, *.lan
     //   - documentation hosts: docs.*, mastodon.* (wiki/info hosts)
     //
-    // Excludes URLs containing interpolation ($, \(, ${) and trailing escape
-    // chars (\, }) to prevent regex from eating closing brackets in property
-    // files (Spring ${VAR:default-url} syntax).
-    regex: /((?:https?):\/\/(?!(?:[a-zA-Z0-9.-]+\.)?(?:schemas\.android\.com|w3\.org|w3id\.org|apple\.com|developer\.apple\.com|github\.com|gitlab\.com|bitbucket\.org|kisa\.or\.kr|googletagmanager\.com|facebook\.com|firebase\.google\.com|google\.com|microsoft\.com|adobe\.com|apache\.org|ns\.adobe\.com|example\.com|example\.org|example\.net|joinmastodon\.org|schema\.org|openid\.net|purl\.org|purl\.archive\.org|ostatus\.org|fedibird\.com)|localhost(?:[:\/]|$)|127\.0\.0\.1(?:[:\/]|$)|0\.0\.0\.0(?:[:\/]|$)|\[::1\]|(?:[a-zA-Z0-9.-]+\.)?(?:local|test|example|internal|lan)(?:[:\/]|$)|docs\.)(?![^\s"'<>;]*[\$\\][\({])(?:[a-zA-Z0-9.-]+)(?::\d+)?(?:[^\s"'<>;\\}]*[^\s"'<>;.,\\}])?)/gi,
-    severity: 'MEDIUM'
+    // Lightweight extraction — ReDoS-safe. Complex domain whitelisting
+    // delegated to postFilter via JS URL parser.
+    regex: /https?:\/\/[^\s"'<>}\]]{10,}/gi,
+    severity: 'MEDIUM',
+    postFilter: (matchValue) => {
+      try {
+        const cleanUrl = matchValue.replace(/[.,;)'"\]]+$/, '');
+        const url = new URL(cleanUrl);
+        const hostname = url.hostname.toLowerCase();
+        const WHITELIST = new Set([
+          'github.com', 'gitlab.com', 'bitbucket.org',
+          'google.com', 'firebase.google.com', 'googletagmanager.com',
+          'apple.com', 'developer.apple.com',
+          'microsoft.com', 'adobe.com', 'ns.adobe.com',
+          'facebook.com', 'kisa.or.kr',
+          'w3.org', 'w3id.org', 'schema.org', 'schemas.android.com',
+          'openid.net', 'purl.org', 'purl.archive.org',
+          'apache.org', 'ostatus.org', 'fedibird.com', 'joinmastodon.org',
+          'example.com', 'example.org', 'example.net',
+          'localhost', '127.0.0.1', '0.0.0.0',
+        ]);
+        if (WHITELIST.has(hostname)) return false;
+        if (/^\[?::1\]?$/.test(hostname)) return false;
+        const TLD_BLOCKLIST = ['local', 'test', 'example', 'internal', 'lan'];
+        if (TLD_BLOCKLIST.some(tld => hostname === tld || hostname.endsWith(`.${tld}`))) return false;
+        if (hostname.startsWith('docs.')) return false;
+        if (/[$\\]/.test(cleanUrl)) return false;
+        return true;
+      } catch {
+        return false;
+      }
+    }
   },
 
   // ─── Network Host / Domain Configs ───
