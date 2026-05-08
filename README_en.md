@@ -13,7 +13,7 @@
 [![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](./docs/commands.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-![Blinder CLI Demo](./demo/Kapture.gif)
+![Blinder CLI Demo](./Kapture.gif)
 
 </div>
 
