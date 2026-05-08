@@ -129,6 +129,11 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
 }
 
 async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options) {
+  const multilinePatterns = allPatterns.filter(p => p.multiline);
+  if (multilinePatterns.length > 0) {
+    logger.warn(`[Large File] ${path.basename(filePath)}: multiline patterns skipped (${multilinePatterns.map(p => p.name).join(', ')})`);
+  }
+
   let fileStream;
   try {
     fileStream = fs.createReadStream(filePath);
@@ -192,6 +197,20 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
       }
     }
     byteOffset += Buffer.byteLength(line, 'utf8') + 1;
+  }
+}
+
+/**
+ * .blinderSettings 파일을 부모 디렉토리를 탐색하며 찾음
+ */
+function findBlinderSettings(startPath) {
+  let current = startPath;
+  while (true) {
+    const candidate = path.join(current, '.blinderSettings');
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(current);
+    if (parent === current) return null; // 루트 도달
+    current = parent;
   }
 }
 
@@ -276,8 +295,8 @@ export async function scanProject(repoPath, platforms, options = {}) {
   // - 스키마 검증(타입/배열) 추가: 잘못된 설정으로 downstream 크래시 방지
   // 참고: bin/blinder.js 호출 경로는 이미 utils/config.js loadConfig 가
   // 동일 파일을 검증해 options.ignore 로 전달하므로 여기 호출은 안전망 역할.
-  const rcPath = path.join(repoPath, '.blinderSettings');
-  if (fs.existsSync(rcPath)) {
+  const rcPath = findBlinderSettings(repoPath);
+  if (rcPath && fs.existsSync(rcPath)) {
     try {
       const raw = fs.readFileSync(rcPath, 'utf8');
       const rcContent = JSON.parse(raw);

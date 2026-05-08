@@ -93,10 +93,10 @@ export const patterns = [
 
   // ─── Cryptographic Material ───
   {
-    name: 'Private Key',
-    regex: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----[\s\S]*?-----END (?:[A-Z ]+ )?PRIVATE KEY-----/g,
+    name: 'Private Key Header',
+    regex: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/g,
     severity: 'CRITICAL',
-    multiline: true
+    isFixable: false
   },
 
   // ─── Database Connection Strings (보안지침 §1: 인프라 정보) ───

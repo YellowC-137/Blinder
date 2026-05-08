@@ -1,8 +1,11 @@
 import path from 'path';
 // import Parser from 'web-tree-sitter';
 import fs from 'fs';
+import { createRequire } from 'module';
 import logger from '../utils/logger.js';
 import { t } from '../utils/i18n.js';
+
+const require = createRequire(import.meta.url);
 
 /**
  * ASTProvider - web-tree-sitter를 활용한 다국어 AST 분석 엔진
@@ -13,7 +16,8 @@ class ASTProvider {
     this.parser = null;
     this.languages = new Map();
     this.initialized = false;
-    this.wasmDir = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/tree-sitter-wasms/out');
+    const wasmsDir = path.dirname(require.resolve('tree-sitter-wasms/package.json'));
+    this.wasmDir = path.join(wasmsDir, 'out');
   }
 
   /**
@@ -25,17 +29,21 @@ class ASTProvider {
   async init() {
     if (this.initialized) return true;
 
-    // Node v24.8.0 에서는 WASM 관련 Turboshaft 컴파일러 버그로 SIGSEGV가 간헐적으로 발생함.
-    // 안전을 위해 완전히 비활성화 (disabled = true) 하고 regex fallback을 타게 함.
-    if (!this._warnedNoWasm) {
-      this._warnedNoWasm = true;
-      logger.debug(t('ast_engine_disabled'));
+    // Node v24.x 에서는 WASM 관련 Turboshaft 컴파일러 버그로 SIGSEGV가 간헐적으로 발생함.
+    const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
+    const forceAst = process.env.BLINDER_FORCE_AST === '1';
+
+    if (nodeVersion >= 24 && !forceAst) {
+      if (!this._warnedNoWasm) {
+        this._warnedNoWasm = true;
+        logger.debug(t('ast_engine_disabled'));
+      }
+      this.disabled = true;
+      return false;
     }
-    this.disabled = true;
-    return false;
 
     try {
-      const selfWasmPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../../node_modules/web-tree-sitter/tree-sitter.wasm');
+      const selfWasmPath = require.resolve('web-tree-sitter/tree-sitter.wasm');
       await Parser.init({
         locateFile() { return selfWasmPath; }
       });
