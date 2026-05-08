@@ -13,7 +13,7 @@
 [![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](./docs/commands.md#c-1-blinder-scan----수동-스캔-수정-없음)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-![Blinder CLI Demo](./demo/terminal_demo.png)
+![Blinder CLI Demo](./demo/Kapture.gif)
 
 </div>
 
@@ -90,7 +90,7 @@ blinder restore     # AI 수정안을 원본에 머지
 | **Java** | backend | `pom.xml` 또는 `src/main/java/` | `.java`, `.properties`, `.xml` | ✅ Stable |
 | **Spring Boot** | backend | `pom.xml`(spring-boot-starter) | `.java`, `.kt`, `.properties`, `.yml`, `.xml` | ✅ Stable |
 | **React** (CRA / Vite / Next.js) | frontend | `package.json` (`react` deps) | `.js`, `.jsx`, `.ts`, `.tsx` | ✅ Stable |
-| **Ruby** | backend | `Gemfile` | `.rb` | ✅ 배포완료 |
+| **Ruby** | backend | `Gemfile` | `.rb` | ✅ Stable |
 | **Common** | core | (모든 프로젝트) | `.env`, `.json` | ✅ Stable |
 
 > 신규 플랫폼 추가 → [Plugin Architecture 가이드](./docs/architecture.md) 또는 [CONTRIBUTING.md](./CONTRIBUTING.md)
