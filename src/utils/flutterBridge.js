@@ -59,7 +59,7 @@ export async function setupFlutterBridge(repoPath) {
                   content = content.replace('</configuration>', `  <option name="additionalArgs" value="${arg}" />\n  </configuration>`);
               }
               fs.writeFileSync(absPath, content);
-              logger.success(`IntelliJ run config ${file} updated.`);
+              logger.success(t('flutter_intellij_updated', { file }));
               updated = true;
           }
       }

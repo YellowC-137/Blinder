@@ -176,10 +176,10 @@ function showManualInstructions() {
   logger.info(t('protect_manual_desc'));
   logger.divider();
   logger.info(chalk.bold(t('protect_manual_examples')));
-  logger.info(`- ${chalk.yellow('Flutter')}:   String.fromEnvironment('VAR_NAME')`);
-  logger.info(`- ${chalk.yellow('iOS')}:       Use xcconfig or ProcessInfo.processInfo.environment["VAR_NAME"]`);
-  logger.info(`- ${chalk.yellow('Android')}:   Use BuildConfig.VAR_NAME`);
-  logger.info(`- ${chalk.yellow('Node.js')}:   process.env.VAR_NAME`);
+  logger.info(t('protect_manual_flutter', { platform: chalk.yellow('Flutter') }));
+  logger.info(t('protect_manual_ios', { platform: chalk.yellow('iOS') }));
+  logger.info(t('protect_manual_android', { platform: chalk.yellow('Android') }));
+  logger.info(t('protect_manual_node', { platform: chalk.yellow('Node.js') }));
   logger.divider();
   logger.success(t('protect_manual_success'));
 }

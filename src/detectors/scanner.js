@@ -18,6 +18,7 @@ import {
   getLineNumber
 } from './scannerHelpers.js';
 import { scanStructuredFile } from './structuredScanner.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * Scans for sensitive files that should never be committed.
@@ -39,7 +40,7 @@ async function scanSensitiveFiles(repoPath, platforms) {
         line: 0,
         match: path.basename(filePath),
         fullMatch: path.basename(filePath),
-        patternName: `Sensitive File: ${path.basename(filePath)}`,
+        patternName: t('scanner_sensitive_file_pattern', { file: path.basename(filePath) }),
         severity: sf.severity,
         isTestKey: false,
         isSensitiveFile: true,
@@ -57,7 +58,7 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch (err) {
-    logger.warn(`Could not read file ${filePath}: ${err.message}`);
+    logger.warn(t('scanner_read_err', { file: filePath, msg: err.message }));
     return;
   }
   const lines = content.split('\n');
@@ -128,11 +129,16 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
 }
 
 async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options) {
+  const multilinePatterns = allPatterns.filter(p => p.multiline);
+  if (multilinePatterns.length > 0) {
+    logger.warn(`[Large File] ${path.basename(filePath)}: multiline patterns skipped (${multilinePatterns.map(p => p.name).join(', ')})`);
+  }
+
   let fileStream;
   try {
     fileStream = fs.createReadStream(filePath);
   } catch (err) {
-    logger.warn(`Could not create read stream for ${filePath}: ${err.message}`);
+    logger.warn(t('scanner_stream_err', { file: filePath, msg: err.message }));
     return;
   }
   const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
@@ -191,6 +197,20 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
       }
     }
     byteOffset += Buffer.byteLength(line, 'utf8') + 1;
+  }
+}
+
+/**
+ * .blinderSettings 파일을 부모 디렉토리를 탐색하며 찾음
+ */
+function findBlinderSettings(startPath) {
+  let current = startPath;
+  while (true) {
+    const candidate = path.join(current, '.blinderSettings');
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(current);
+    if (parent === current) return null; // 루트 도달
+    current = parent;
   }
 }
 
@@ -275,8 +295,8 @@ export async function scanProject(repoPath, platforms, options = {}) {
   // - 스키마 검증(타입/배열) 추가: 잘못된 설정으로 downstream 크래시 방지
   // 참고: bin/blinder.js 호출 경로는 이미 utils/config.js loadConfig 가
   // 동일 파일을 검증해 options.ignore 로 전달하므로 여기 호출은 안전망 역할.
-  const rcPath = path.join(repoPath, '.blinderSettings');
-  if (fs.existsSync(rcPath)) {
+  const rcPath = findBlinderSettings(repoPath);
+  if (rcPath && fs.existsSync(rcPath)) {
     try {
       const raw = fs.readFileSync(rcPath, 'utf8');
       const rcContent = JSON.parse(raw);
@@ -290,7 +310,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
         ignorePatterns.push(...rcContent.ignorePaths);
       }
     } catch (err) {
-      logger.warn(`.blinderSettings 파싱 실패 (${err.message}). 기본 ignore 패턴만 사용합니다.`);
+      logger.warn(t('scanner_settings_parse_err', { msg: err.message }));
     }
   }
 
@@ -315,7 +335,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
         await scanSmallFile(filePath, repoPath, allPatterns, platforms, results, usedEnvNames, options);
       }
     } catch (err) {
-      logger.warn(`Scan failed for ${filePath}: ${err.message}`);
+      logger.warn(t('scanner_scan_failed', { file: filePath, msg: err.message }));
     }
   }
 

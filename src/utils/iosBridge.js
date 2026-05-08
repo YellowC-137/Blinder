@@ -155,7 +155,7 @@ async function injectToPodfile(repoPath) {
   }
 
   const podfilePath = podfilePaths[0];
-  logger.info(`Applying CocoaPods injection to ${path.relative(repoPath, podfilePath)}...`);
+  logger.info(t('ios_bridge_applying', { path: path.relative(repoPath, podfilePath) }));
 
   let content = fs.readFileSync(podfilePath, 'utf8');
 

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
 
 /**
  * findPlatformForExtension
@@ -97,7 +98,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
       try {
         await matchingPlatform.preFix({ repoPath, relPath, absPath, fileSecrets, options });
       } catch (err) {
-        throw new Error(`preFix hook failed for ${matchingPlatform.id || matchingPlatform.name} on ${relPath}: ${err.message}`);
+        throw new Error(t('service_prefix_failed', { name: matchingPlatform.id || matchingPlatform.name, file: relPath, msg: err.message }));
       }
     }
 
@@ -105,7 +106,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
     try {
       contentLines = fs.readFileSync(absPath, 'utf8').split('\n');
     } catch (err) {
-      logger.error(`Failed to read file ${relPath}: ${err.message}`);
+      logger.error(t('service_read_failed', { file: relPath, msg: err.message }));
       continue;
     }
 
@@ -120,7 +121,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
     if (ext === '.json') {
       const fixable = fileSecrets.filter(s => !s.isSensitiveFile && s.isFixable);
       if (fixable.length > 0) {
-        logger.warn(`Skipped auto-fix for ${relPath}: .json files require manual runtime interpolation (${fixable.length} secret(s) recorded in .env only).`);
+        logger.warn(t('service_json_skip', { file: relPath, count: fixable.length }));
       }
       continue;
     }
@@ -236,7 +237,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
       try {
         fs.writeFileSync(absPath, contentLines.join('\n'));
       } catch (err) {
-        logger.error(`Failed to write file ${relPath}: ${err.message}`);
+        logger.error(t('service_write_failed', { file: relPath, msg: err.message }));
       }
     }
 
@@ -255,7 +256,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
             envVarName: s.envVarName 
           });
         } catch (err) {
-          logger.warn(`PostFix hook failed for ${relPath} (${s.envVarName}): ${err.message}`);
+          logger.warn(t('service_postfix_failed', { file: relPath, env: s.envVarName, msg: err.message }));
         }
       }
     }

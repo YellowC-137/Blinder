@@ -66,7 +66,7 @@ export async function setupAndroidBridge(repoPath) {
     let content = fs.readFileSync(absPath, 'utf8');
 
     if (content.includes('[Blinder Start]')) {
-      logger.info(`Bridge already exists in ${relPath}. Updating...`);
+      logger.info(t('android_bridge_exists', { relPath }));
       // Update logic could be added here if bridge template changes
       continue;
     }
@@ -101,12 +101,12 @@ export async function setupAndroidBridge(repoPath) {
         }
 
         fs.writeFileSync(absPath, content);
-        logger.success(`Android bridge injected into ${relPath}`);
+        logger.success(t('android_bridge_success', { relPath }));
         
         // 3. Inform about Proguard/R8 if necessary
         logger.info(t('android_proguard_note'));
     } else {
-        logger.error(`Could not find defaultConfig block in ${relPath}. Manual setup required.`);
+        logger.error(t('android_bridge_no_config', { relPath }));
     }
   }
 }
