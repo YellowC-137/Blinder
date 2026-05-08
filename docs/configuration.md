@@ -1,0 +1,57 @@
+# 🛠️ 프로젝트 설정 (`.blinderSettings`)
+
+프로젝트 루트에 `.blinderSettings` (JSON) 생성으로 동작 커스터마이즈 가능. 외부 SDK / 보안 라이브러리는 이 설정으로 안전하게 제외.
+
+---
+
+## 옵션
+
+| 키 | 타입 | 설명 |
+|---|---|---|
+| `ignorePaths` | `string[]` | 스캔 + Auto-fix 제외 경로 (Glob) |
+| `customPatterns` | `object[]` | 프로젝트 고유 시크릿 패턴 (Regex + severity) |
+| `maskOutput` | `string` | `mask` 결과 폴더명 (기본: `maskedProject_<projectName>`) |
+
+---
+
+## 예시
+
+```json
+{
+  "ignorePaths": [
+    "Library/myCustomSDK/**",
+    "**/test/mocks/**"
+  ],
+  "customPatterns": [
+    { "name": "Internal API", "regex": "INTERNAL_[A-Z]{3}_KEY_[0-9a-f]{32}", "severity": "CRITICAL" }
+  ],
+  "maskOutput": ".blinder_masked_project"
+}
+```
+
+> [!TIP]
+> **휴리스틱 자동 보호**: 별도 설정 없이도 파일 상단에 `Copyright`, `SDK`, `Third-party` 문구가 있으면 외부 라이브러리로 인식하여 자동 제외.
+
+---
+
+## severity 레벨
+
+| 레벨 | 설명 |
+|---|---|
+| `CRITICAL` | 즉시 회전(rotate) 필요. 운영 환경 키 등. |
+| `HIGH` | 높은 위험도. 외부 서비스 인증 토큰 등. |
+| `MEDIUM` | 중간 위험도. 내부 API 키 등. |
+| `LOW` | 낮은 위험도. 개발용 키 등. |
+
+---
+
+## 메타데이터 파일
+
+Blinder가 생성하는 로컬 메타데이터 파일은 절대 git에 올리지 마세요.
+
+| 파일 | 용도 |
+|---|---|
+| `.blinder_protect.json` | `blind` 실행 위치 정보 → `rollback` 복원에 사용 |
+| `.blinder_map.json` | `mask` 시크릿 매핑 → `restore` 복원에 사용 |
+
+두 파일 모두 Blinder가 `.gitignore`에 자동 추가합니다. 로컬에서 절대 삭제하지 마세요.
