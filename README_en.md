@@ -13,7 +13,6 @@
 [![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](./docs/commands.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-![Blinder CLI Demo](./Kapture.gif)
 
 </div>
 
@@ -48,7 +47,19 @@ blinder restore     # merge AI edits back to original
 
 ---
 
+![Blinder CLI Demo](./Kapture.gif)
+
+---
+
 ## ✨ How it Works
+
+**`blinder blind`** — extract secrets from production code into `.env`:
+
+```diff
+- String apiKey = "sk_live_abc123..."      # Before
++ String apiKey = BuildConfig.STRIPE_KEY   # After (still builds)
+```
+
 
 **`blinder mask`** — create a read-only copy safe to share with AI:
 
@@ -57,12 +68,9 @@ blinder restore     # merge AI edits back to original
 + apiKey: "__BLINDER_VAR__FIREBASE_API_KEY"       # masked (safe)
 ```
 
-**`blinder blind`** — extract secrets from production code into `.env`:
+> [!IMPORTANT]
+> You cant Build masked project. It is only for AI Agent read-only project.
 
-```diff
-- String apiKey = "sk_live_abc123..."      # Before
-+ String apiKey = BuildConfig.STRIPE_KEY   # After (still builds)
-```
 
 <details>
 <summary><strong>🤔 Why Blinder?</strong></summary>

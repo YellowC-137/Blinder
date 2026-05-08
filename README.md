@@ -13,7 +13,6 @@
 [![CI Ready](https://img.shields.io/badge/CI-ready-success.svg)](./docs/commands.md#c-1-blinder-scan----수동-스캔-수정-없음)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-![Blinder CLI Demo](./Kapture.gif)
 
 </div>
 
@@ -48,7 +47,18 @@ blinder restore     # AI 수정안을 원본에 머지
 
 ---
 
+![Blinder CLI Demo](./Kapture.gif)
+
+---
+
 ## ✨ How it Works
+
+**`blinder blind`** — 운영 코드에서 시크릿을 `.env`로 분리:
+
+```diff
+- String apiKey = "sk_live_abc123..."      # Before
++ String apiKey = BuildConfig.STRIPE_KEY   # After (빌드 가능)
+```
 
 **`blinder mask`** — AI에 넘길 읽기 전용 사본 생성:
 
@@ -57,12 +67,9 @@ blinder restore     # AI 수정안을 원본에 머지
 + apiKey: "__BLINDER_VAR__FIREBASE_API_KEY"  # 마스킹 후 (안전)
 ```
 
-**`blinder blind`** — 운영 코드에서 시크릿을 `.env`로 분리:
+> [!IMPORTANT]
+> mask를 실행할 경우, build가 불가합니다. AI Agent 읽기전용 프로젝트 생성. 
 
-```diff
-- String apiKey = "sk_live_abc123..."      # Before
-+ String apiKey = BuildConfig.STRIPE_KEY   # After (빌드 가능)
-```
 
 <details>
 <summary><strong>🤔 왜 Blinder인가?</strong></summary>
