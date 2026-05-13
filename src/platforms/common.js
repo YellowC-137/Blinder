@@ -57,7 +57,7 @@ export default definePlatform({
 
   commentRegex: /^\s*#/,
 
-  ignorePatterns: [
+  ignorePaths: [
     '**/blinder_reports/**',
     '**/maskedProject_*/**',
     '**/*.pem',

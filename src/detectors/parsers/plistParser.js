@@ -30,8 +30,9 @@ export function parsePlist(content) {
   let m;
   while ((m = KEY_VALUE_REGEX.exec(content)) !== null) {
     const offset = m.index;
-    const line = lineOffsets.findIndex((o, i) => o <= offset && (lineOffsets[i + 1] === undefined || lineOffsets[i + 1] > offset)) + 1;
-    out.push({ key: m[1].trim(), value: m[2], line: line > 0 ? line : 1 });
+    const lineIndex = lineOffsets.findIndex((o, i) => o <= offset && (lineOffsets[i + 1] === undefined || lineOffsets[i + 1] > offset));
+    const line = lineIndex >= 0 ? lineIndex + 1 : 1;
+    out.push({ key: m[1].trim(), value: m[2].trim(), line });
   }
   return out;
 }

@@ -276,6 +276,8 @@ program
       await generateGitignore(repoPath, project.platforms);
     }
 
+    // --yes mode defaults to false (skip comment scanning) for faster CI runs.
+    // Users who need comment scanning in non-interactive mode should use: --scan-comments
     let scanComments = globalOptions.yes ? false : null;
     if (scanComments === null) {
       const response = await inquirer.prompt([
@@ -344,7 +346,7 @@ program
       }
 
       if (additionalIgnores.trim()) {
-        const ignoreList = additionalIgnores.split(',').map(p => p.trim());
+        const ignoreList = additionalIgnores.split(',').map(p => p.trim()).filter(p => p.length > 0);
         logger.info(t('applying_filters', { filters: ignoreList.join(', ') }));
 
         const scanSpinner = ora(t('rescanning')).start();

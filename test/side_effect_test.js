@@ -1,6 +1,7 @@
 import { protectSecrets } from '../src/commands/protect.js';
 import { rollbackSecrets } from '../src/commands/rollback.js';
 import { scanProject } from '../src/detectors/scanner.js';
+import { platforms } from '../src/platforms/index.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -15,8 +16,9 @@ async function sideEffectTest() {
   fs.writeFileSync(fileM, originalM);
 
   // 1. Blind (Protect)
-  const results = await scanProject(testDir, ['ios']);
-  await protectSecrets(testDir, results, { mode: 'auto' });
+  const iosPlatforms = platforms.filter(p => p.id === 'ios' || p.id === 'common');
+  const results = await scanProject(testDir, iosPlatforms);
+  await protectSecrets(testDir, results, { mode: 'auto', platforms: iosPlatforms });
 
   const protectedContent = fs.readFileSync(fileM, 'utf8');
   console.log('Protected Content:', protectedContent.trim());
@@ -47,8 +49,9 @@ async function sideEffectTest() {
   const originalJava = 'public String key = "API_KEY_789";\n';
   fs.writeFileSync(fileJava, originalJava);
 
-  const resultsJava = await scanProject(testDir, ['android']);
-  await protectSecrets(testDir, resultsJava, { mode: 'auto' });
+  const androidPlatforms = platforms.filter(p => p.id === 'android' || p.id === 'common');
+  const resultsJava = await scanProject(testDir, androidPlatforms);
+  await protectSecrets(testDir, resultsJava, { mode: 'auto', platforms: androidPlatforms });
 
   const protectedJava = fs.readFileSync(fileJava, 'utf8');
   console.log('Protected Java:', protectedJava.trim());

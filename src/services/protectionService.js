@@ -130,6 +130,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
       if (s.isSensitiveFile || !s.isFixable) continue;
 
       const { envVarName, match, fullMatch, line } = s;
+      if (!envVarName) continue;
       const lineIdx = line - 1;
       if (lineIdx < 0 || lineIdx >= contentLines.length) continue;
 
@@ -195,7 +196,7 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));
           const regexMatch = lineContent.match(regex);
 
-          if (regexMatch) {
+          if (regexMatch && regexMatch.index !== undefined) {
              const matchIndex = regexMatch.index;
              const matchEndIndex = matchIndex + match.length;
              // If the match sits inside a string literal (e.g., a Slack

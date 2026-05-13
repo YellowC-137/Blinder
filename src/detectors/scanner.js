@@ -103,7 +103,8 @@ async function scanSmallFile(filePath, repoPath, allPatterns, platforms, results
 
       if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
       if (isComment && !options.scanComments) continue;
-      if (pattern.postFilter && !pattern.postFilter(match[0])) continue;
+      // Pass matchValue (extracted secret) to postFilter, not full match text
+      if (pattern.postFilter && !pattern.postFilter(matchValue)) continue;
 
       const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
       const isTest = isTestKey(currentLineText, filePath, matchValue);
@@ -146,6 +147,13 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
   const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
   const ext = path.extname(filePath);
   const astLang = ASTProvider.getLangId(ext);
+
+  // Detect line ending style for accurate byte offset calculation
+  const headBuf = Buffer.alloc(4096);
+  const fd = fs.openSync(filePath, 'r');
+  const bytesRead = fs.readSync(fd, headBuf, 0, 4096, 0);
+  fs.closeSync(fd);
+  const eolBytes = headBuf.subarray(0, bytesRead).includes(0x0d) ? 2 : 1; // CRLF=2, LF=1
 
   let lineNumber = 0;
   let byteOffset = 0;
@@ -198,7 +206,9 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
         });
       }
     }
-    byteOffset += Buffer.byteLength(line, 'utf8') + 1;
+    // +1 for LF. CRLF is handled by crlfDelay: Infinity which strips \r from lines,
+    // but the byte offset still needs to account for \r\n in the file.
+    byteOffset += Buffer.byteLength(line, 'utf8') + eolBytes;
   }
 }
 
@@ -216,13 +226,11 @@ function findBlinderSettings(startPath) {
   }
 }
 
-/**
- * 프로젝트 루트의 .gitignore를 파싱하여 fast-glob 패턴으로 변환.
- * - /secret → secret        (루트 상대 경로)
- * - secrets/ → **/secrets/** (디렉토리 전체)
- * - secret.key → **/secret.key (파일명 전체)
- * negation(!), 공줄, 주석은 무시.
- */
+// 프로젝트 루트의 .gitignore를 파싱하여 fast-glob 패턴으로 변환.
+// - /secret → secret            (루트 상대 경로)
+// - secrets/ → glob(secrets/**)  (디렉토리 전체)
+// - secret.key → glob(secret.key)(파일명 전체)
+// negation(!), 공줄, 주석은 무시.
 function loadGitignorePatterns(repoPath) {
   const gitignorePath = path.join(repoPath, '.gitignore');
   if (!fs.existsSync(gitignorePath)) return [];
@@ -248,6 +256,7 @@ export async function scanProject(repoPath, platforms, options = {}) {
   const usedEnvNames = new Map();
 
   platforms.forEach(p => {
+    if (!p) return;
     (p.commonExtensions || []).forEach(ext => extensions.add(ext));
   });
 

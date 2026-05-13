@@ -29,7 +29,7 @@ export function isTestKey(line, filePath, matchValue) {
   const lowerLine = line.toLowerCase();
   const lowerPath = filePath.toLowerCase();
   const lowerMatch = matchValue.toLowerCase();
-  return lowerPath.includes('test') || lowerLine.includes('test') || lowerMatch.includes('test');
+  return /\btest\b/.test(lowerPath) || /\btest\b/.test(lowerLine) || /\btest\b/.test(lowerMatch);
 }
 
 /**
@@ -44,7 +44,7 @@ export function isCommentLine(line, platforms) {
  * 더미/반복 문자열(예: "xxxxx", "password")은 훨씬 낮음.
  */
 export function shannonEntropy(s) {
-  if (!s) return 0;
+  if (!s || typeof s !== 'string') return 0;
   const counts = new Map();
   for (const c of s) counts.set(c, (counts.get(c) || 0) + 1);
   let entropy = 0;
@@ -80,7 +80,7 @@ export function isPlaceholderValue(value) {
  */
 export function isLowConfidenceMatch(matchValue, patternName, varName = '') {
   if (varName) {
-    const blacklist = /(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE|TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT|STR_KEY|PARAM_|FIELD_|ATTR_|PROP_|VAL_)/i;
+    const blacklist = /\b(?:CMD|RSP|MSG|COLOR|ERR_CODE|RSP_CODE|STATUS_CODE)\b|(?:^|_)(?:TYPE|ID|FLAG|NAME|TITLE|DESC|TEXT|STR_KEY|PARAM|FIELD|ATTR|PROP|VAL)(?:_|$)/i;
     if (blacklist.test(varName)) return true;
   }
 
@@ -162,7 +162,7 @@ export function extractMatchDetails(pattern, match, content, ext) {
   if (!varName && (ext === '.m' || ext === '.h' || ext === '.mm')) {
     const lineStart = content.lastIndexOf('\n', match.index) + 1;
     const preMatch = content.substring(lineStart, match.index);
-    const lookbackRegex = /(?:NSString\s*\*\s*const|const\s+NSString\s*\*|#define)\s+([a-zA-Z0-9_]+)\s*(?:=|)\s*@?\s*["']?$/i;
+    const lookbackRegex = /(?:NSString\s*\*\s*const|const\s+NSString\s*\*|#define)\s+([a-zA-Z0-9_]+)\s*(?:=)?\s*@?\s*["']?$/i;
     const varMatch = preMatch.trim().match(lookbackRegex);
     if (varMatch) varName = varMatch[1];
   }
