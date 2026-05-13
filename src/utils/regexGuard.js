@@ -1,19 +1,19 @@
 /**
  * regexGuard
  *
- * 사용자 입력 정규식(.blinderSettings.customPatterns)에 대한 ReDoS 가드.
- * 보안 도구 자체가 catastrophic backtracking 으로 DoS 당하지 않도록
- * 의심 패턴을 사전에 거른다.
+ * ReDoS guard for user-provided regex patterns (.blinderSettings.customPatterns).
+ * Prevents the security tool itself from being DoS'd by catastrophic backtracking.
  *
- * 검증 항목:
- *   1) 컴파일 가능 여부 (SyntaxError 차단)
- *   2) nested quantifier — `(a+)+`, `(.*)+`, `(.+)*` 같은 형태
- *   3) 인접 중첩 양자(quantifier) 반복 — `a+a+`, `.+.+`
- *   4) 무제한 후방 참조 + alternation — 기본적인 휴리스틱
- *   5) 매칭 시간 self-test — 32자 worst-case 입력으로 50ms 초과 시 거부
+ * Validation checks:
+ *   1) Compilable (SyntaxError prevention)
+ *   2) Nested quantifier — `(a+)+`, `(.*)+`, `(.+)*` patterns
+ *   3) Adjacent unbounded repetition — `a+a+`, `.+.+`
+ *   4) Unbounded backreference + alternation — basic heuristic
+ *   5) Runtime self-test — rejects if >50ms on 32-char worst-case input
  *
- * 휴리스틱이라 100% 보장은 아니지만 명백한 사고 차단용.
+ * Heuristic-based; not 100% guaranteed, but catches obvious dangers.
  */
+import { t } from './i18n.js';
 
 const NESTED_QUANTIFIER = /\([^()]*[+*]\s*[?+]?\s*\)\s*[+*]/;
 const ADJACENT_QUANTIFIERS = /[+*]\s*\??[^|()]*?[+*]\s*\??/;
@@ -84,8 +84,6 @@ export function validateCustomPattern(p) {
     }
   };
 }
-
-import { t } from './i18n.js';
 
 /**
  * customPatterns 배열 전체 검증.

@@ -29,9 +29,21 @@ export async function setupFlutterBridge(repoPath) {
           else if (content.includes('"args"')) {
               content = content.replace(/"args":\s*\[/g, `"args": ["${defineArg}", `);
           }
-          // 3. Fallback: Add toolArgs to all configurations that look like Flutter
+          // 3. Fallback: Parse JSON, inject toolArgs safely into each configuration
           else {
-              content = content.replace(/"name":\s*"(.*?)"/g, `"name": "$1",\n            "toolArgs": ["${defineArg}"]`);
+              try {
+                const parsed = JSON.parse(content);
+                if (parsed.configurations && Array.isArray(parsed.configurations)) {
+                  for (const cfg of parsed.configurations) {
+                    if (!cfg.toolArgs) cfg.toolArgs = [];
+                    if (!cfg.toolArgs.includes(defineArg)) cfg.toolArgs.unshift(defineArg);
+                  }
+                  content = JSON.stringify(parsed, null, 4);
+                }
+              } catch {
+                // If JSON parse fails, skip modification to avoid corruption
+                logger.warn(t('flutter_vscode_update_failed'));
+              }
           }
           
           fs.writeFileSync(launchJsonPath, content);
@@ -54,7 +66,8 @@ export async function setupFlutterBridge(repoPath) {
               // Inject into <option name="additionalArgs" value="..." />
               const arg = '--dart-define-from-file=.env';
               if (content.includes('name="additionalArgs"')) {
-                  content = content.replace(/name="additionalArgs" value="(.*?)"/, `name="additionalArgs" value="$1 ${arg}"`);
+                  // Use function form to prevent backreference injection from captured group
+                  content = content.replace(/name="additionalArgs" value="(.*?)"/, (_, existing) => `name="additionalArgs" value="${existing} ${arg}"`);
               } else {
                   content = content.replace('</configuration>', `  <option name="additionalArgs" value="${arg}" />\n  </configuration>`);
               }

@@ -56,10 +56,11 @@ export async function performRollback(repoPath, options = {}) {
     const envVars = parseEnv(fs.readFileSync(envPath, 'utf8'));
     const { migrations } = metadata;
 
+    // Stable sort: longest first, then by envVarName for determinism
     migrations.sort((a, b) => {
       const targetA = a.injectedText || a.accessor;
       const targetB = b.injectedText || b.accessor;
-      return targetB.length - targetA.length;
+      return targetB.length - targetA.length || (a.envVarName || '').localeCompare(b.envVarName || '');
     });
 
     for (const mig of migrations) {
@@ -85,7 +86,9 @@ export async function performRollback(repoPath, options = {}) {
       const targetToRemove = mig.injectedText || accessor;
       if (content.includes(targetToRemove)) {
         const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
-        content = content.split(targetToRemove).join(restoredValue);
+        // Replace first occurrence only to prevent unintended multi-replacements
+        // when the same accessor appears in different contexts
+        content = content.replace(targetToRemove, restoredValue);
 
         if (!options.dryRun) {
           fs.writeFileSync(absPath, content);
@@ -136,7 +139,13 @@ export function cleanGitignore(repoPath) {
     const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
     const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
 
-    if (blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent)) {
+    // Reset lastIndex before test() to avoid stale state from prior regex usage
+    blinderRegex.lastIndex = 0;
+    blinderRegexFinal.lastIndex = 0;
+    const hasBlinder = blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent);
+    blinderRegex.lastIndex = 0;
+    blinderRegexFinal.lastIndex = 0;
+    if (hasBlinder) {
       gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
       gitignoreContent = gitignoreContent.trim() + '\n';
       fs.writeFileSync(gitignorePath, gitignoreContent);

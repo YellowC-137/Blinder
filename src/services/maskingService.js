@@ -32,7 +32,12 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
     const srcPath = path.join(repoPath, relPath);
     const destPath = path.join(maskDir, relPath);
 
-    if (fs.statSync(srcPath).isDirectory()) continue;
+    try {
+      if (fs.statSync(srcPath).isDirectory()) continue;
+    } catch (err) {
+      logger.debug(`Skipping ${relPath}: ${err.message}`);
+      continue;
+    }
 
     const destFolder = path.dirname(destPath);
     if (!fs.existsSync(destFolder)) {
@@ -43,7 +48,8 @@ export async function performMasking(repoPath, allFiles, results, maskDir, optio
       if (secretsByFile[relPath]) {
         let content = fs.readFileSync(srcPath, 'utf8');
         const secrets = secretsByFile[relPath];
-        secrets.sort((a, b) => b.match.length - a.match.length);
+        // Stable sort: by match length descending, then envVarName for determinism
+        secrets.sort((a, b) => b.match.length - a.match.length || a.envVarName.localeCompare(b.envVarName));
 
         for (const s of secrets) {
           const mask = `__BLINDER_${s.envVarName}__`;

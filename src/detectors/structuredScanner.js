@@ -11,6 +11,7 @@ import { parsePlist, isInfoPlist } from './parsers/plistParser.js';
 import { parseProperties } from './parsers/propertiesParser.js';
 import { parseManifestMetaData, isAndroidManifest } from './parsers/manifestParser.js';
 import { classifyKey } from '../protectors/keyClassifier.js';
+import { sanitizeEnvName } from './scannerHelpers.js';
 
 /**
  * 구조화 파일 스캔. 결과는 results 배열에 push.
@@ -29,21 +30,26 @@ export function scanStructuredFile(filePath, repoPath, content, results, usedEnv
   let entries = [];
   let fileType = null;
 
-  if (isInfoPlist(filePath)) {
-    fileType = 'plist';
-    entries = parsePlist(content).map(e => ({ key: e.key, value: e.value, line: e.line }));
-  } else if (isAndroidManifest(filePath)) {
-    fileType = 'manifest';
-    entries = parseManifestMetaData(content)
-      .filter(e => e.value !== null)
-      .map(e => ({ key: e.name, value: e.value, line: e.line }));
-  } else if (ext === '.properties' || base === 'gradle.properties' || base === 'local.properties') {
-    fileType = 'properties';
-    entries = parseProperties(content);
-  } else if (ext === '.xcconfig') {
-    fileType = 'xcconfig';
-    entries = parseProperties(content);
-  } else {
+  try {
+    if (isInfoPlist(filePath)) {
+      fileType = 'plist';
+      entries = parsePlist(content).map(e => ({ key: e.key, value: e.value, line: e.line }));
+    } else if (isAndroidManifest(filePath)) {
+      fileType = 'manifest';
+      entries = parseManifestMetaData(content)
+        .filter(e => e.value !== null)
+        .map(e => ({ key: e.name, value: e.value, line: e.line }));
+    } else if (ext === '.properties' || base === 'gradle.properties' || base === 'local.properties') {
+      fileType = 'properties';
+      entries = parseProperties(content);
+    } else if (ext === '.xcconfig') {
+      fileType = 'xcconfig';
+      entries = parseProperties(content);
+    } else {
+      return;
+    }
+  } catch (err) {
+    // Parser failure should not crash the scan — skip this file
     return;
   }
 
@@ -54,12 +60,15 @@ export function scanStructuredFile(filePath, repoPath, content, results, usedEnv
     if (/^\$[\(\{]|\$\{|@\{|<inherit/.test(value)) continue;
     if (/^[\d.\-+\s]+$/.test(value)) continue;
     if (/^(true|false|yes|no|null|none)$/i.test(value.trim())) continue;
-    const looksSecret = /^[A-Za-z0-9_\-./+=:]{8,}$/.test(value) && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
-    const keyHint = /(api|app|client|secret|token|key|password|passwd|auth|credential)/i.test(key);
+    const looksSecret = /^[A-Za-z0-9_\-./+=:]{8,}$/.test(value) && (
+      (/[A-Za-z]/.test(value) && /[0-9]/.test(value)) ||
+      /[A-Za-z0-9]{16,}/.test(value) // Long uniform strings are likely secrets
+    );
+    const keyHint = /\b(api|app|client|secret|token|key|password|passwd|auth|credential)\b/i.test(key);
     if (!looksSecret && !keyHint) continue;
 
     const verdict = classifyKey({ fileType, key, filename: base });
-    const sanitized = key.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const sanitized = sanitizeEnvName(key);
     let envVarName = sanitized || `STRUCT_${fileType.toUpperCase()}_KEY`;
     if (usedEnvNames.has(envVarName) && usedEnvNames.get(envVarName) !== value) {
       let counter = 1;
@@ -75,6 +84,8 @@ export function scanStructuredFile(filePath, repoPath, content, results, usedEnv
       fullMatch: `${key}=${value}`,
       patternName: `Structured ${fileType} key`,
       envVarName,
+      // verdict.allowed=true → key is recognized SDK/secret, safe to auto-fix (higher severity)
+      // verdict.allowed=false → unknown or system key, detection-only (medium severity)
       severity: verdict.allowed ? 'HIGH' : 'MEDIUM',
       isFixable: verdict.allowed,
       isTestKey: false,

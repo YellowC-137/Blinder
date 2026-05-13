@@ -238,7 +238,11 @@ GoogleService-Info.plist
       }
       
       fs.writeFileSync(mainPlist, newContent);
-    } catch (err) {}
+    } catch (err) {
+      // Log plist sync errors instead of silently swallowing
+      const logger = (await import('../../utils/logger.js')).default;
+      logger.debug(`Info.plist sync failed: ${err.message}`);
+    }
   },
 
   setupBridge: async (repoPath) => {

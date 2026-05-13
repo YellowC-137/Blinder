@@ -16,7 +16,7 @@ function findEnclosingRubyLiteral(lineContent, matchStart, matchEnd) {
 
   for (let i = 0; i < matchStart; i++) {
     const c = lineContent[i];
-    if (c === '\\') { i++; continue; }
+    if (c === '\\' && i + 1 < lineContent.length) { i++; continue; }
     if (!inString) {
       if (c === '"' || c === "'") {
         inString = true;
@@ -36,7 +36,7 @@ function findEnclosingRubyLiteral(lineContent, matchStart, matchEnd) {
 
   for (let i = matchEnd; i < lineContent.length; i++) {
     const c = lineContent[i];
-    if (c === '\\') { i++; continue; }
+    if (c === '\\' && i + 1 < lineContent.length) { i++; continue; }
     if (c === openChar) {
       return { start: openIdx, end: i + 1, quoteChar: openChar };
     }
