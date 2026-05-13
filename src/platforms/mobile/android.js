@@ -98,6 +98,7 @@ google-services.json
         return `BuildConfig.${envVarName}`;
     }
     if (ext === '.gradle') {
+        // Detect Kotlin DSL (.gradle.kts) vs Groovy DSL (.gradle) at call site
         return `System.getenv('${envVarName}') ?: ""`;
     }
     if (ext === '.xml') {

@@ -12,10 +12,10 @@ def loadDotenv = {
     def envFile = rootProject.file(".env")
     if (envFile.exists()) {
         envFile.eachLine { line ->
-            def matcher = (line =~ /^\\s*([\\w.-]+)\\s*=\\s*(.*)?\\s*$/)
+            def matcher = (line =~ /^\\s*([\\w.-]+)\\s*=\\s*([^\\n]*)$/)
             if (matcher.find()) {
                 def key = matcher.group(1)
-                def value = matcher.group(2)
+                def value = (matcher.group(2) ?: '').trim()
                 if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length() - 1)
                 else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length() - 1)
                 buildConfigField "String", key, "\\"\${value}\\""
@@ -33,14 +33,15 @@ fun Any.loadDotenv() {
     val envFile = project.rootProject.file(".env")
     if (envFile.exists()) {
         envFile.forEachLine { line ->
-            val match = Regex("^\\\\s*([\\\\w.-]+)\\\\s*=\\\\s*(.*)?\\\\s*$").find(line)
+            val match = Regex("^\\\\s*([\\\\w.-]+)\\\\s*=\\\\s*([^\\\\n]*)$").find(line)
             if (match != null) {
                 val key = match.groupValues[1]
                 var value = match.groupValues[2]
                 if (value.startsWith("\\"") && value.endsWith("\\"")) value = value.substring(1, value.length - 1)
                 else if (value.startsWith("'") && value.endsWith("'")) value = value.substring(1, value.length - 1)
                 
-                val project = this as? com.android.build.api.variant.VariantDimension ?: return@forEachLine
+                val project = this as? com.android.build.api.variant.VariantDimension
+                if (project == null) { println("Blinder: Skipping .env line (cast failed): \$key"); return@forEachLine }
                 project.buildConfigField("String", key, "\\\"\$value\\\"")
                 project.manifestPlaceholders[key] = value
             }

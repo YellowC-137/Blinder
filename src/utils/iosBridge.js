@@ -57,8 +57,8 @@ while read -r line || [[ -n "\$line" ]]; do
             continue
         fi
 
-        # 값 내부의 \\ 와 " 를 escape — PlistBuddy -c 인자 파싱 깨짐 방지
-        esc_value=\$(printf '%s' "\$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g')
+        # 값 내부의 \\, ", $, \` 를 escape — PlistBuddy -c 인자 파싱 및 쉘 인젝션 방지
+        esc_value=\$(printf '%s' "\$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g' -e 's/\\$/\\\\\\$/g' -e 's/\`/\\\\\`/g')
 
         if [ -n "\$key" ]; then
             /usr/libexec/PlistBuddy -c "Set :\$key \\"\$esc_value\\"" "\$PLIST_PATH" 2>/dev/null || \\
@@ -116,8 +116,8 @@ while read -r line || [[ -n "$line" ]]; do
             continue
         fi
 
-        # 값 내부 \\ 및 " escape — PlistBuddy 인자 파싱 보호
-        esc_value=$(printf '%s' "$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g')
+        # 값 내부 \\, ", $, \` escape — PlistBuddy 인자 파싱 및 쉘 인젝션 방지
+        esc_value=$(printf '%s' "$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g' -e 's/\$/\\\\\$/g' -e 's/\`/\\\\\`/g')
 
         if [ -n "$key" ]; then
             /usr/libexec/PlistBuddy -c "Set :$key \\"$esc_value\\"" "$PLIST_PATH" 2>/dev/null || \\

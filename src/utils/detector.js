@@ -1,4 +1,5 @@
 import { platforms } from '../platforms/index.js';
+import logger from './logger.js';
 
 /**
  * Detects the project type using the dynamically loaded platform plugins.
@@ -16,7 +17,7 @@ export async function detectProjectType(repoPath) {
         result.platforms.push(platform);
       }
     } catch (err) {
-      // Ignore detection errors, simply skip the platform
+      logger.debug(`Platform ${platform.name || platform.id} detection failed: ${err.message}`);
     }
   }
 

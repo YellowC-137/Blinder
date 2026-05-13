@@ -66,7 +66,7 @@ export async function addPlatform(repoPath) {
   const category = categoryChoice === 'custom' ? customCategory : categoryChoice;
   const config = { ...answers, category };
 
-  const sourceRoot = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '..');
+  const sourceRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
   try {
     const pluginPath = generatePluginFile(sourceRoot, config);

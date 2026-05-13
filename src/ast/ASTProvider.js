@@ -1,5 +1,5 @@
 import path from 'path';
-// import Parser from 'web-tree-sitter';
+import Parser from 'web-tree-sitter';
 import fs from 'fs';
 import { createRequire } from 'module';
 import logger from '../utils/logger.js';

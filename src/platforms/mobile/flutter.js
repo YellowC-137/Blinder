@@ -79,7 +79,11 @@ export default definePlatform({
                 content = content.replace(new RegExp(`"${defineArg}"`, 'g'), '');
                 fs.writeFileSync(launchJsonPath, content);
             }
-        } catch (err) {}
+        } catch (err) {
+          // Log VS Code config cleanup errors
+          const logger = (await import('../../utils/logger.js')).default;
+          logger.debug(`VS Code launch.json cleanup failed: ${err.message}`);
+        }
     }
 
     // IntelliJ / Android Studio

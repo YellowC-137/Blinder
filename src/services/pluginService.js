@@ -6,6 +6,15 @@ import path from 'path';
  */
 export function generatePluginFile(sourceRoot, config) {
   const { id, name, category, extensions, detectFile } = config;
+
+  // Validate id to prevent path traversal
+  if (!/^[a-z][a-z0-9_]*$/.test(id)) {
+    throw new Error(`Invalid plugin id "${id}": must match /^[a-z][a-z0-9_]*$/`);
+  }
+  if (!/^[a-z][a-z0-9_]*$/.test(category)) {
+    throw new Error(`Invalid category "${category}": must match /^[a-z][a-z0-9_]*$/`);
+  }
+
   const categoryDir = path.join(sourceRoot, 'platforms', category);
   
   if (!fs.existsSync(categoryDir)) {
@@ -29,18 +38,21 @@ export function generatePluginFile(sourceRoot, config) {
   else if (mainExt === '.php') autoFixBody = `return \`getenv('\${envVarName}')\`;`;
   else autoFixBody = `return \`process.env.\${envVarName}\`;`;
 
+  // Escape user-provided strings for safe template interpolation
+  const esc = (s) => String(s).replace(/[`$\\]/g, '\\$&');
+
   const pluginContent = `import fs from 'fs';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
 
 export default definePlatform({
-  id: '${id}',
-  name: '${name}',
-  category: '${category}',
+  id: '${esc(id)}',
+  name: '${esc(name)}',
+  category: '${esc(category)}',
 
-  // 프로젝트 감지: ${detectFile}가 있으면 ${name} 프로젝트로 인식
+  // 프로젝트 감지: ${esc(detectFile)}가 있으면 ${esc(name)} 프로젝트로 인식
   detect: async (repoPath) => {
-    return fs.existsSync(path.join(repoPath, '${detectFile}'));
+    return fs.existsSync(path.join(repoPath, '${esc(detectFile)}'));
   },
 
   // 스캔 대상 확장자
@@ -71,9 +83,12 @@ export function registerPlugin(sourceRoot, config) {
 
   if (indexContent.includes(importLine)) return false;
 
-  const lastImportIdx = indexContent.lastIndexOf('import ');
-  const lineEnd = indexContent.indexOf('\n', lastImportIdx);
-  indexContent = indexContent.substring(0, lineEnd + 1) + importLine + '\n' + indexContent.substring(lineEnd + 1);
+  // Find last import statement using regex for robustness
+  const importMatches = [...indexContent.matchAll(/^import\s+.+$/gm)];
+  if (importMatches.length === 0) return false;
+  const lastImport = importMatches[importMatches.length - 1];
+  const lineEnd = lastImport.index + lastImport[0].length;
+  indexContent = indexContent.substring(0, lineEnd) + '\n' + importLine + indexContent.substring(lineEnd);
 
   indexContent = indexContent.replace(
     /(\n\];)/,
