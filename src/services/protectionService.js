@@ -182,15 +182,15 @@ export async function applyAutoFixes(repoPath, selectedSecrets, options = {}) {
         if (lineContent.includes(exactObjc)) {
           replacedText = exactObjc;
           injectedText = accessor;
-          lineContent = lineContent.replace(exactObjc, injectedText);
+          lineContent = lineContent.replaceAll(exactObjc, injectedText);
         } else if (lineContent.includes(exactDouble)) {
           replacedText = exactDouble;
           injectedText = accessor;
-          lineContent = lineContent.replace(exactDouble, injectedText);
+          lineContent = lineContent.replaceAll(exactDouble, injectedText);
         } else if (lineContent.includes(exactSingle)) {
           replacedText = exactSingle;
           injectedText = accessor;
-          lineContent = lineContent.replace(exactSingle, injectedText);
+          lineContent = lineContent.replaceAll(exactSingle, injectedText);
         } else {
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));

@@ -12,7 +12,8 @@ const logger = {
   },
   divider: () => console.log(chalk.gray('━'.repeat(50))),
   maskSecret: (secret) => {
-    if (!secret || secret.length < 12) return '********';
+    if (!secret || secret.length <= 6) return '********';
+    if (secret.length <= 15) return secret.substring(0, 2) + '***' + secret.substring(secret.length - 2);
     return secret.substring(0, 3) + '...' + secret.substring(secret.length - 3);
   },
   header: (msg) => {

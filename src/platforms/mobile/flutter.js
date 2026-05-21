@@ -7,6 +7,7 @@ export default definePlatform({
   id: 'flutter',
   name: 'Flutter',
   category: 'mobile',
+  astLanguage: 'dart',
 
   detect: async (repoPath) => {
     return fs.existsSync(path.join(repoPath, 'pubspec.yaml'));

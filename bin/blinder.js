@@ -59,6 +59,12 @@ const program = new Command();
 /**
  * Global error handler for CLI actions
  */
+/**
+ * Exit codes:
+ *   0 — success
+ *   1 — unexpected runtime error
+ *   2 — user error (e.g. --platform not detected)
+ */
 async function handleAction(action) {
   try {
     await action();

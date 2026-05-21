@@ -1,11 +1,7 @@
 import fs from 'fs';
+import { readSafe } from '../../utils/fsUtils.js';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
-
-function readSafe(p) {
-  try { return fs.readFileSync(p, 'utf8'); } catch { return ''; }
-}
-
 export default definePlatform({
   id: 'java',
   name: 'Java',

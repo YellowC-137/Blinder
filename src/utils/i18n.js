@@ -576,7 +576,7 @@ export function t(key, params = {}) {
   let message = translations[lang]?.[key] || translations['ko'][key] || key;
   
   Object.keys(params).forEach(p => {
-    message = message.replace(`{${p}}`, params[p]);
+    message = message.replaceAll(`{${p}}`, params[p]);
   });
   
   return message;

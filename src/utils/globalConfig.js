@@ -27,7 +27,8 @@ export function saveGlobalConfig(config) {
   }
   const current = getGlobalConfig();
   const updated = { ...current, ...config };
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), { mode: 0o600 });
+  const writeOpts = process.platform !== 'win32' ? { mode: 0o600 } : {};
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), writeOpts);
   return updated;
 }
 
