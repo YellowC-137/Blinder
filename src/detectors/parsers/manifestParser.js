@@ -28,13 +28,14 @@ export function parseManifestMetaData(content) {
   while ((m = META_TAG_REGEX.exec(content)) !== null) {
     const tagBody = m[1];
     const offset = m.index;
-    let line = 1;
-    for (let i = 0; i < lineOffsets.length; i++) {
-      if (lineOffsets[i] <= offset && (lineOffsets[i + 1] === undefined || lineOffsets[i + 1] > offset)) {
-        line = i + 1;
-        break;
-      }
+    // Binary search for the line containing this offset
+    let lo = 0, hi = lineOffsets.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >>> 1;
+      if (lineOffsets[mid] <= offset) lo = mid;
+      else hi = mid - 1;
     }
+    const line = lo + 1;
 
     const attrs = {};
     ATTR_REGEX.lastIndex = 0;

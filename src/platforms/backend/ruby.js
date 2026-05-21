@@ -73,6 +73,30 @@ export default definePlatform({
 
   commonExtensions: ['.rb'],
 
+  sensitiveFiles: [
+    { glob: '**/.env', severity: 'HIGH', reason: 'Ruby runtime environment variables' },
+    { glob: '**/.env.*', severity: 'HIGH', reason: 'Environment variable variants (.env.local etc.)' },
+    { glob: '**/config/secrets.yml', severity: 'CRITICAL', reason: 'Rails encrypted secrets' },
+    { glob: '**/config/credentials.yml.enc', severity: 'CRITICAL', reason: 'Rails encrypted credentials' },
+    { glob: '**/config/master.key', severity: 'CRITICAL', reason: 'Rails master key — decrypts credentials' },
+    { glob: '**/config/database.yml', severity: 'HIGH', reason: 'Database connection credentials' },
+    { glob: '**/config/initializers/secret_token.rb', severity: 'HIGH', reason: 'Legacy Rails secret token' },
+  ],
+
+  getGitignoreTemplate: () => `
+# Ruby / Rails
+.env
+.env.*
+config/master.key
+config/credentials/*.key
+/tmp/
+/log/
+/storage/
+*.gem
+.bundle/
+vendor/bundle/
+`,
+
   applyAdvancedFix: async ({ lineContent, prevLine, nextLine, match, envVarName, ext, relPath }) => {
     if (ext !== '.rb') return { handled: false };
 

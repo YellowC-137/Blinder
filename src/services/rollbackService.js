@@ -63,50 +63,58 @@ export async function performRollback(repoPath, options = {}) {
       return targetB.length - targetA.length || (a.envVarName || '').localeCompare(b.envVarName || '');
     });
 
+    // Group migrations by file to batch I/O (sort order preserved within each group)
+    const fileGroups = new Map();
     for (const mig of migrations) {
-      const { file, envVarName, accessor } = mig;
+      const list = fileGroups.get(mig.file) || [];
+      list.push(mig);
+      fileGroups.set(mig.file, list);
+    }
+
+    for (const [file, fileMigs] of fileGroups) {
       const absPath = path.join(repoPath, file);
 
       if (!fs.existsSync(absPath)) {
         report.skippedFiles.push({ file, reason: 'File not found' });
-        report.skipCount++;
-        report.skipReasons.fileNotFound++;
-        continue;
-      }
-
-      const secretValue = envVars[envVarName];
-      if (secretValue === undefined) {
-        report.skippedFiles.push({ file, reason: `Secret ${envVarName} not in .env` });
-        report.skipCount++;
-        report.skipReasons.secretMissing++;
+        report.skipCount += fileMigs.length;
+        report.skipReasons.fileNotFound += fileMigs.length;
         continue;
       }
 
       let content = fs.readFileSync(absPath, 'utf8');
-      const targetToRemove = mig.injectedText || accessor;
-      if (content.includes(targetToRemove)) {
-        const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
-        // Replace first occurrence only to prevent unintended multi-replacements
-        // when the same accessor appears in different contexts
-        content = content.replace(targetToRemove, restoredValue);
+      let fileModified = false;
 
-        if (!options.dryRun) {
-          fs.writeFileSync(absPath, content);
+      for (const mig of fileMigs) {
+        const { envVarName, accessor } = mig;
+        const secretValue = envVars[envVarName];
+        if (secretValue === undefined) {
+          report.skippedFiles.push({ file, reason: `Secret ${envVarName} not in .env` });
+          report.skipCount++;
+          report.skipReasons.secretMissing++;
+          continue;
         }
-        report.restoreCount++;
-      } else {
-        // Either an earlier migration with an identical accessor already
-        // restored every occurrence in this file (common when same secret
-        // appears N times under one envVarName), or the accessor was edited
-        // since blind. Distinguish: if replacedText is already present,
-        // earlier migration handled it.
-        const replacedText = mig.replacedText;
-        if (replacedText && content.includes(replacedText)) {
-          report.skipReasons.alreadyRestored++;
+
+        const targetToRemove = mig.injectedText || accessor;
+        if (content.includes(targetToRemove)) {
+          const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
+          // Replace first occurrence only to prevent unintended multi-replacements
+          // when the same accessor appears in different contexts
+          content = content.replace(targetToRemove, restoredValue);
+          fileModified = true;
+          report.restoreCount++;
         } else {
-          report.skipReasons.accessorNotFound++;
+          const replacedText = mig.replacedText;
+          if (replacedText && content.includes(replacedText)) {
+            report.skipReasons.alreadyRestored++;
+          } else {
+            report.skipReasons.accessorNotFound++;
+          }
+          report.skipCount++;
         }
-        report.skipCount++;
+      }
+
+      if (fileModified && !options.dryRun) {
+        fs.writeFileSync(absPath, content);
       }
     }
     report.codeRestored = true;
@@ -136,17 +144,14 @@ export function cleanGitignore(repoPath) {
   const gitignorePath = path.join(repoPath, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
     let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
-    const blinderRegex = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
-    const blinderRegexFinal = /\n# --- BLINDER [A-Z]+ ---\n[\s\S]*$/g;
+    // Match BLINDER blocks at file start (^) or after newline (\n)
+    const blinderRegex = /(?:^|\n)# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
 
-    // Reset lastIndex before test() to avoid stale state from prior regex usage
     blinderRegex.lastIndex = 0;
-    blinderRegexFinal.lastIndex = 0;
-    const hasBlinder = blinderRegex.test(gitignoreContent) || blinderRegexFinal.test(gitignoreContent);
+    const hasBlinder = blinderRegex.test(gitignoreContent);
     blinderRegex.lastIndex = 0;
-    blinderRegexFinal.lastIndex = 0;
     if (hasBlinder) {
-      gitignoreContent = gitignoreContent.replace(blinderRegex, '').replace(blinderRegexFinal, '');
+      gitignoreContent = gitignoreContent.replace(blinderRegex, '');
       gitignoreContent = gitignoreContent.trim() + '\n';
       fs.writeFileSync(gitignorePath, gitignoreContent);
       return true;

@@ -7,6 +7,7 @@
  */
 
 import path from 'path';
+import logger from '../utils/logger.js';
 import { parsePlist, isInfoPlist } from './parsers/plistParser.js';
 import { parseProperties } from './parsers/propertiesParser.js';
 import { parseManifestMetaData, isAndroidManifest } from './parsers/manifestParser.js';
@@ -49,7 +50,7 @@ export function scanStructuredFile(filePath, repoPath, content, results, usedEnv
       return;
     }
   } catch (err) {
-    // Parser failure should not crash the scan — skip this file
+    logger.debug(`Parser failed for ${relPath}: ${err.message}`);
     return;
   }
 
