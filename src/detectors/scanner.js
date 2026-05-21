@@ -165,13 +165,7 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
 
       // matchAll 사용 — lastIndex 공유 회피
       for (const match of line.matchAll(pattern.regex)) {
-        let matchValue = match[0];
-        if (pattern.name.includes('Objective-C') && match[1]) matchValue = match[2];
-        else {
-           for (let g = match.length - 1; g >= 1; g--) {
-             if (match[g] !== undefined) { matchValue = match[g]; break; }
-           }
-        }
+        let { matchValue, varName } = extractMatchDetails(pattern, match, line, ext);
 
         if (astLang && !options.skipAST) {
            const valueOffsetInMatch = match[0].indexOf(matchValue);
@@ -180,13 +174,13 @@ async function scanLargeFile(filePath, repoPath, allPatterns, platforms, results
            if (!isValid) continue;
         }
 
-        if (isLowConfidenceMatch(matchValue, pattern.name)) continue;
+        if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
 
         const lineIsComment = isCommentLine(line, platforms);
         if (lineIsComment && !options.scanComments) continue;
 
         const isTest = isTestKey(line, filePath, matchValue);
-        const envVarName = getEnvVarName(pattern, '', '', usedEnvNames, matchValue);
+        const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
 
         results.push({
           file: path.relative(repoPath, filePath),

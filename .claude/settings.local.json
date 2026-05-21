@@ -12,7 +12,8 @@
       "Bash(sed -i '' '/^function readSafe/,/^}/d' src/platforms/backend/java.js)",
       "Bash(sed -i '' '/^$/N;/^\\\\n$/d' src/platforms/backend/springboot.js)",
       "Bash(sed -i '' '/^$/N;/^\\\\n$/d' src/platforms/backend/java.js)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(rm:*)"
     ]
   },
   "hooks": {
