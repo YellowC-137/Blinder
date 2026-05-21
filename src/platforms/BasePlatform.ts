@@ -1,0 +1,120 @@
+import logger from '../utils/logger.js';
+import { t } from '../utils/i18n.js';
+import type {
+  PlatformConfig,
+  Platform,
+  AdvancedFixContext,
+  AdvancedFixResult,
+  PreFixContext,
+  PostFixContext,
+} from './types.js';
+import type { SensitiveFile, PlatformTestCase } from '../types/index.js';
+
+/**
+ * BasePlatform - 플러그인 인터페이스 강제화를 위한 기반 클래스
+ * (보안지침 §4: 플랫폼별 플러그인 아키텍처 및 인터페이스 정의)
+ */
+export class BasePlatform implements Platform {
+  id: string;
+  name: string;
+  category: 'backend' | 'frontend' | 'mobile' | 'core';
+  astLanguage?: string;
+  commonExtensions: string[];
+  sensitiveFiles: SensitiveFile[];
+  ignorePaths: string[];
+  commentRegex: RegExp;
+  testCases: PlatformTestCase[];
+
+  // Optional Hooks (private)
+  private _preFix?: (context: PreFixContext) => Promise<void>;
+  private _postFix?: (context: PostFixContext) => Promise<void>;
+  private _applyAdvancedFix?: (context: AdvancedFixContext) => AdvancedFixResult | Promise<AdvancedFixResult>;
+  private _setupBridge?: (repoPath: string) => Promise<void>;
+  private _teardownBridge?: (repoPath: string) => Promise<void>;
+  private _getAutoFixReplacement?: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>) => string;
+  private _getGitignoreTemplate?: () => string;
+  private _detect?: (repoPath: string) => Promise<boolean>;
+
+  constructor(config: PlatformConfig) {
+    this.id = config.id;
+    this.name = config.name;
+    this.category = config.category || 'custom' as 'backend' | 'frontend' | 'mobile' | 'core';
+    this.astLanguage = config.astLanguage; // AST 엔진 식별자 (예: 'swift', 'objc')
+    this.commonExtensions = config.commonExtensions || [];
+    this.sensitiveFiles = config.sensitiveFiles || [];
+    this.ignorePaths = config.ignorePaths || [];
+    this.commentRegex = config.commentRegex || /^\s*(\/\/|\/\*|\*|#)/;
+    this.testCases = config.testCases || [];
+    
+    // Optional Hooks
+    this._preFix = config.preFix;
+    this._postFix = config.postFix;
+    this._applyAdvancedFix = config.applyAdvancedFix;
+    this._setupBridge = config.setupBridge;
+    this._teardownBridge = config.teardownBridge;
+    this._getAutoFixReplacement = config.getAutoFixReplacement;
+    this._getGitignoreTemplate = config.getGitignoreTemplate;
+    this._detect = config.detect;
+  }
+
+  /**
+   * 프로젝트 감지 로직 (필수 구현)
+   */
+  async detect(repoPath: string): Promise<boolean> {
+    if (this._detect) return await this._detect(repoPath);
+    throw new Error(t('platform_detect_not_impl', { name: this.name }));
+  }
+
+  /**
+   * 환경 변수 접근자 코드 생성 (필수 구현)
+   */
+  getAutoFixReplacement(match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string {
+    if (this._getAutoFixReplacement) {
+      return this._getAutoFixReplacement(match, envVarName, ext, options);
+    }
+    // Default fallback
+    return `process.env.${envVarName}`;
+  }
+
+  /**
+   * .gitignore 템플릿 반환
+   */
+  getGitignoreTemplate(): string {
+    if (this._getGitignoreTemplate) return this._getGitignoreTemplate();
+    return '';
+  }
+
+  /**
+   * 고급 치환 로직 (Stage 1)
+   */
+  async applyAdvancedFix(context: AdvancedFixContext): Promise<AdvancedFixResult> {
+    if (this._applyAdvancedFix) return await this._applyAdvancedFix(context);
+    return { handled: false };
+  }
+
+  /**
+   * 브리지 설정
+   */
+  async setupBridge(repoPath: string): Promise<void> {
+    if (this._setupBridge) await this._setupBridge(repoPath);
+  }
+
+  /**
+   * 브리지 제거
+   */
+  async teardownBridge(repoPath: string): Promise<void> {
+    if (this._teardownBridge) await this._teardownBridge(repoPath);
+  }
+
+  // Lifecycle Hooks
+  //
+  // [에러 시맨틱]
+  //   - preFix:  실패하면 protectionService 가 throw 를 상위로 전파해 해당 파일 abort.
+  //              플랫폼이 fix 전제조건을 검증하는 자리이므로 실패 = fix 거부 의미.
+  //   - postFix: 실패해도 전체 플로우 계속 진행 (logger.warn 만 남김).
+  //              이미 적용된 fix 를 되돌리는 트랜잭션 책임은 플랫폼이 자체 처리.
+  //
+  // 자세한 호출 위치는 src/services/protectionService.js 참고.
+  async preFix(context: PreFixContext): Promise<void> { if (this._preFix) await this._preFix(context); }
+  async postFix(context: PostFixContext): Promise<void> { if (this._postFix) await this._postFix(context); }
+}
