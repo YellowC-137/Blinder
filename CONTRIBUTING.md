@@ -38,7 +38,7 @@ There are many ways to help, and **all of them are valuable**:
 | 🐛 **Bug reports** | False positives, false negatives, build breakage after `blind`, `restore` failures |
 | 🔌 **New plugins** | Python (Django/FastAPI), Go, PHP, Rust, Vue, Svelte, etc. — see the step-by-step guide below |
 | 🧪 **Test coverage** | New regression fixtures under `test/regression/<platform>/`, edge-case unit tests |
-| 🎯 **New patterns** | Adding regex patterns to `src/detectors/patterns.js` for unsupported secret types |
+| 🎯 **New patterns** | Adding regex patterns to `src/detectors/patterns.ts` for unsupported secret types |
 | 📚 **Docs** | Translations, clearer examples, fixing typos, adding diagrams |
 | 💬 **Triage** | Reproducing reported issues, validating fixes, answering questions in Discussions |
 
@@ -86,7 +86,7 @@ sudo npm link
 
 # 3) Verify
 blinder --version
-node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+node --import tsx -e "import('./src/platforms/index.ts').then(m => console.log(m.platforms.map(p => p.id)))"
 
 # 4) Run the test suite
 npm test                 # unit + parser + classifier tests
@@ -95,7 +95,7 @@ npm run test:regression  # real sample-app build regressions (slow)
 ```
 
 #### Requirements
-- Node.js **18+**
+- Node.js **20.12+**
 - macOS / Linux / Windows
 - For iOS regression: macOS + Xcode 14+
 - For Android regression: Android SDK + Gradle wrapper present
@@ -105,28 +105,28 @@ npm run test:regression  # real sample-app build regressions (slow)
 ### 🗂️ Project Layout
 
 ```text
-Blinder/
-├── bin/blinder.js                 ← CLI entrypoint (commander)
+Blinder/                           (TypeScript, strict mode — built with `npm run build` → dist/)
+├── bin/blinder.ts                 ← CLI entrypoint (commander)
 ├── src/
 │   ├── commands/                  ← One file per CLI command (blind, mask, scan, restore, ...)
 │   ├── detectors/
-│   │   ├── scanner.js             ← Core file-walker + dedup + entropy gating
-│   │   ├── patterns.js            ← Built-in secret regexes
+│   │   ├── scanner.ts             ← Core file-walker + dedup + entropy gating
+│   │   ├── patterns.ts            ← Built-in secret regexes
 │   │   └── parsers/               ← Structured-file parsers (.plist, manifest, .properties)
 │   ├── platforms/
-│   │   ├── BasePlatform.js        ← Class wrapper (don't touch)
-│   │   ├── definePlatform.js      ← Helper that validates + wraps your config
-│   │   ├── index.js               ← Registry — every plugin imported here
-│   │   ├── common.js              ← Cross-platform rules
-│   │   ├── mobile/                ← ios.js, android.js, flutter.js
-│   │   ├── backend/               ← node.js, java.js, springboot.js, ruby.js
-│   │   └── frontend/              ← react.js
+│   │   ├── BasePlatform.ts        ← Class wrapper (don't touch)
+│   │   ├── definePlatform.ts      ← Helper that validates + wraps your config
+│   │   ├── index.ts               ← Registry — every plugin imported here
+│   │   ├── common.ts              ← Cross-platform rules
+│   │   ├── mobile/                ← ios.ts, android.ts, flutter.ts
+│   │   ├── backend/               ← node.ts, java.ts, springboot.ts, ruby.ts
+│   │   └── frontend/              ← react.ts
 │   ├── protectors/
-│   │   └── keyClassifier.js       ← Whitelist/blacklist for structured-file keys
+│   │   └── keyClassifier.ts       ← Whitelist/blacklist for structured-file keys
 │   ├── services/
-│   │   └── protectionService.js   ← applyAutoFixes() — runs lifecycle hooks
+│   │   └── protectionService.ts   ← applyAutoFixes() — runs lifecycle hooks
 │   └── utils/                     ← logger, packageJsonReader, etc.
-└── test/
+└── test/                          (plain JS, run via `node --import tsx`)
     ├── pattern_test.js            ← Regex correctness
     ├── platform_unit_test.js      ← Per-platform plugin behavior
     ├── parser_test.js             ← Structured-file parsing
@@ -143,7 +143,8 @@ Before opening a PR, please confirm:
 - [ ] **Branch from `main`** (or the branch maintainers ask you to target)
 - [ ] **Tests pass locally**: `npm test` (and `npm run test:integration` if your change touches lifecycle/migration code)
 - [ ] **No real secrets** in tests/fixtures — use clearly-fake placeholders (`sk-test-...`, `AKIA...EXAMPLE`)
-- [ ] **New platform?** Updated `src/platforms/index.js` AND added at least one test case in `test/platform_unit_test.js`
+- [ ] **New platform?** Updated `src/platforms/index.ts` AND added at least one test case in `test/platform_unit_test.js`
+- [ ] **Type-check passes**: `npx tsc --noEmit`
 - [ ] **New pattern?** Added cases in `test/pattern_test.js` covering both **positive** match and **negative** (placeholder/comment) cases
 - [ ] **Docs touched** when adding user-facing behavior — updated both `README.md` and `README_en.md`
 - [ ] **No noisy formatting** — keep the diff focused on the change
@@ -210,20 +211,20 @@ Blinder treats each language/framework as a **plugin**. A plugin tells the core 
 - **How to rewrite a hardcoded secret** to an env-variable accessor (`getAutoFixReplacement()`).
 - **(Optional)** How to wire `.env` into the build system (`setupBridge()`), how to handle complex AST rewrites (`applyAdvancedFix()`), and so on.
 
-The core engine never hard-codes language rules. Add a plugin file, register it in `index.js`, done.
+The core engine never hard-codes language rules. Add a plugin file, register it in `index.ts`, done.
 
 ```text
 src/platforms/
-├── BasePlatform.js          ← class wrapper (don't touch)
-├── definePlatform.js        ← helper that validates + wraps your config
-├── index.js                 ← registry — every plugin imported here
-├── common.js                ← cross-platform rules
+├── BasePlatform.ts          ← class wrapper (don't touch)
+├── definePlatform.ts        ← helper that validates + wraps your config
+├── index.ts                 ← registry — every plugin imported here
+├── common.ts                ← cross-platform rules
 ├── mobile/
-│   ├── ios.js
-│   ├── android.js
-│   └── flutter.js
+│   ├── ios.ts
+│   ├── android.ts
+│   └── flutter.ts
 └── backend/
-    └── ruby.js              ← example you can copy
+    └── ruby.ts              ← example you can copy
 ```
 
 ---
@@ -251,8 +252,8 @@ The scaffolder is interactive. Here's a real session for adding **Django**:
 ? Scan extensions (comma-separated, e.g. .rb,.yml):   .py,.html
 ? Project detection file (e.g. Gemfile, pom.xml):     manage.py
 
-✓ Plugin file created: platforms/backend/django.js
-✓ Registered: platforms/index.js
+✓ Plugin file created: platforms/backend/django.ts
+✓ Registered: platforms/index.ts
 
 🚀 Next steps:
   1. Tweak detect() in the generated file if needed.
@@ -285,9 +286,9 @@ The scaffolder picks an env-accessor based on your **first extension**:
 | `.php` | `getenv('VAR')` |
 | anything else | `process.env.VAR` (Node.js fallback) |
 
-Generated `src/platforms/backend/django.js`:
+Generated `src/platforms/backend/django.ts`:
 
-```javascript
+```typescript
 import fs from 'fs';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
@@ -312,9 +313,9 @@ export default definePlatform({
 });
 ```
 
-And `src/platforms/index.js` is auto-edited:
+And `src/platforms/index.ts` is auto-edited (import specifiers keep the `.js` extension — NodeNext ESM convention, they resolve to the `.ts` sources):
 
-```javascript
+```typescript
 import common from './common.js';
 import ios from './mobile/ios.js';
 import android from './mobile/android.js';
@@ -336,7 +337,7 @@ export const platforms = [
 
 ```bash
 # (a) Make sure the registry parses
-node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+node --import tsx -e "import('./src/platforms/index.ts').then(m => console.log(m.platforms.map(p => p.id)))"
 # Should print: [ 'common', 'ios', 'android', 'flutter', 'ruby', 'django' ]
 
 # (b) Project detection
@@ -405,7 +406,7 @@ The scaffolded plugin is intentionally minimal. Common things to refine:
 | `teardownBridge(repoPath)` | `async` | | Reverse `setupBridge` |
 | `testCases` | `object[]` | | Validation cases (used by `test:integration`) |
 
-#### Lifecycle (per file, inside `protect.js applyAutoFixes()`)
+#### Lifecycle (per file, inside `protect.ts applyAutoFixes()`)
 
 ```text
 preFix(context)
@@ -422,13 +423,13 @@ postFix(context)
 
 ### 🔐 Structured Config Files (Info.plist / AndroidManifest / .properties / .xcconfig)
 
-For key/value config files, **don't** match raw strings. The scanner already routes them through dedicated parsers (`src/detectors/parsers/*`) and gates auto-fix via `src/protectors/keyClassifier.js`.
+For key/value config files, **don't** match raw strings. The scanner already routes them through dedicated parsers (`src/detectors/parsers/*`) and gates auto-fix via `src/protectors/keyClassifier.ts`.
 
 Default policy is **deny** — keys outside the whitelist are detected and warned but never rewritten.
 
 To extend safe-fix coverage for your platform:
 1. Add a parser if the file format is new (e.g. `.toml`, `.hcl`).
-2. Add classifier rules in `keyClassifier.js`:
+2. Add classifier rules in `keyClassifier.ts`:
    - **Whitelist** (auto-fix allowed): SDK keys, public app IDs, anything matching `*_API_KEY` / `TOKEN` / `SECRET` style.
    - **Blacklist** (never auto-fixed): system/build keys (`CFBundle*`, `androidx.*`, `org.gradle.*`).
 
@@ -439,9 +440,9 @@ To extend safe-fix coverage for your platform:
 If your auto-fixed code requires build-time wiring (`BuildConfig`, `--dart-define`, `Info.plist` substitution), implement `setupBridge()` to inject the wiring **idempotently**, and pair with `teardownBridge()` so `rollback` fully reverts.
 
 Reference implementations:
-- `src/platforms/mobile/android.js` — BuildConfig + manifestPlaceholders injection into `app/build.gradle`.
-- `src/platforms/mobile/ios.js` — Podfile `post_install` hook + Run Script Phase.
-- `src/platforms/mobile/flutter.js` — `--dart-define-from-file=.env` in IDE configs + `f.sh` wrapper.
+- `src/platforms/mobile/android.ts` — BuildConfig + manifestPlaceholders injection into `app/build.gradle`.
+- `src/platforms/mobile/ios.ts` — Podfile `post_install` hook + Run Script Phase.
+- `src/platforms/mobile/flutter.ts` — `--dart-define-from-file=.env` in IDE configs + `f.sh` wrapper.
 
 Idempotent = running `setupBridge()` twice should not double-inject. Always check for existing markers first (e.g. `// BLINDER_BRIDGE_BEGIN`).
 
@@ -476,7 +477,7 @@ PRs touching auto-fix should:
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Platform plugin must have an "id" property.` at load | `definePlatform()` sees missing required field | Add `id` / `name` / `detect` / `commonExtensions` |
-| Plugin file created but not active | Forgot to register in `index.js` | Re-run scaffolder, or add `import` + array entry manually |
+| Plugin file created but not active | Forgot to register in `index.ts` | Re-run scaffolder, or add `import` + array entry manually |
 | `Detected platforms` doesn't include yours | `detect()` returned false | Check the marker file path; `detect` runs against the **repo root**, not subdirectories |
 | Auto-fix replaces secrets in comments | `commentRegex` doesn't match your syntax | Override `commentRegex` (default catches `//`, `/*`, `*`, `#`) |
 | Build breaks after `blind` | Auto-fixed code needs runtime wiring | Implement `setupBridge()` |
@@ -514,7 +515,7 @@ PRs touching auto-fix should:
 | 🐛 **버그 리포트** | 오탐(false positive), 미탐(false negative), `blind` 후 빌드 깨짐, `restore` 실패 |
 | 🔌 **신규 플러그인** | Python (Django/FastAPI), Go, PHP, Rust, Vue, Svelte 등 — 아래 단계별 가이드 참고 |
 | 🧪 **테스트 보강** | `test/regression/<platform>/`에 신규 회귀 fixture, 엣지케이스 유닛테스트 |
-| 🎯 **신규 패턴** | `src/detectors/patterns.js`에 미지원 시크릿 타입 정규식 추가 |
+| 🎯 **신규 패턴** | `src/detectors/patterns.ts`에 미지원 시크릿 타입 정규식 추가 |
 | 📚 **문서** | 번역, 명확한 예시, 오타 수정, 다이어그램 추가 |
 | 💬 **트리아지** | 보고된 이슈 재현, 수정안 검증, Discussions 답변 |
 
@@ -562,7 +563,7 @@ sudo npm link
 
 # 3) 검증
 blinder --version
-node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+node --import tsx -e "import('./src/platforms/index.ts').then(m => console.log(m.platforms.map(p => p.id)))"
 
 # 4) 테스트 실행
 npm test                 # 유닛 + 파서 + 분류기
@@ -571,7 +572,7 @@ npm run test:regression  # 실제 sample-app 빌드 회귀 (느림)
 ```
 
 #### 요구 사항
-- Node.js **18 이상**
+- Node.js **20.12 이상**
 - macOS / Linux / Windows
 - iOS 회귀: macOS + Xcode 14+
 - Android 회귀: Android SDK + Gradle wrapper 존재
@@ -581,28 +582,28 @@ npm run test:regression  # 실제 sample-app 빌드 회귀 (느림)
 ### 🗂️ 프로젝트 구조
 
 ```text
-Blinder/
-├── bin/blinder.js                 ← CLI 엔트리포인트 (commander)
+Blinder/                           (TypeScript strict 모드 — `npm run build` → dist/)
+├── bin/blinder.ts                 ← CLI 엔트리포인트 (commander)
 ├── src/
 │   ├── commands/                  ← CLI 명령어 1개당 파일 1개 (blind, mask, scan, restore, ...)
 │   ├── detectors/
-│   │   ├── scanner.js             ← 코어 파일 워커 + dedup + 엔트로피 게이팅
-│   │   ├── patterns.js            ← 내장 시크릿 정규식
+│   │   ├── scanner.ts             ← 코어 파일 워커 + dedup + 엔트로피 게이팅
+│   │   ├── patterns.ts            ← 내장 시크릿 정규식
 │   │   └── parsers/               ← 구조화 파일 파서 (.plist, manifest, .properties)
 │   ├── platforms/
-│   │   ├── BasePlatform.js        ← 클래스 래퍼 (수정 X)
-│   │   ├── definePlatform.js      ← 검증 + 래핑 헬퍼
-│   │   ├── index.js               ← 레지스트리 — 모든 플러그인 import
-│   │   ├── common.js              ← 공통 규칙
-│   │   ├── mobile/                ← ios.js, android.js, flutter.js
-│   │   ├── backend/               ← node.js, java.js, springboot.js, ruby.js
-│   │   └── frontend/              ← react.js
+│   │   ├── BasePlatform.ts        ← 클래스 래퍼 (수정 X)
+│   │   ├── definePlatform.ts      ← 검증 + 래핑 헬퍼
+│   │   ├── index.ts               ← 레지스트리 — 모든 플러그인 import
+│   │   ├── common.ts              ← 공통 규칙
+│   │   ├── mobile/                ← ios.ts, android.ts, flutter.ts
+│   │   ├── backend/               ← node.ts, java.ts, springboot.ts, ruby.ts
+│   │   └── frontend/              ← react.ts
 │   ├── protectors/
-│   │   └── keyClassifier.js       ← 구조화 파일 키 화이트/블랙리스트
+│   │   └── keyClassifier.ts       ← 구조화 파일 키 화이트/블랙리스트
 │   ├── services/
-│   │   └── protectionService.js   ← applyAutoFixes() — 라이프사이클 훅 실행
+│   │   └── protectionService.ts   ← applyAutoFixes() — 라이프사이클 훅 실행
 │   └── utils/                     ← logger, packageJsonReader 등
-└── test/
+└── test/                          (순수 JS — `node --import tsx` 로 실행)
     ├── pattern_test.js            ← 정규식 정확도
     ├── platform_unit_test.js      ← 플랫폼별 동작
     ├── parser_test.js             ← 구조화 파일 파싱
@@ -619,7 +620,8 @@ PR 열기 전 확인:
 - [ ] **`main` 기준 브랜치** (메인테이너 지정 브랜치 우선)
 - [ ] **로컬 테스트 통과**: `npm test` (라이프사이클/마이그레이션 변경 시 `npm run test:integration`도)
 - [ ] **실제 시크릿 금지** — 명백히 가짜인 placeholder 사용 (`sk-test-...`, `AKIA...EXAMPLE`)
-- [ ] **신규 플랫폼?** `src/platforms/index.js` 갱신 + `test/platform_unit_test.js`에 최소 1개 테스트케이스
+- [ ] **신규 플랫폼?** `src/platforms/index.ts` 갱신 + `test/platform_unit_test.js`에 최소 1개 테스트케이스
+- [ ] **타입 체크 통과**: `npx tsc --noEmit`
 - [ ] **신규 패턴?** `test/pattern_test.js`에 **positive 매치** + **negative (placeholder/주석)** 케이스 추가
 - [ ] **사용자 노출 동작 변경 시 문서 갱신** — `README.md` + `README_en.md` 양쪽
 - [ ] **불필요한 포맷 변경 없음** — diff를 변경 핵심에만 집중
@@ -686,20 +688,20 @@ Blinder는 각 언어/프레임워크를 **플러그인**으로 다룸. 플러�
 - **하드코딩 시크릿 → 환경변수 접근자**로 바꾸는 규칙 (`getAutoFixReplacement()`)
 - **(선택)** `.env`를 빌드 시스템에 연동하는 방법 (`setupBridge()`), 복잡 AST 변환 (`applyAdvancedFix()`) 등
 
-코어 엔진은 언어 규칙을 절대 하드코딩하지 않음. 플러그인 파일 추가 + `index.js` 등록만 하면 끝.
+코어 엔진은 언어 규칙을 절대 하드코딩하지 않음. 플러그인 파일 추가 + `index.ts` 등록만 하면 끝.
 
 ```text
 src/platforms/
-├── BasePlatform.js          ← 클래스 래퍼 (수정 X)
-├── definePlatform.js        ← 검증 + 래핑 헬퍼
-├── index.js                 ← 레지스트리 — 모든 플러그인 import
-├── common.js                ← 공통 규칙
+├── BasePlatform.ts          ← 클래스 래퍼 (수정 X)
+├── definePlatform.ts        ← 검증 + 래핑 헬퍼
+├── index.ts                 ← 레지스트리 — 모든 플러그인 import
+├── common.ts                ← 공통 규칙
 ├── mobile/
-│   ├── ios.js
-│   ├── android.js
-│   └── flutter.js
+│   ├── ios.ts
+│   ├── android.ts
+│   └── flutter.ts
 └── backend/
-    └── ruby.js              ← 복사해서 시작 가능한 예시
+    └── ruby.ts              ← 복사해서 시작 가능한 예시
 ```
 
 ---
@@ -727,8 +729,8 @@ npm run add-platform
 ? 스캔할 파일 확장자 (콤마 구분. 예: .rb,.yml):       .py,.html
 ? 프로젝트 감지 파일 (예: Gemfile, pom.xml):           manage.py
 
-✓ 플러그인 파일 생성: platforms/backend/django.js
-✓ 레지스트리 등록: platforms/index.js
+✓ 플러그인 파일 생성: platforms/backend/django.ts
+✓ 레지스트리 등록: platforms/index.ts
 
 🚀 다음 단계:
   1. 생성된 파일의 detect() 로직을 프로젝트에 맞게 수정.
@@ -761,9 +763,9 @@ npm run add-platform
 | `.php` | `getenv('VAR')` |
 | 그 외 | `process.env.VAR` (Node.js fallback) |
 
-생성된 `src/platforms/backend/django.js`:
+생성된 `src/platforms/backend/django.ts`:
 
-```javascript
+```typescript
 import fs from 'fs';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
@@ -788,9 +790,9 @@ export default definePlatform({
 });
 ```
 
-`src/platforms/index.js`도 자동 편집됨:
+`src/platforms/index.ts`도 자동 편집됨 (import 경로는 NodeNext ESM 규칙상 `.js` 확장자로 표기 — 실제로는 `.ts` 소스를 가리킴):
 
-```javascript
+```typescript
 import common from './common.js';
 import ios from './mobile/ios.js';
 import android from './mobile/android.js';
@@ -812,7 +814,7 @@ export const platforms = [
 
 ```bash
 # (a) 레지스트리 파싱 확인
-node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+node --import tsx -e "import('./src/platforms/index.ts').then(m => console.log(m.platforms.map(p => p.id)))"
 # 출력: [ 'common', 'ios', 'android', 'flutter', 'ruby', 'django' ]
 
 # (b) 프로젝트 감지
@@ -881,7 +883,7 @@ blinder blind --path /path/to/django-project --dry-run -y
 | `teardownBridge(repoPath)` | `async` | | `setupBridge` 역연산 |
 | `testCases` | `object[]` | | 검증 케이스 (`test:integration`에서 사용) |
 
-#### 라이프사이클 (파일 단위, `protect.js applyAutoFixes()` 내부)
+#### 라이프사이클 (파일 단위, `protect.ts applyAutoFixes()` 내부)
 
 ```text
 preFix(context)
@@ -898,13 +900,13 @@ postFix(context)
 
 ### 🔐 구조화 설정 파일 (Info.plist / AndroidManifest / .properties / .xcconfig)
 
-키/값 구조 파일은 **raw 문자열로 매칭하지 말 것**. 스캐너가 이미 전용 파서(`src/detectors/parsers/*`)로 라우팅하고 `src/protectors/keyClassifier.js`로 자동치환을 게이팅함.
+키/값 구조 파일은 **raw 문자열로 매칭하지 말 것**. 스캐너가 이미 전용 파서(`src/detectors/parsers/*`)로 라우팅하고 `src/protectors/keyClassifier.ts`로 자동치환을 게이팅함.
 
 기본 정책은 **default-deny** — 화이트리스트 외 키는 검출/경고만 발생하고 절대 자동치환되지 않음.
 
 플랫폼별 안전 자동치환 범위 확장 방법:
 1. 새 파일 형식이면 (예: `.toml`, `.hcl`) 파서 추가.
-2. `keyClassifier.js`에 분류 규칙 추가:
+2. `keyClassifier.ts`에 분류 규칙 추가:
    - **Whitelist** (자동치환 허용): SDK 키, 공개 App ID, `*_API_KEY` / `TOKEN` / `SECRET` 패턴.
    - **Blacklist** (자동치환 영구 차단): 시스템/빌드 키 (`CFBundle*`, `androidx.*`, `org.gradle.*`).
 
@@ -915,9 +917,9 @@ postFix(context)
 자동치환된 코드가 빌드 타임 연동을 요구하면 (`BuildConfig`, `--dart-define`, `Info.plist` 치환 등) `setupBridge()`를 **멱등하게** 구현. `rollback`이 완전 되돌리도록 `teardownBridge()` 짝으로 작성.
 
 레퍼런스 구현:
-- `src/platforms/mobile/android.js` — `app/build.gradle`에 BuildConfig + manifestPlaceholders 주입.
-- `src/platforms/mobile/ios.js` — Podfile `post_install` 훅 + Run Script Phase.
-- `src/platforms/mobile/flutter.js` — IDE 설정에 `--dart-define-from-file=.env` + `f.sh` 래퍼 생성.
+- `src/platforms/mobile/android.ts` — `app/build.gradle`에 BuildConfig + manifestPlaceholders 주입.
+- `src/platforms/mobile/ios.ts` — Podfile `post_install` 훅 + Run Script Phase.
+- `src/platforms/mobile/flutter.ts` — IDE 설정에 `--dart-define-from-file=.env` + `f.sh` 래퍼 생성.
 
 멱등 = `setupBridge()` 두 번 실행해도 중복 주입 X. 항상 기존 마커 확인 후 주입 (예: `// BLINDER_BRIDGE_BEGIN`).
 
@@ -952,7 +954,7 @@ npm run test:regression:flutter
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | 로드 시 `Platform plugin must have an "id" property.` | `definePlatform()`이 필수 필드 누락 감지 | `id` / `name` / `detect` / `commonExtensions` 추가 |
-| 파일은 만들어졌는데 동작 안함 | `index.js`에 등록 누락 | 스캐폴더 재실행 또는 수동으로 import + 배열 추가 |
+| 파일은 만들어졌는데 동작 안함 | `index.ts`에 등록 누락 | 스캐폴더 재실행 또는 수동으로 import + 배열 추가 |
 | `Detected platforms`에 안 나타남 | `detect()`가 false 반환 | 마커 파일 경로 확인. `detect`는 **repo 루트** 기준, 하위 디렉토리 X |
 | 주석 안의 시크릿까지 치환 | `commentRegex` 미일치 | `commentRegex` 오버라이드 (기본은 `//`, `/*`, `*`, `#` 잡음) |
 | `blind` 후 빌드 깨짐 | 자동치환된 코드가 런타임 연동 필요 | `setupBridge()` 구현 |
