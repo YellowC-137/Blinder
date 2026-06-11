@@ -21,6 +21,12 @@ updates:
         patterns:
           - "tree-sitter-*"
           - "web-tree-sitter"
+    ignore:
+      # 0.26+ 런타임은 tree-sitter-wasms 0.1.13 의 언어 wasm 을 로드 못 함
+      # (dylink 메타데이터 비호환 — Language.load 전부 실패, AST 가 조용히 죽음).
+      # tree-sitter-wasms 가 0.26 호환 빌드를 내면 이 ignore 제거.
+      - dependency-name: "web-tree-sitter"
+        versions: [">=0.26.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
