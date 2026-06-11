@@ -1,0 +1,149 @@
+import fs from 'fs';
+import path from 'path';
+import { setupAndroidBridge } from '../../utils/androidBridge.js';
+import { definePlatform } from '../definePlatform.js';
+
+export default definePlatform({
+  id: 'android',
+  name: 'Android',
+  category: 'mobile',
+  astLanguage: 'kotlin',
+
+  detect: async (repoPath: string): Promise<boolean> => {
+    // Strong signal 1: AndroidManifest.xml anywhere in standard locations
+    const manifestPaths = [
+      'AndroidManifest.xml',
+      'app/src/main/AndroidManifest.xml',
+      'src/main/AndroidManifest.xml'
+    ];
+    if (manifestPaths.some(p => fs.existsSync(path.join(repoPath, p)))) return true;
+
+    // Strong signal 2: Flutter/RN-style nested android/ project dir
+    if (fs.existsSync(path.join(repoPath, 'android', 'app', 'build.gradle')) ||
+        fs.existsSync(path.join(repoPath, 'android', 'build.gradle'))) {
+      return true;
+    }
+
+    // Weaker signal: build.gradle present — verify Android Gradle Plugin actually applied
+    // (prevents false-match on Spring Boot / pure Java Gradle projects)
+    const gradleCandidates = [
+      'app/build.gradle',
+      'app/build.gradle.kts',
+      'build.gradle',
+      'build.gradle.kts',
+      'settings.gradle',
+      'settings.gradle.kts'
+    ];
+    for (const rel of gradleCandidates) {
+      const p = path.join(repoPath, rel);
+      if (!fs.existsSync(p)) continue;
+      try {
+        const content = fs.readFileSync(p, 'utf8');
+        if (/com\.android\.application|com\.android\.library|com\.android\.tools\.build/.test(content)) {
+          return true;
+        }
+      } catch { /* unreadable — ignore */ }
+    }
+
+    return false;
+  },
+
+  commonExtensions: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json'],
+
+  sensitiveFiles: [
+    { glob: '**/google-services.json', severity: 'CRITICAL', reason: 'Google 서비스 인증 정보가 포함된 파일' },
+    { glob: '**/local.properties', severity: 'HIGH', reason: 'SDK 경로 및 API Key가 저장될 수 있는 파일' },
+    { glob: '**/gradle.properties', severity: 'HIGH', reason: 'API Key, KeyStore 비밀번호가 저장될 수 있는 파일' },
+    { glob: '**/*.jks', severity: 'CRITICAL', reason: '앱 서명 키 파일 (유출 시 치명적)' },
+    { glob: '**/*.keystore', severity: 'CRITICAL', reason: '앱 서명 키 파일 (유출 시 치명적)' },
+    { glob: '**/*.bks', severity: 'CRITICAL', reason: 'BouncyCastle 키 저장소' },
+    { glob: '**/signing.properties', severity: 'CRITICAL', reason: '앱 서명 자격증명 (관용 명칭)' },
+    { glob: '**/keystore.properties', severity: 'CRITICAL', reason: '앱 서명 자격증명 (관용 명칭)' },
+    { glob: '**/release.keystore.properties', severity: 'CRITICAL', reason: 'Release 빌드 서명 자격증명' },
+    { glob: '**/play-credentials.json', severity: 'CRITICAL', reason: 'Google Play 게시 자격증명' },
+    { glob: '**/play-service-account*.json', severity: 'CRITICAL', reason: 'Google Play 서비스 어카운트' },
+    { glob: '**/agconnect-services.json', severity: 'HIGH', reason: 'Huawei AppGallery 서비스 설정' }
+  ],
+
+  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
+
+  ignorePaths: [
+    '**/.gradle/**', 
+    '**/build/**', 
+    '**/captures/**', 
+    '**/.externalNativeBuild/**',
+    '**/google-services.json'
+  ],
+
+  getGitignoreTemplate: (): string => `
+# Android
+.gradle/
+build/
+local.properties
+gradle.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+captures/
+.externalNativeBuild
+.cxx
+
+# Android Sensitive Files (보안지침 §2)
+google-services.json
+`,
+
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
+    if (ext === '.kt' || ext === '.java') {
+        return `BuildConfig.${envVarName}`;
+    }
+    if (ext === '.gradle') {
+        // Detect Kotlin DSL (.gradle.kts) vs Groovy DSL (.gradle) at call site
+        return `System.getenv('${envVarName}') ?: ""`;
+    }
+    if (ext === '.xml') {
+        return `\${${envVarName}}`;
+    }
+    return `process.env.${envVarName}`;
+  },
+
+  setupBridge: async (repoPath: string): Promise<void> => {
+    await setupAndroidBridge(repoPath);
+  },
+
+  teardownBridge: async (repoPath: string): Promise<void> => {
+    // Logic to remove Gradle bridge
+    const gradleFiles = [
+        path.join(repoPath, 'app/build.gradle'),
+        path.join(repoPath, 'app/build.gradle.kts'),
+        path.join(repoPath, 'android/app/build.gradle'),
+        path.join(repoPath, 'android/app/build.gradle.kts')
+    ];
+
+    for (const absPath of gradleFiles) {
+        if (fs.existsSync(absPath)) {
+            let content = fs.readFileSync(absPath, 'utf8');
+            const startMarker = '// [Blinder Start]';
+            const endMarker = '// [Blinder End]';
+            const startIndex = content.indexOf(startMarker);
+            const endIndex = content.indexOf(endMarker);
+
+            if (startIndex !== -1 && endIndex !== -1) {
+                content = content.substring(0, startIndex) + content.substring(endIndex + endMarker.length);
+                // Also remove the call
+                content = content.replace(/\s*loadDotenv\(\)/g, '');
+                fs.writeFileSync(absPath, content);
+            }
+        }
+    }
+  },
+
+  testCases: [
+    {
+      input: 'String apiKey = "secret";',
+      expected: 'String apiKey = BuildConfig.API_KEY;',
+      ext: '.java',
+      envVarName: 'API_KEY'
+    }
+  ]
+});

@@ -5,11 +5,11 @@
   "main": "index.js",
   "type": "module",
   "bin": {
-    "blinder": "./bin/blinder.js"
+    "blinder": "./dist/bin/blinder.js"
   },
   "scripts": {
-    "test": "node test/pattern_test.js && node test/platform_unit_test.js && node test/key_classifier_test.js && node test/parser_test.js && node test/test_regex.js && node test/test_blind.js",
-    "test:integration": "node test/platform_integration_test.js && node test/objc_migration_test.js",
+    "test": "node --import tsx test/pattern_test.js && node --import tsx test/platform_unit_test.js && node --import tsx test/key_classifier_test.js && node --import tsx test/parser_test.js && node --import tsx test/test_regex.js && node --import tsx test/test_blind.js && node --import tsx test/fix_review_test.js",
+    "test:integration": "node --import tsx test/platform_integration_test.js && node --import tsx test/objc_migration_test.js",
     "test:regression:ios": "bash test/regression/ios/run.sh",
     "test:regression:android": "bash test/regression/android/run.sh",
     "test:regression:flutter": "bash test/regression/flutter/run.sh",
@@ -19,7 +19,8 @@
     "test:regression:react": "bash test/regression/react/run.sh",
     "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node && npm run test:regression:java && npm run test:regression:springboot && npm run test:regression:react",
     "test:all": "npm test && npm run test:integration",
-    "add-platform": "node bin/blinder.js add_platform"
+    "add-platform": "node --import tsx bin/blinder.ts add_platform",
+    "build": "tsc"
   },
   "keywords": [
     "security",
@@ -55,5 +56,12 @@
     "tree-sitter-wasms": "^0.1.13",
     "web-tree-sitter": "0.22.6",
     "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.2",
+    "@types/node": "^25.9.1",
+    "@types/xml2js": "^0.4.14",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
   }
 }
