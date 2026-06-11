@@ -16,7 +16,7 @@
 | (선택) `.env`를 빌드 시스템에 어떻게 연동? | `setupBridge(repoPath)` / `teardownBridge(repoPath)` |
 | (선택) 단순 치환으로 안 되는 케이스? | `applyAdvancedFix(context)` |
 
-플러그인 파일 작성 → `src/platforms/index.js` 등록 → 끝.
+플러그인 파일 작성 → `src/platforms/index.ts` 등록 → 끝. (코드베이스는 TypeScript strict 모드)
 
 ---
 
@@ -37,7 +37,7 @@ blinder add_platform
 | 감지 파일 | `detect()` 마커 | `manage.py` |
 
 자동 동작:
-1. `src/platforms/<category>/<id>.js` 템플릿 생성 — 첫 확장자 기준 env 접근자 자동 선택:
+1. `src/platforms/<category>/<id>.ts` 템플릿 생성 — 첫 확장자 기준 env 접근자 자동 선택:
 
 | 첫 확장자 | 자동 접근자 |
 |---|---|
@@ -49,7 +49,7 @@ blinder add_platform
 | `.php` | `getenv('VAR')` |
 | 그 외 | `process.env.VAR` |
 
-2. `src/platforms/index.js`에 import + 배열 항목 자동 추가.
+2. `src/platforms/index.ts`에 import + 배열 항목 자동 추가. (import 경로는 NodeNext ESM 규칙에 따라 `.js` 확장자로 표기 — TS 소스를 가리킴)
 
 ---
 
@@ -57,8 +57,8 @@ blinder add_platform
 
 `detect`, `commonExtensions`, `getAutoFixReplacement`만 있으면 동작:
 
-```javascript
-// src/platforms/backend/python.js
+```typescript
+// src/platforms/backend/python.ts
 import fs from 'fs';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
@@ -73,9 +73,9 @@ export default definePlatform({
 });
 ```
 
-`src/platforms/index.js`에 등록:
+`src/platforms/index.ts`에 등록:
 
-```javascript
+```typescript
 import python from './backend/python.js';
 
 export const platforms = [
@@ -135,8 +135,9 @@ export const platforms = [
 # 유닛 + 파서 + 분류기 테스트
 npm test
 
-# 레지스트리 파싱 확인
-node -e "import('./src/platforms/index.js').then(m => console.log(m.platforms.map(p => p.id)))"
+# 타입 체크 + 레지스트리 파싱 확인
+npx tsc --noEmit
+node --import tsx -e "import('./src/platforms/index.ts').then(m => console.log(m.platforms.map(p => p.id)))"
 
 # 플랫폼 감지 + Auto-fix 미리보기
 blinder scan --path /your/project --dry-run
@@ -150,7 +151,7 @@ blinder blind --path /your/project --dry-run -y
 | 증상 | 해결 |
 |---|---|
 | `Platform plugin must have an "id" property.` | 필수 필드(`id`/`name`/`detect`/`commonExtensions`) 채우기 |
-| 파일은 생성됐는데 동작 안함 | `index.js`에 import + 배열 등록 누락 |
+| 파일은 생성됐는데 동작 안함 | `index.ts`에 import + 배열 등록 누락 |
 | `Detected platforms`에 안 나타남 | `detect()`가 false. 마커 파일은 **repo 루트** 기준 |
 | 주석 안 시크릿까지 치환 | `commentRegex` 오버라이드 |
 | `blind` 후 빌드 깨짐 | `setupBridge()` 구현 필요 |
