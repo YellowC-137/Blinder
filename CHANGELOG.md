@@ -24,9 +24,36 @@
 
 ---
 
-## [1.1.0] - 2026-04-30
+## [1.1.0] - 2026-06-11
 
-대규모 보안 / 구조 / 운영 개선. 자세한 내용은 `IMPROVEMENTS_2026-04-30.md` 참고.
+TypeScript 마이그레이션 + 대규모 보안 / 구조 / 운영 개선. v1.0.0 이후 변경 전체 포함 (2026-04-30 개선분은 `IMPROVEMENTS_2026-04-30.md` 참고).
+
+### Security
+- **시크릿 매핑 파일 위치 이동** — 마스킹 사본 내부 `.blinder_map.json` → 프로젝트 루트 `.blinder_maps/<사본폴더명>.json`. 사본 폴더를 통째로 AI에 공유해도 시크릿 유출 없음. 구버전 레이아웃은 `restore` 가 계속 인식.
+- `restore` cleanup 시 매핑 파일 자동 삭제 — 사본 제거 후 시크릿 잔존(orphan map) 방지.
+- `performMasking` 경로 탈출 방어 — `..` / 절대경로 항목은 사본 복사에서 제외.
+
+### Added
+- `.gitignore` Blinder 블록에 `# --- BLINDER <ID> END ---` 종료 마커 — `rollback` 이 사용자 라인을 건드리지 않고 Blinder 블록만 정밀 제거.
+- `test/fix_review_test.js` — parseEnv / cleanGitignore / regexGuard / 맵 위치 / findMaskedDirectory 회귀 테스트 23종.
+- `.github/dependabot.yml` — `web-tree-sitter` ≥0.26 ignore (tree-sitter-wasms dylink 비호환).
+
+### Changed
+- **전체 코드베이스 TypeScript(strict) 마이그레이션** — NodeNext ESM, tsx 로더 기반 테스트.
+- `web-tree-sitter` 0.25.10 으로 업그레이드/고정 — named export(`Parser`/`Language`) API 대응. 0.26+ 은 모든 언어 wasm 로드가 실패하므로 차단.
+- `add_platform` 스캐폴더가 `.ts` 플러그인 생성 + `index.ts` 등록.
+- 문서 전면 갱신 — README(ko/en), docs/*, CONTRIBUTING: 맵 위치 / 토큰 포맷 / Node 20.12+ / TS 기준 반영.
+
+### Fixed
+- `package.json` 에 `p-limit` 의존성 누락 — 신규 설치 시 `blinder` 실행 불가 + CI 전 매트릭스 실패 원인.
+- `cleanGitignore` 가 BLINDER 블록 뒤 사용자 `.gitignore` 내용을 파일 끝까지 삭제하던 버그.
+- 사용자 정의 패턴 RegExp 인스턴스에 `g` 플래그 미강제 → `matchAll` TypeError 로 해당 파일 스캔이 통째로 스킵되던 문제 (시크릿 미탐).
+- `parseEnv` 1글자 따옴표 값(`"` / `'`) 오파싱.
+- 대용량 파일 EOL 감지 — 문자열 내 `\r` 을 CRLF 로 오인해 AST 오프셋이 틀어지던 문제.
+
+---
+
+### 2026-04-30 개선분 (상세)
 
 ### Added
 - `src/utils/regexGuard.js` — `.blinderSettings.customPatterns` ReDoS 가드 (정적 분석 + 50ms self-test).
@@ -66,6 +93,6 @@
 
 기본 시크릿 탐지 / blind / mask / restore 워크플로. 플랫폼 플러그인: ios, android, flutter, react, node, java, springboot, ruby, common.
 
-[Unreleased]: https://github.com/jshwang8048/Blinder/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/jshwang8048/Blinder/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/jshwang8048/Blinder/releases/tag/v1.0.0
+[Unreleased]: https://github.com/YellowC-137/Blinder/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/YellowC-137/Blinder/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/YellowC-137/Blinder/releases/tag/v1.0.0

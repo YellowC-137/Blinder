@@ -1,6 +1,6 @@
 {
   "name": "blinder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Blinder - AI-Agent Security & Secret Protection with Plugin Architecture",
   "main": "index.js",
   "type": "module",
@@ -52,6 +52,7 @@
     "fast-glob": "^3.3.3",
     "inquirer": "^13.4.1",
     "ora": "^9.4.0",
+    "p-limit": "^6.2.0",
     "plist": "^5.0.0",
     "tree-sitter-wasms": "^0.1.13",
     "web-tree-sitter": "^0.25.10",
