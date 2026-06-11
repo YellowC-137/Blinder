@@ -1,5 +1,6 @@
 import path from 'path';
-import Parser from 'web-tree-sitter';
+// web-tree-sitter 0.25+: default export 제거, named export (Parser/Language) 사용
+import { Parser, Language } from 'web-tree-sitter';
 import fs from 'fs';
 import { createRequire } from 'module';
 import logger from '../utils/logger.js';
@@ -17,7 +18,7 @@ interface ValidateMatchOptions {
  */
 class ASTProvider {
   private parser: Parser | null;
-  private languages: Map<string, Parser.Language>;
+  private languages: Map<string, Language>;
   private initialized: boolean;
   private wasmDir: string;
   private disabled: boolean;
@@ -56,7 +57,13 @@ class ASTProvider {
     }
 
     try {
-      const selfWasmPath: string = require.resolve('web-tree-sitter/tree-sitter.wasm');
+      // 런타임 wasm 파일명: ≤0.25 는 tree-sitter.wasm, 0.26+ 는 web-tree-sitter.wasm
+      let selfWasmPath: string;
+      try {
+        selfWasmPath = require.resolve('web-tree-sitter/tree-sitter.wasm');
+      } catch {
+        selfWasmPath = require.resolve('web-tree-sitter/web-tree-sitter.wasm');
+      }
       await Parser.init({
         locateFile(): string { return selfWasmPath; }
       });
@@ -73,7 +80,7 @@ class ASTProvider {
   /**
    * 언어별 WASM 로드
    */
-  async loadLanguage(langId: string): Promise<Parser.Language> {
+  async loadLanguage(langId: string): Promise<Language> {
     if (this.languages.has(langId)) return this.languages.get(langId)!;
 
     const wasmPath = path.join(this.wasmDir, `tree-sitter-${langId}.wasm`);
@@ -83,13 +90,13 @@ class ASTProvider {
     }
 
     try {
-      const lang = await Parser.Language.load(wasmPath);
+      const lang = await Language.load(wasmPath);
       this.languages.set(langId, lang);
       return lang;
     } catch (err) {
       try {
         const wasmBuffer = fs.readFileSync(wasmPath);
-        const lang = await Parser.Language.load(wasmBuffer);
+        const lang = await Language.load(wasmBuffer);
         this.languages.set(langId, lang);
         return lang;
       } catch (innerErr) {
@@ -120,7 +127,9 @@ class ASTProvider {
       this.parser!.setLanguage(lang);
 
       const sourceCode = fs.readFileSync(filePath, 'utf8');
+      // 0.25+ 에서 parse() 가 null 반환 가능 (취소/타임아웃)
       const tree = this.parser!.parse(sourceCode);
+      if (!tree) return true; // Fallback to Regex
 
       // 해당 오프셋에 있는 노드 찾기
       const node = tree.rootNode.descendantForIndex(startOffset);
