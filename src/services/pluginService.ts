@@ -29,7 +29,7 @@ export function generatePluginFile(sourceRoot: string, config: PluginConfig): st
     fs.mkdirSync(categoryDir, { recursive: true });
   }
 
-  const pluginPath = path.join(categoryDir, `${id}.js`);
+  const pluginPath = path.join(categoryDir, `${id}.ts`);
   if (fs.existsSync(pluginPath)) {
     throw new Error(`Plugin file already exists: ${pluginPath}`);
   }
@@ -82,7 +82,9 @@ export default definePlatform({
  */
 export function registerPlugin(sourceRoot: string, config: PluginConfig): boolean {
   const { id, category } = config;
-  const indexPath = path.join(sourceRoot, 'platforms', 'index.js');
+  // TS 소스 레지스트리 우선, (컴파일 산출물에서 실행된 경우) JS fallback
+  let indexPath = path.join(sourceRoot, 'platforms', 'index.ts');
+  if (!fs.existsSync(indexPath)) indexPath = path.join(sourceRoot, 'platforms', 'index.js');
   if (!fs.existsSync(indexPath)) return false;
 
   let indexContent = fs.readFileSync(indexPath, 'utf8');

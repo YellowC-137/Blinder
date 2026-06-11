@@ -6,7 +6,8 @@
 
 [🇰🇷 한국어](./README.md) · [🇺🇸 English](./README_en.md) · [Contributing](./CONTRIBUTING.md)
 
-[![Node.js](https://img.shields.io/badge/node-%E2%89%A518-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A520.12-brightgreen.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](./tsconfig.json)
 [![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Flutter%20%7C%20Node%20%7C%20Spring%20%7C%20React%20%7C%20Ruby-orange.svg)](#-supported-platforms--languages)
 [![Plugin Architecture](https://img.shields.io/badge/architecture-plugin--based-purple.svg)](./docs/architecture.md)
@@ -64,9 +65,11 @@ blinder restore     # merge AI edits back to original
 **`blinder mask`** — create a read-only copy safe to share with AI:
 
 ```diff
-- apiKey: "AIzaSy9xK2mP3rT..."                  # original (leak risk)
-+ apiKey: "__BLINDER_VAR__FIREBASE_API_KEY"       # masked (safe)
+- apiKey: "AIzaSy9xK2mP3rT..."              # original (leak risk)
++ apiKey: "__BLINDER_FIREBASE_API_KEY__"    # masked (safe)
 ```
+
+The secret ↔ token mapping is stored **outside** the copy (`<project root>/.blinder_maps/`), so sharing the entire masked directory with an AI leaks nothing.
 
 > [!IMPORTANT]
 > You cant Build masked project. It is only for AI Agent read-only project.
@@ -78,9 +81,10 @@ blinder restore     # merge AI edits back to original
 | Risk Scenario | How Blinder Solves It |
 |---|---|
 | 🪣 **Sharing folder "minus `.env`"** — hardcoded keys in source still ship | `blind` extracts keys into `.env` + auto-rewrites with env accessors |
-| 🤖 **Asking AI to "refactor"** — partial keys end up in answers / training data | `mask` replaces all secrets with `__BLINDER_VAR__` tokens in a **read-only copy** |
+| 🤖 **Asking AI to "refactor"** — partial keys end up in answers / training data | `mask` replaces all secrets with `__BLINDER_*__` tokens in a **read-only copy** |
 | 🧨 **Worried about breaking the build** — moving keys to `.env` needs BuildConfig / Info.plist / dart-define wiring | `bridge` idempotently injects per-platform build-system wiring |
-| 🔁 **Merging AI edits back** — flipping tokens back to real secrets is error-prone | `restore` auto-restores from `.blinder_map.json` |
+| 🔁 **Merging AI edits back** — flipping tokens back to real secrets is error-prone | `restore` auto-restores from the `.blinder_maps/` mapping |
+| 📦 **Sharing the copy wholesale leaks the map** — the mapping file holds every original secret | The map lives **outside** the copy (`.blinder_maps/`) — the copy contains zero secrets |
 | 🚨 **CI/CD gate needed** | `scan --ci` returns non-zero exit code for pipeline gating |
 
 </details>
@@ -124,7 +128,7 @@ Blinder works on the current working tree only. Clean older commits with [BFG Re
 Almost always caused by skipping `bridge`. Run `blinder bridge`. Still broken? `blinder rollback` reverts everything instantly.
 
 **Q. Can I build the masked copy (`maskedProject_*`)?**
-❌ Never. Every secret is replaced with `__BLINDER_VAR__` — compile errors guaranteed. The copy is **read-only**.
+❌ Never. Every secret is replaced with a `__BLINDER_*__` token — compile errors guaranteed. The copy is **read-only**.
 
 **Q. How do I integrate with CI/CD?**
 ```yaml
@@ -132,8 +136,11 @@ Almost always caused by skipping `bridge`. Run `blinder bridge`. Still broken? `
   run: npx -y github:YellowC-137/Blinder scan --ci
 ```
 
-**Q. Should I commit `.blinder_protect.json` / `.blinder_map.json`?**
-❌ Both are auto-added to `.gitignore`. Local-only. **Never delete them** — without them, restore/merge is not possible.
+**Q. Should I commit `.blinder_protect.json` / `.blinder_maps/`?**
+❌ Both are auto-added to `.gitignore`. Local-only. **Never delete them** until `restore`/`rollback` is done — without them, merging back is not possible.
+
+**Q. Where is the secret mapping stored?**
+`<project root>/.blinder_maps/<maskDirName>.json`. The masked copy itself contains no secrets at all, so sharing the whole copy directory is safe. (Legacy `.blinder_map.json` inside old copies is still recognized by `restore`.)
 
 </details>
 
