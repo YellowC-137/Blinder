@@ -13,7 +13,12 @@
       "Bash(sed -i '' '/^$/N;/^\\\\n$/d' src/platforms/backend/springboot.js)",
       "Bash(sed -i '' '/^$/N;/^\\\\n$/d' src/platforms/backend/java.js)",
       "Bash(python3:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx tsx:*)",
+      "Bash(ls:*)",
+      "Bash(git stash:*)"
     ]
   },
   "hooks": {

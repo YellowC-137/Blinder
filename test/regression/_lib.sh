@@ -6,7 +6,7 @@ set -u
 
 REGRESSION_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BLINDER_ROOT="$(cd "$REGRESSION_ROOT/../.." && pwd)"
-BLINDER_BIN="$BLINDER_ROOT/bin/blinder.js"
+BLINDER_BIN="$BLINDER_ROOT/bin/blinder.ts"
 
 color_red() { printf '\033[31m%s\033[0m\n' "$1"; }
 color_green() { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -57,13 +57,13 @@ with_timeout() {
 run_blinder_blind() {
   local target="$1"
   color_blue "→ blinder blind --yes (target: $target, timeout: ${BLINDER_REGRESSION_TIMEOUT}s)"
-  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node "$BLINDER_BIN" blind --yes)
+  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node --import tsx "$BLINDER_BIN" blind --yes)
 }
 
 run_blinder_restore() {
   local target="$1"
   color_blue "→ blinder restore --yes (timeout: ${BLINDER_REGRESSION_TIMEOUT}s)"
-  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node "$BLINDER_BIN" restore --yes)
+  (cd "$target" && with_timeout "$BLINDER_REGRESSION_TIMEOUT" node --import tsx "$BLINDER_BIN" restore --yes)
 }
 
 verify_expected() {

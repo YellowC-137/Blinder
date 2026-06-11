@@ -1,0 +1,292 @@
+/**
+ * keyClassifier
+ *
+ * Centralized whitelist/blacklist for auto-fix decisions.
+ * - whitelist: SDK/secret 키 이름 → auto-fix 안전
+ * - blacklist: 시스템/예약 키 prefix → auto-fix 금지 (빌드 깨짐 위험)
+ *
+ * Used by parsers (plist, properties, manifest) and platform applyAdvancedFix
+ * hooks. Detection 단계는 영향 없음 — auto-fix gating에만 사용.
+ */
+
+import type { ClassifyResult, ClassifyKeyInput } from './types.js';
+
+// ──────────────────────────────────────────────────────────────
+// iOS Info.plist
+// ──────────────────────────────────────────────────────────────
+const IOS_PLIST_WHITELIST: RegExp[] = [
+  /^KAKAO[_A-Z0-9]*$/i,
+  /^NAVER[_A-Z0-9]*$/i,
+  /^NMF[_A-Z0-9]*Client(Id|Secret)?$/i,
+  /^GOOGLE[_A-Z0-9]*API[_A-Z0-9]*KEY$/i,
+  /^GIDClientID$/,
+  /^FIREBASE[_A-Z0-9]*$/i,
+  /^FacebookAppID$/,
+  /^FacebookClientToken$/,
+  /^GMSApiKey$/,
+  /^GADApplicationIdentifier$/,
+  /^MixpanelToken$/i,
+  /^SentryDSN$/i,
+  /^AmplitudeApiKey$/i,
+  /^[A-Z][A-Z0-9_]*_API_KEY$/,
+  /^[A-Z][A-Z0-9_]*_APP_KEY$/,
+  /^[A-Z][A-Z0-9_]*_CLIENT_ID$/,
+  /^[A-Z][A-Z0-9_]*_CLIENT_SECRET$/,
+  /^[A-Z][A-Z0-9_]*_TOKEN$/
+];
+
+const IOS_PLIST_BLACKLIST_PREFIX: string[] = [
+  'CF', 'NS', 'UI', 'LS', 'MK', 'SK', 'CK', 'AV', 'CL'
+];
+
+const IOS_PLIST_BLACKLIST_EXACT: Set<string> = new Set([
+  'CFBundleIdentifier', 'CFBundleVersion', 'CFBundleShortVersionString',
+  'CFBundleName', 'CFBundleDisplayName', 'CFBundleExecutable',
+  'CFBundleInfoDictionaryVersion', 'CFBundlePackageType', 'CFBundleSignature',
+  'CFBundleDevelopmentRegion', 'CFBundleSupportedPlatforms',
+  'CFBundleURLSchemes', 'CFBundleURLTypes', 'CFBundleURLName',
+  'LSRequiresIPhoneOS', 'LSApplicationCategoryType', 'LSMinimumSystemVersion',
+  'UILaunchStoryboardName', 'UIMainStoryboardFile', 'UIRequiredDeviceCapabilities',
+  'UIDeviceFamily', 'UISupportedInterfaceOrientations', 'UIBackgroundModes',
+  'UIStatusBarStyle', 'UIStatusBarHidden', 'UIViewControllerBasedStatusBarAppearance',
+  'NSAppTransportSecurity', 'NSAllowsArbitraryLoads',
+  'MinimumOSVersion', 'DTPlatformVersion', 'DTSDKName', 'BuildMachineOSBuild'
+]);
+
+// ──────────────────────────────────────────────────────────────
+// iOS xcconfig
+// ──────────────────────────────────────────────────────────────
+const IOS_XCCONFIG_BLACKLIST_PREFIX: string[] = [
+  'OTHER_', 'GCC_', 'LD_', 'SWIFT_', 'IPHONEOS_', 'MACOSX_', 'TVOS_', 'WATCHOS_',
+  'BUILD_', 'CODE_SIGN_', 'PROVISIONING_', 'PRODUCT_', 'TARGETED_', 'CLANG_',
+  'WARNING_', 'ENABLE_', 'DEBUG_', 'RELEASE_', 'ASSETCATALOG_', 'APPLICATION_'
+];
+
+const IOS_XCCONFIG_BLACKLIST_EXACT: Set<string> = new Set([
+  'ARCHS', 'SDKROOT', 'VALID_ARCHS', 'EXCLUDED_ARCHS', 'ONLY_ACTIVE_ARCH',
+  'DEVELOPMENT_TEAM', 'CODE_SIGN_IDENTITY', 'CODE_SIGN_STYLE', 'PROVISIONING_PROFILE',
+  'INFOPLIST_FILE', 'PRODUCT_BUNDLE_IDENTIFIER', 'PRODUCT_NAME', 'EXECUTABLE_NAME',
+  'TARGETED_DEVICE_FAMILY', 'IPHONEOS_DEPLOYMENT_TARGET', 'MACOSX_DEPLOYMENT_TARGET',
+  'SWIFT_VERSION', 'SWIFT_OPTIMIZATION_LEVEL', 'GCC_OPTIMIZATION_LEVEL',
+  'FRAMEWORK_SEARCH_PATHS', 'LIBRARY_SEARCH_PATHS', 'HEADER_SEARCH_PATHS',
+  'USER_HEADER_SEARCH_PATHS', 'SYSTEM_HEADER_SEARCH_PATHS'
+]);
+
+// ──────────────────────────────────────────────────────────────
+// AndroidManifest.xml meta-data
+// ──────────────────────────────────────────────────────────────
+const ANDROID_META_WHITELIST: RegExp[] = [
+  /^com\.kakao\.sdk\./,
+  /^com\.naver\./,
+  /^com\.google\.android\.geo\.API_KEY$/,
+  /^com\.google\.android\.gms\.ads\.APPLICATION_ID$/,
+  /^com\.facebook\.sdk\./,
+  /^io\.fabric\.ApiKey$/,
+  /^firebase_/,
+  /^FIREBASE_/,
+  /^[A-Z][A-Z0-9_]*_API_KEY$/,
+  /^[A-Z][A-Z0-9_]*_APP_KEY$/,
+  /^[A-Z][A-Z0-9_]*_CLIENT_ID$/
+];
+
+const ANDROID_META_BLACKLIST_PREFIX: string[] = [
+  'android.support.', 'androidx.',
+  'com.google.android.gms.version',
+  'com.google.android.gms.car.application',
+  'com.google.firebase.messaging.default_notification_',
+  'com.google.firebase.crashlytics.unity_version'
+];
+
+const ANDROID_META_BLACKLIST_EXACT: Set<string> = new Set([
+  'android.support.VERSION',
+  'com.google.android.gms.version',
+  'com.google.firebase.messaging.default_notification_icon',
+  'com.google.firebase.messaging.default_notification_color'
+]);
+
+// ──────────────────────────────────────────────────────────────
+// Android properties
+// ──────────────────────────────────────────────────────────────
+const ANDROID_PROPS_BLACKLIST_PREFIX: string[] = [
+  'org.gradle.', 'android.', 'kotlin.', 'systemProp.', 'kapt.', 'ksp.',
+  'sdk.dir', 'ndk.dir', 'cmake.dir',
+  'android.useAndroidX', 'android.enableJetifier'
+];
+
+const ANDROID_PROPS_WHITELIST_KEY_HINT: RegExp[] = [
+  /API[_-]?KEY/i, /APP[_-]?KEY/i, /CLIENT[_-]?ID/i, /CLIENT[_-]?SECRET/i,
+  /TOKEN/i, /SECRET/i, /PASSWORD/i, /PASSWD/i, /KEYSTORE[_-]?PASSWORD/i,
+  /KEY[_-]?ALIAS/i, /STORE[_-]?PASSWORD/i, /SIGNING[_-]?KEY/i
+];
+
+// ──────────────────────────────────────────────────────────────
+// Spring Boot application.{properties,yml,yaml}
+// ──────────────────────────────────────────────────────────────
+//
+// Spring 키는 dot/kebab/snake 혼용 (spring.datasource.password,
+// spring.datasource.url, my-app.api-key, MY_APP_API_KEY 등).
+// 정규화: 소문자, 구분자(_,-)→`.` 으로 통일 후 매칭.
+const SPRING_BLACKLIST_PREFIX: string[] = [
+  'server.',
+  'spring.application.',
+  'spring.profiles.',
+  'spring.main.',
+  'spring.jpa.show',
+  'spring.jpa.hibernate.ddl',
+  'spring.jpa.properties.hibernate.dialect',
+  'spring.jpa.open',
+  'spring.mvc.',
+  'spring.web.',
+  'spring.thymeleaf.',
+  'spring.freemarker.',
+  'spring.jackson.',
+  'spring.servlet.',
+  'spring.resources.',
+  'spring.banner.',
+  'spring.output.',
+  'logging.',
+  'management.',
+  'springdoc.',
+  'info.'
+];
+
+const SPRING_BLACKLIST_EXACT: Set<string> = new Set([
+  'server.port',
+  'server.address',
+  'server.servlet.context.path',
+  'spring.application.name',
+  'spring.profiles.active',
+  'spring.profiles.include',
+  'spring.main.banner.mode',
+  'spring.main.web.application.type'
+]);
+
+const SPRING_WHITELIST_KEY_HINT: RegExp[] = [
+  /(^|\.)password$/i,
+  /(^|\.)passwd$/i,
+  /(^|\.)secret$/i,
+  /(^|\.)client\.secret$/i,
+  /(^|\.)access[._]?key$/i,
+  /(^|\.)secret[._]?key$/i,
+  /(^|\.)api[._]?key$/i,
+  /(^|\.)app[._]?key$/i,
+  /(^|\.)client[._]?id$/i,
+  /(^|\.)token$/i,
+  /(^|\.)access[._]?token$/i,
+  /(^|\.)refresh[._]?token$/i,
+  /(^|\.)private[._]?key$/i,
+  /(^|\.)keystore[._]?password$/i,
+  /(^|\.)trust[._]?store[._]?password$/i,
+  /(^|\.)jdbc[._]?url$/i,
+  /spring\.datasource\.url$/i,
+  /spring\.datasource\.username$/i,
+  /spring\.datasource\.password$/i,
+  /spring\.mail\.password$/i,
+  /spring\.mail\.username$/i,
+  /spring\.redis\.password$/i,
+  /spring\.rabbitmq\.password$/i,
+  /spring\.kafka\..*\.password$/i,
+  /spring\.security\.oauth2\.client\.registration\..*\.client[._]?secret$/i,
+  /spring\.security\.oauth2\.client\.registration\..*\.client[._]?id$/i
+];
+
+function normalizeSpringKey(key: string): string {
+  return String(key).toLowerCase().replace(/[_-]/g, '.');
+}
+
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
+
+function matchesAny(patterns: RegExp[], value: string): boolean {
+  return patterns.some(p => (p instanceof RegExp ? p.test(value) : value.startsWith(p as never) || value === (p as never)));
+}
+
+function startsWithAny(prefixes: string[], value: string): boolean {
+  return prefixes.some(p => value.startsWith(p));
+}
+
+/**
+ * iOS Info.plist 키가 auto-fix 안전한지 판정.
+ * @returns {{ allowed: boolean, reason: string }}
+ */
+export function classifyPlistKey(key: string): ClassifyResult {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  if (IOS_PLIST_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system key (exact match)' };
+  if (startsWithAny(IOS_PLIST_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system key prefix' };
+  if (matchesAny(IOS_PLIST_WHITELIST, key)) return { allowed: true, reason: 'SDK/secret pattern' };
+  return { allowed: false, reason: 'not in whitelist (default deny)' };
+}
+
+/**
+ * iOS xcconfig 키 — 자체참조 위험으로 영구 detection-only.
+ */
+export function classifyXcconfigKey(key: string): ClassifyResult {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  if (IOS_XCCONFIG_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system build setting' };
+  if (startsWithAny(IOS_XCCONFIG_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system build setting prefix' };
+  return { allowed: false, reason: 'xcconfig auto-fix permanently disabled (self-reference risk)' };
+}
+
+/**
+ * AndroidManifest meta-data 키 판정.
+ */
+export function classifyManifestMetaKey(key: string): ClassifyResult {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  if (ANDROID_META_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system meta-data (exact match)' };
+  if (startsWithAny(ANDROID_META_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system meta-data prefix' };
+  if (matchesAny(ANDROID_META_WHITELIST, key)) return { allowed: true, reason: 'SDK meta-data pattern' };
+  return { allowed: false, reason: 'not in whitelist (default deny)' };
+}
+
+/**
+ * Android properties 키 — local.properties 영구 차단, gradle.properties는
+ * 시스템 prefix 차단 + key 이름 힌트 매칭 시 detection 가능 (auto-fix는 별도 결정).
+ */
+export function classifyPropertiesKey(key: string, filename?: string): ClassifyResult {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  if (filename && filename.endsWith('local.properties')) {
+    return { allowed: false, reason: 'local.properties 자동치환 영구 차단 (gitignore 대상)' };
+  }
+  if (startsWithAny(ANDROID_PROPS_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'gradle/android 시스템 키' };
+  if (matchesAny(ANDROID_PROPS_WHITELIST_KEY_HINT, key)) return { allowed: true, reason: 'secret 키 명명 힌트' };
+  return { allowed: false, reason: 'not in whitelist (default deny)' };
+}
+
+/**
+ * Spring Boot application.{properties,yml,yaml} 키 판정.
+ * - 시스템(server.*, spring.application.*, logging.*, management.*) → block
+ * - secret 명명 힌트 (password/secret/api-key/token/jdbc.url 등) → allow
+ * - 그 외 → default deny
+ */
+export function classifySpringPropertyKey(key: string): ClassifyResult {
+  if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
+  const norm = normalizeSpringKey(key);
+  if (SPRING_BLACKLIST_EXACT.has(norm)) return { allowed: false, reason: 'spring system key (exact match)' };
+  if (startsWithAny(SPRING_BLACKLIST_PREFIX, norm)) return { allowed: false, reason: 'spring system key prefix' };
+  if (matchesAny(SPRING_WHITELIST_KEY_HINT, norm)) return { allowed: true, reason: 'spring secret key hint' };
+  return { allowed: false, reason: 'not in whitelist (default deny)' };
+}
+
+/**
+ * Aggregator: 파일타입 + 키 → 판정
+ */
+export function classifyKey({ fileType, key, filename }: ClassifyKeyInput): ClassifyResult {
+  switch (fileType) {
+    case 'plist':       return classifyPlistKey(key);
+    case 'xcconfig':    return classifyXcconfigKey(key);
+    case 'manifest':    return classifyManifestMetaKey(key);
+    case 'properties':  return classifyPropertiesKey(key, filename);
+    case 'spring':      return classifySpringPropertyKey(key);
+    default:            return { allowed: false, reason: `unknown fileType: ${fileType}` };
+  }
+}
+
+export const _internal = {
+  IOS_PLIST_WHITELIST, IOS_PLIST_BLACKLIST_PREFIX, IOS_PLIST_BLACKLIST_EXACT,
+  IOS_XCCONFIG_BLACKLIST_PREFIX, IOS_XCCONFIG_BLACKLIST_EXACT,
+  ANDROID_META_WHITELIST, ANDROID_META_BLACKLIST_PREFIX, ANDROID_META_BLACKLIST_EXACT,
+  ANDROID_PROPS_BLACKLIST_PREFIX, ANDROID_PROPS_WHITELIST_KEY_HINT,
+  SPRING_BLACKLIST_PREFIX, SPRING_BLACKLIST_EXACT, SPRING_WHITELIST_KEY_HINT,
+  normalizeSpringKey
+};
