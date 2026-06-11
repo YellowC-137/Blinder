@@ -37,7 +37,11 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
     return;
   }
 
-  const mapPath: string = path.join(maskDir, '.blinder_map.json');
+  // Map lives in .blinder_maps/<maskDirName>.json; fall back to the legacy
+  // in-maskDir location for copies created by older versions.
+  const newMapPath: string = path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`);
+  const legacyMapPath: string = path.join(maskDir, '.blinder_map.json');
+  const mapPath: string = fs.existsSync(newMapPath) ? newMapPath : legacyMapPath;
   if (!fs.existsSync(mapPath)) {
     logger.error(t('restore_no_map_in_dir', { dir: maskDir }));
     return;
@@ -206,6 +210,13 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
   if (cleanup && !options.dryRun) {
     try {
       fs.rmSync(maskDir, { recursive: true, force: true });
+      // The map for this maskDir holds the original secrets — don't leave it
+      // orphaned after the masked copy is gone.
+      fs.rmSync(newMapPath, { force: true });
+      const mapsDir = path.dirname(newMapPath);
+      if (fs.existsSync(mapsDir) && fs.readdirSync(mapsDir).length === 0) {
+        fs.rmdirSync(mapsDir);
+      }
       logger.success(t('restore_cleanup_success'));
     } catch (err: unknown) {
       // Cleanup is best-effort. ENOTEMPTY (e.g. macOS Finder created

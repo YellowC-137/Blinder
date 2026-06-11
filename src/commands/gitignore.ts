@@ -23,13 +23,16 @@ export async function generateGitignore(repoPath: string, platforms: Platform[])
       const template: string = platform.getGitignoreTemplate();
       const section: string = platform.id;
       const marker: string = `# --- BLINDER ${section.toUpperCase()} ---`;
-      
+      const endMarker: string = `# --- BLINDER ${section.toUpperCase()} END ---`;
+
       if (newContent.includes(marker)) {
         logger.info(t('gitignore_already_contains', { name: platform.name }));
         continue;
       }
 
-      newContent += `\n${marker}\n${template}\n`;
+      // END marker bounds the block so cleanGitignore can remove it without
+      // touching user lines appended after it.
+      newContent += `\n${marker}\n${template}\n${endMarker}\n`;
       logger.success(t('gitignore_added_section', { name: platform.name }));
     }
   }

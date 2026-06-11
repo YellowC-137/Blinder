@@ -72,6 +72,7 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
     '.env',
     '.env.example',
     '.blinder_map.json',
+    '.blinder_maps/**',
     'Pods/**',
     'build/**',
     'dist/**',
@@ -172,6 +173,6 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
 
   logger.header(t('mask_complete'));
   logger.info(t('mask_safe_copy', { dir: maskDir }));
-  logger.success(t('mask_mapping_saved', { path: `${maskDir}/.blinder_map.json` }));
+  logger.success(t('mask_mapping_saved', { path: path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`) }));
   logger.warn(t('mask_note_ai'));
 }

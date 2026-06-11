@@ -213,6 +213,20 @@ export function detectChanges(maskDir: string, repoPath: string, mapData: Maskin
 export function findMaskedDirectory(repoPath: string): string | null {
   const projectName = path.basename(repoPath);
   const conventionDir = path.join(repoPath, `maskedProject_${projectName}`);
+
+  // New layout: maps live in .blinder_maps/<maskDirName>.json
+  const mapsDir = path.join(repoPath, '.blinder_maps');
+  try {
+    const mapFiles = fs.readdirSync(mapsDir).filter(f => f.endsWith('.json'));
+    // Prefer the convention-named map when several exist
+    const conventionMap = `${path.basename(conventionDir)}.json`;
+    mapFiles.sort((a, b) => (a === conventionMap ? -1 : 0) - (b === conventionMap ? -1 : 0));
+    for (const mf of mapFiles) {
+      const dir = path.join(repoPath, mf.slice(0, -'.json'.length));
+      if (fs.existsSync(dir)) return dir;
+    }
+  } catch { /* no .blinder_maps dir — fall through to legacy lookup */ }
+
   if (fs.existsSync(path.join(conventionDir, '.blinder_map.json'))) return conventionDir;
 
   const legacyDir = path.join(repoPath, '.blinder_masked');

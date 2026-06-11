@@ -14,8 +14,10 @@ export function parseEnv(content: string): Record<string, string> {
     const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
     if (match) {
       let value = match[2] || '';
-      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-      else if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+      // length >= 2: a lone `"` or `'` is its own start AND end — slicing it
+      // would silently turn the value into an empty string
+      if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      else if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
       env[match[1]] = value;
     }
   }
@@ -146,15 +148,22 @@ export function cleanGitignore(repoPath: string): boolean {
   const gitignorePath = path.join(repoPath, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
     let gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
-    // Match BLINDER blocks at file start (^) or after newline (\n)
-    const blinderRegex = /(?:^|\n)# --- BLINDER [A-Z]+ ---\n[\s\S]*?(?=\n# --- BLINDER|$)/g;
+    const original = gitignoreContent;
 
-    blinderRegex.lastIndex = 0;
-    const hasBlinder = blinderRegex.test(gitignoreContent);
-    blinderRegex.lastIndex = 0;
-    if (hasBlinder) {
-      gitignoreContent = gitignoreContent.replace(blinderRegex, '');
-      gitignoreContent = gitignoreContent.trim() + '\n';
+    // Paired START..END blocks (current write format) — exact bounds, user
+    // lines after the END marker are never touched.
+    const pairedRegex = /(?:^|\n)# --- BLINDER ([A-Z0-9_]+) ---\n[\s\S]*?\n# --- BLINDER \1 END ---(?=\n|$)/g;
+    gitignoreContent = gitignoreContent.replace(pairedRegex, '');
+
+    // Legacy blocks without END marker: bounded at the next BLINDER marker, a
+    // 2+ blank-line gap, or EOF. User lines appended directly after a legacy
+    // block (no blank gap) can still be caught — unavoidable without the END
+    // marker, which all newly written blocks now have.
+    const legacyRegex = /(?:^|\n)# --- BLINDER [A-Z0-9_]+ ---\n[\s\S]*?(?=\n# --- BLINDER|\n{3,}|$)/g;
+    gitignoreContent = gitignoreContent.replace(legacyRegex, '');
+
+    if (gitignoreContent !== original) {
+      gitignoreContent = gitignoreContent.replace(/\n{3,}/g, '\n\n').trim() + '\n';
       fs.writeFileSync(gitignorePath, gitignoreContent);
       return true;
     }

@@ -8,7 +8,7 @@
     "blinder": "./dist/bin/blinder.js"
   },
   "scripts": {
-    "test": "node --import tsx test/pattern_test.js && node --import tsx test/platform_unit_test.js && node --import tsx test/key_classifier_test.js && node --import tsx test/parser_test.js && node --import tsx test/test_regex.js && node --import tsx test/test_blind.js",
+    "test": "node --import tsx test/pattern_test.js && node --import tsx test/platform_unit_test.js && node --import tsx test/key_classifier_test.js && node --import tsx test/parser_test.js && node --import tsx test/test_regex.js && node --import tsx test/test_blind.js && node --import tsx test/fix_review_test.js",
     "test:integration": "node --import tsx test/platform_integration_test.js && node --import tsx test/objc_migration_test.js",
     "test:regression:ios": "bash test/regression/ios/run.sh",
     "test:regression:android": "bash test/regression/android/run.sh",

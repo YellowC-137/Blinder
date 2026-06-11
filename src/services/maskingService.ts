@@ -37,6 +37,11 @@ export async function performMasking(
   }
 
   for (const relPath of allFiles) {
+    // Defensive: a crafted entry must not escape maskDir
+    if (path.isAbsolute(relPath) || relPath.split(/[\\/]/).includes('..')) {
+      logger.debug(`Skipping unsafe path: ${relPath}`);
+      continue;
+    }
     const srcPath = path.join(repoPath, relPath);
     const destPath = path.join(maskDir, relPath);
 
@@ -94,7 +99,11 @@ export async function performMasking(
     }
   }
 
-  const mapPath = path.join(maskDir, '.blinder_map.json');
+  // The map holds every original secret value — keep it OUTSIDE maskDir so
+  // sharing the masked directory with an AI agent cannot leak secrets.
+  const mapsDir = path.join(repoPath, '.blinder_maps');
+  fs.mkdirSync(mapsDir, { recursive: true });
+  const mapPath = path.join(mapsDir, `${path.basename(maskDir)}.json`);
   fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
 
   return mappingData;

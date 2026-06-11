@@ -60,6 +60,7 @@ export default definePlatform({
   ignorePaths: [
     '**/blinder_reports/**',
     '**/maskedProject_*/**',
+    '**/.blinder_maps/**',
     '**/*.pem',
     '**/*.key',
     '**/*.p12',
@@ -72,6 +73,7 @@ export default definePlatform({
 .env
 blinder_reports/
 maskedProject_*/
+.blinder_maps/
 .blinder_protect.json
 blinder-ios-setup.sh
 *.pem

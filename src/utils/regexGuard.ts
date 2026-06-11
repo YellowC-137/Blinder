@@ -7,9 +7,8 @@
  * Validation checks:
  *   1) Compilable (SyntaxError prevention)
  *   2) Nested quantifier — `(a+)+`, `(.*)+`, `(.+)*` patterns
- *   3) Adjacent unbounded repetition — `a+a+`, `.+.+`
- *   4) Unbounded backreference + alternation — basic heuristic
- *   5) Runtime self-test — rejects if >50ms on 32-char worst-case input
+ *   3) Consecutive unbounded wildcards — `.*.*`, `.+.+`
+ *   4) Runtime self-test — rejects if >50ms on 32-char worst-case input
  *
  * Heuristic-based; not 100% guaranteed, but catches obvious dangers.
  */
@@ -17,7 +16,6 @@ import { t } from './i18n.js';
 import type { SecretPattern, Severity } from '../types/index.js';
 
 const NESTED_QUANTIFIER = /\([^()]*[+*]\s*[?+]?\s*\)\s*[+*]/;
-const ADJACENT_QUANTIFIERS = /[+*]\s*\??[^|()]*?[+*]\s*\??/;
 
 interface RawPattern {
   name?: string;
@@ -52,12 +50,14 @@ export function validateCustomPattern(p: unknown): ValidationResult {
   let regex: RegExp;
   let source: string;
   if (pat.regex instanceof RegExp) {
-    regex = pat.regex;
+    // g 플래그 강제: scanner 는 matchAll 사용 — non-global RegExp 는
+    // TypeError 를 던져 해당 파일 스캔이 통째로 스킵됨
+    regex = pat.regex.global ? pat.regex : new RegExp(pat.regex.source, pat.regex.flags + 'g');
     source = regex.source;
   } else if (typeof pat.regex === 'string') {
     source = pat.regex;
     try {
-      // 사용자 패턴은 항상 g 플래그로 통일 (scanner 가 .exec 루프 사용)
+      // 사용자 패턴은 항상 g 플래그로 통일 (scanner 가 matchAll 사용)
       regex = new RegExp(source, 'g');
     } catch (err) {
       return { ok: false, reason: `정규식 컴파일 실패: ${(err as Error).message}` };

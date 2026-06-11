@@ -175,7 +175,10 @@ async function scanLargeFile(
   const fd = fs.openSync(filePath, 'r');
   const bytesRead = fs.readSync(fd, headBuf, 0, 4096, 0);
   fs.closeSync(fd);
-  const eolBytes = headBuf.subarray(0, bytesRead).includes(0x0d) ? 2 : 1; // CRLF=2, LF=1
+  // Look for an actual \r\n sequence — a lone CR byte inside a string literal
+  // must not flip the whole file to CRLF accounting. Mixed-EOL files still
+  // drift (single eolBytes for the whole file), accepted residual risk.
+  const eolBytes = headBuf.subarray(0, bytesRead).includes(Buffer.from('\r\n')) ? 2 : 1; // CRLF=2, LF=1
 
   let lineNumber = 0;
   let byteOffset = 0;
@@ -283,7 +286,7 @@ export async function scanProject(repoPath: string, platforms: Platform[], optio
   const platformIgnores = platforms.flatMap(p => p.ignorePaths || []);
   const ignorePatterns: string[] = [
     '**/node_modules/**', '**/Pods/**', '**/Carthage/**', '**/vendor/**', '**/third_party/**',
-    '**/build/**', '**/dist/**', '**/.git/**', '**/.env',
+    '**/build/**', '**/dist/**', '**/.git/**', '**/.env', '**/.blinder_maps/**',
     // 1. 키, 인증서 및 보안 파일
     '**/id_rsa', '**/id_rsa.pub', '**/*.ppk', '**/known_hosts',
     '**/*.pem', '**/*.cer', '**/*.crt', '**/*.p12', '**/*.keystore', '**/*.jks', '**/*.certSigningRequest',
