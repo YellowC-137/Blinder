@@ -24,6 +24,29 @@
 
 ---
 
+## [1.2.0] - 2026-06-17
+
+시크릿 탐지 커버리지 확대 + 배포/마스킹 안전성 수정.
+
+### Added
+- 시크릿 탐지 패턴 추가:
+  - **JWT** (`eyJ….eyJ….…` 3-part 토큰)
+  - **AWS 세션 토큰** (`ASIA` prefix, STS/AssumeRole 임시 자격증명)
+  - **MongoDB Atlas SRV** (`mongodb+srv://` — 기존 `mongodb://` 정규식이 놓치던 형식)
+  - **GCP 서비스 계정 JSON** (`"type":"service_account"` 마커)
+- `blinder mask --dry-run`: 디스크를 수정하지 않고 마스킹 대상·시크릿 종류 미리보기.
+
+### Removed
+- 저장소에 추적되던 정크 71개 untrack (`scratch/`, `test_verification/`, `Kapture.gif`). 작업 트리 파일은 보존, `.gitignore`에 패턴 추가.
+
+### Fixed
+- **npm 배포 시 컴파일 산출물 누락**: `bin`이 `dist/bin/blinder.js`를 가리키나 `dist/`가 `files`에 없고 빌드 훅도 없어 설치가 깨지던 문제. `prepare: tsc` 추가 + `files`에 `dist/` 포함, 불필요한 raw `bin/`·`src/` 제거.
+- **`mask --dry-run`이 실제로 기록**: `performMasking`이 `dryRun`을 무시하고 마스킹 디렉터리·맵 파일을 쓰던 문제. 모든 디스크 쓰기를 가드, 미리보기만 반환.
+- **`.env` 시크릿 값 잘림**: 값 파생 시 `=`/`:` 로 split 하던 로직이 base64(`=` 패딩) 시크릿(AWS Secret, 암호 salt/IV)과 콜론 포함 패스워드를 truncate 하여 `.env`에 오염된 값을 쓰던 문제. 스캐너가 이미 순수 값을 추출하므로 verbatim 사용.
+- CLI `--version`이 `1.0.0`으로 표시되던 불일치 수정.
+
+---
+
 ## [1.1.0] - 2026-06-11
 
 TypeScript 마이그레이션 + 대규모 보안 / 구조 / 운영 개선. v1.0.0 이후 변경 전체 포함 (2026-04-30 개선분은 `IMPROVEMENTS_2026-04-30.md` 참고).
