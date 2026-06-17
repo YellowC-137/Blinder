@@ -21,7 +21,7 @@
     "test:all": "npm test && npm run test:integration",
     "add-platform": "node --import tsx bin/blinder.ts add_platform",
     "build": "tsc",
-    "prepare": "tsc"
+    "prepare": "node node_modules/typescript/bin/tsc"
   },
   "keywords": [
     "security",
