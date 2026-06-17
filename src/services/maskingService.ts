@@ -32,7 +32,9 @@ export async function performMasking(
     return acc;
   }, {});
 
-  if (!fs.existsSync(maskDir)) {
+  const dryRun = options.dryRun === true;
+
+  if (!dryRun && !fs.existsSync(maskDir)) {
     fs.mkdirSync(maskDir, { recursive: true });
   }
 
@@ -53,7 +55,7 @@ export async function performMasking(
     }
 
     const destFolder = path.dirname(destPath);
-    if (!fs.existsSync(destFolder)) {
+    if (!dryRun && !fs.existsSync(destFolder)) {
       fs.mkdirSync(destFolder, { recursive: true });
     }
 
@@ -85,13 +87,16 @@ export async function performMasking(
             mappingData.mappings[s.envVarName].files.push(relPath);
           }
         }
-        fs.writeFileSync(destPath, content);
-      } else {
+        if (!dryRun) fs.writeFileSync(destPath, content);
+      } else if (!dryRun) {
         fs.copyFileSync(srcPath, destPath);
       }
 
-      // Stream-based hashing to save memory
-      mappingData.fileHashes[relPath] = await calculateHash(destPath);
+      // Stream-based hashing to save memory. Skipped in dry-run — destPath
+      // is never written, so there is nothing on disk to hash.
+      if (!dryRun) {
+        mappingData.fileHashes[relPath] = await calculateHash(destPath);
+      }
       mappingData.allFiles.push(relPath);
     } catch (err) {
       logger.error(t('masking_file_failed', { file: relPath, msg: (err as Error).message }));
@@ -101,10 +106,13 @@ export async function performMasking(
 
   // The map holds every original secret value — keep it OUTSIDE maskDir so
   // sharing the masked directory with an AI agent cannot leak secrets.
-  const mapsDir = path.join(repoPath, '.blinder_maps');
-  fs.mkdirSync(mapsDir, { recursive: true });
-  const mapPath = path.join(mapsDir, `${path.basename(maskDir)}.json`);
-  fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
+  // Dry-run returns the in-memory preview without touching disk.
+  if (!dryRun) {
+    const mapsDir = path.join(repoPath, '.blinder_maps');
+    fs.mkdirSync(mapsDir, { recursive: true });
+    const mapPath = path.join(mapsDir, `${path.basename(maskDir)}.json`);
+    fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
+  }
 
   return mappingData;
 }

@@ -8,7 +8,7 @@
     "blinder": "./dist/bin/blinder.js"
   },
   "scripts": {
-    "test": "node --import tsx test/pattern_test.js && node --import tsx test/platform_unit_test.js && node --import tsx test/key_classifier_test.js && node --import tsx test/parser_test.js && node --import tsx test/test_regex.js && node --import tsx test/test_blind.js && node --import tsx test/fix_review_test.js",
+    "test": "node --import tsx test/pattern_test.js && node --import tsx test/platform_unit_test.js && node --import tsx test/key_classifier_test.js && node --import tsx test/parser_test.js && node --import tsx test/test_regex.js && node --import tsx test/test_blind.js && node --import tsx test/fix_review_test.js && node --import tsx test/new_patterns_test.js && node --import tsx test/secret_value_test.js",
     "test:integration": "node --import tsx test/platform_integration_test.js && node --import tsx test/objc_migration_test.js",
     "test:regression:ios": "bash test/regression/ios/run.sh",
     "test:regression:android": "bash test/regression/android/run.sh",
@@ -20,7 +20,8 @@
     "test:regression": "npm run test:regression:ios && npm run test:regression:android && npm run test:regression:flutter && npm run test:regression:node && npm run test:regression:java && npm run test:regression:springboot && npm run test:regression:react",
     "test:all": "npm test && npm run test:integration",
     "add-platform": "node --import tsx bin/blinder.ts add_platform",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "tsc"
   },
   "keywords": [
     "security",
@@ -32,14 +33,13 @@
     "plugin-architecture",
     "env-protection"
   ],
-  "author": "",
+  "author": "YellowC-137",
   "license": "ISC",
   "engines": {
     "node": ">=20.12.0"
   },
   "files": [
-    "bin/",
-    "src/",
+    "dist/",
     "templates/",
     "README.md",
     "README_en.md",

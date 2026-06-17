@@ -167,7 +167,15 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
     scanComments
   };
   const results = await scanProject(repoPath, project.platforms, scanOptions);
-  
+
+  if (options.dryRun) {
+    const map = await performMasking(repoPath, allFiles, results, maskDir, options);
+    const secretCount = Object.keys(map.mappings).length;
+    logger.warn(t('dryrun_warn'));
+    logger.info(t('mask_dryrun_summary', { files: String(allFiles.length), secrets: String(secretCount), dir: maskDir }));
+    return;
+  }
+
   logger.info(t('mask_into', { dir: maskDir }));
   await performMasking(repoPath, allFiles, results, maskDir, options);
 

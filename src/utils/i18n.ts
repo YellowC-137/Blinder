@@ -77,6 +77,7 @@ const translations: Record<string, Record<string, string>> = {
     mask_safe_copy: '안전한 프로젝트 복사본 위치: {dir}',
     mask_mapping_saved: '시크릿 매핑 저장됨: {path}',
     mask_note_ai: '참고: 본 파일들은 AI 컨텍스트용입니다. 운영 환경에서는 원본 파일을 사용하세요.',
+    mask_dryrun_summary: '드라이런: 파일 {files}개 스캔, 시크릿 {secrets}종 발견. {dir}에 생성될 예정(미생성).',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 민감 파일 발견 ({count}건):',
@@ -360,6 +361,7 @@ const translations: Record<string, Record<string, string>> = {
     mask_safe_copy: 'Safe copy of project available in: {dir}',
     mask_mapping_saved: 'Secret mapping saved: {path}',
     mask_note_ai: 'Note: These files are for AI context. Use original files for production.',
+    mask_dryrun_summary: 'Dry-run: scanned {files} files, found {secrets} secret type(s). Would create {dir} (not created).',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 Sensitive Files Detected ({count}):',

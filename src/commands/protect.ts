@@ -9,6 +9,20 @@ import type { ProtectionOptions } from '../platforms/types.js';
 import type { ScanResult, CodeSecretMatch, Migration } from '../types/index.js';
 
 
+/**
+ * Resolve the value to write into `.env` for a detected secret.
+ *
+ * The scanner already isolates the bare secret value via each pattern's
+ * capture group (see extractMatchDetails), so the match IS the value. Earlier
+ * code additionally split on `=`/`:` and kept the last segment — that silently
+ * truncated base64 secrets whose value ends in `=` padding (AWS secret keys,
+ * crypto salt/IV) and passwords containing `:`, writing a corrupt `.env`.
+ * Return the match verbatim.
+ */
+export function deriveEnvSecretValue(match: string): string {
+  return match;
+}
+
 export async function protectSecrets(repoPath: string, scanResults: ScanResult[], options: ProtectionOptions = {}): Promise<void> {
   // Filter out sensitive file warnings
   const codeSecrets = scanResults.filter((r): r is CodeSecretMatch => !r.isSensitiveFile);
@@ -142,11 +156,7 @@ async function processSecretGroupInteraction(group: CodeSecretMatch[], autoFix: 
   const selected: Array<CodeSecretMatch & { envVarName: string; secretValue: string }> = [];
   for (const res of group) {
     const { match, patternName, file, line, isTestKey } = res;
-    let secretValue: string = match;
-    if ((match.includes('=') || match.includes(':')) && !match.includes('://')) {
-      const parts: string[] = match.split(/[=:]/);
-      secretValue = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
-    }
+    const secretValue: string = deriveEnvSecretValue(match);
 
     const envVarName: string = res.envVarName || patternName.toUpperCase().replace(/\s+/g, '_');
     const label: string = isTestKey ? '[TEST]' : '[PROD]';
