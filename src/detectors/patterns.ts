@@ -30,6 +30,13 @@ export const patterns: SecretPattern[] = [
     severity: 'HIGH'
   },
   {
+    // STS/AssumeRole temporary credentials — ASIA prefix. Common in CI/CD and
+    // auto-scaling; AKIA pattern above misses them entirely.
+    name: 'AWS Session Token',
+    regex: /\bASIA[0-9A-Z]{16}\b/g,
+    severity: 'CRITICAL'
+  },
+  {
     // AWS Secret Access Key — 40 base64-ish chars in proximity to AWS context.
     // Matches contexts like aws_secret_access_key=..., AWS_SECRET=..., or after
     // "secret" keyword. Avoids matching arbitrary 40-char strings.
@@ -94,6 +101,14 @@ export const patterns: SecretPattern[] = [
     severity: 'CRITICAL'
   },
 
+  {
+    // JSON Web Token — header.payload.signature, each segment base64url.
+    // Ubiquitous in modern APIs; matched as a whole token (no capture group).
+    name: 'JWT',
+    regex: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
+    severity: 'HIGH'
+  },
+
   // ─── Cryptographic Material ───
   {
     name: 'Private Key Header',
@@ -108,8 +123,18 @@ export const patterns: SecretPattern[] = [
     // Exclude `}` from the character class so a JDBC URL inside a Spring
     // `${VAR:jdbc:...}` placeholder default does not eat the closing brace
     // of the outer placeholder (#4.3).
-    regex: /\b((?:mysql|postgresql|postgres|mongodb|redis|mssql):\/\/[^\s"'<>}]{10,})/gi,
+    // `mongodb\+srv` (Atlas DNS SRV) listed explicitly — the bare `mongodb`
+    // alternative would not match it (the `+srv` breaks the immediate `://`).
+    regex: /\b((?:mysql|postgresql|postgres|mongodb\+srv|mongodb|redis|mssql):\/\/[^\s"'<>}]{10,})/gi,
     severity: 'CRITICAL'
+  },
+  {
+    // GCP service-account key blob — flags the structural marker. Not fixable
+    // (whole JSON file is the secret; the private_key inside is caught separately).
+    name: 'GCP Service Account JSON',
+    regex: /"type"\s*:\s*"service_account"/g,
+    severity: 'CRITICAL',
+    isFixable: false
   },
 
   // ─── Endpoint & Server URLs ───

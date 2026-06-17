@@ -18,7 +18,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx tsx:*)",
       "Bash(ls:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   },
   "hooks": {

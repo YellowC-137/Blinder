@@ -119,5 +119,24 @@ expect('parseEnv empty double-quoted pair', env.E, '');
   fs.rmSync(repo, { recursive: true, force: true });
 }
 
+// --- performMasking: dryRun writes nothing to disk ---
+{
+  const repo = tmpDir('blinder-mask-dry-');
+  fs.writeFileSync(path.join(repo, 'app.js'), 'const key = "sk-aaaabbbbccccdddd";');
+  const maskDir = path.join(repo, 'maskedProject_demo');
+  const results = [{
+    file: 'app.js', line: 1, match: 'sk-aaaabbbbccccdddd', fullMatch: 'sk-aaaabbbbccccdddd',
+    patternName: 'Generic API Key', envVarName: 'GENERIC_API_KEY', severity: 'HIGH',
+    isFixable: true, isTestKey: false, isSensitiveFile: false, isComment: false,
+    isMultiline: false, content: '', isLikelyExample: false
+  }];
+  const map = await performMasking(repo, ['app.js'], results, maskDir, { dryRun: true });
+
+  expect('dryRun: maskDir not created', fs.existsSync(maskDir), false);
+  expect('dryRun: map file not written', fs.existsSync(path.join(repo, '.blinder_maps', 'maskedProject_demo.json')), false);
+  expect('dryRun: still returns mapping preview', map.mappings.GENERIC_API_KEY?.originalValue, 'sk-aaaabbbbccccdddd');
+  fs.rmSync(repo, { recursive: true, force: true });
+}
+
 console.log(`\nResults: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

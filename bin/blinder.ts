@@ -202,7 +202,7 @@ async function report(
 program
   .name('blinder')
   .description(t('cli_desc'))
-  .version('1.0.0')
+  .version('1.1.0')
   .option('-p, --path <path>', 'Working directory path', process.cwd())
   .option('--dry-run', 'Show what would be done without modifying files', false)
   .option('-y, --yes', 'Automatically answer yes to all prompts (for CI)', false)
