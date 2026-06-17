@@ -24,6 +24,15 @@
 
 ---
 
+## [1.2.1] - 2026-06-17
+
+github 설치 복구 패치.
+
+### Fixed
+- **github 설치 빌드 실패**: `prepare: tsc` 가 npm git-dep 준비 샌드박스에서 `tsc: command not found` 로 깨져 `npm install -g github:YellowC-137/Blinder` 가 빌드 단계에서 실패하던 문제. 컴파일러를 PATH 비의존 경로(`node node_modules/typescript/bin/tsc`)로 호출하도록 수정. (v1.2.0 에서 추가된 `prepare` 빌드 훅이 실제로 동작하도록 보완.)
+
+---
+
 ## [1.2.0] - 2026-06-17
 
 시크릿 탐지 커버리지 확대 + 배포/마스킹 안전성 수정.

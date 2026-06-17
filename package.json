@@ -1,6 +1,6 @@
 {
   "name": "blinder",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Blinder - AI-Agent Security & Secret Protection with Plugin Architecture",
   "main": "index.js",
   "type": "module",
