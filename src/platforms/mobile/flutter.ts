@@ -50,7 +50,7 @@ export default definePlatform({
 
   getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
     if (ext === '.dart') {
-        return `String.fromEnvironment('${envVarName}')`;
+        return `String.fromEnvironment('${envVarName}', defaultValue: '${match}')`;
     }
     return `process.env.${envVarName}`;
   },

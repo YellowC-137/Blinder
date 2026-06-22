@@ -111,12 +111,17 @@ out/
 bin/
 `,
 
-  getAutoFixReplacement: (_match: string, envVarName: string, ext: string, _options?: Record<string, unknown>): string => {
-    if (ext === '.java' || ext === '.kt') return `System.getenv("${envVarName}")`;
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string, _options?: Record<string, unknown>): string => {
+    if (ext === '.kt') {
+        return `(if (System.getenv("${envVarName}").isNullOrEmpty()) "${match}" else System.getenv("${envVarName}"))`;
+    }
+    if (ext === '.java') {
+        return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
+    }
     if (ext === '.properties') return `\${${envVarName}}`;
     if (ext === '.yml' || ext === '.yaml') return `\${${envVarName}}`;
     if (ext === '.xml') return `\${${envVarName}}`;
-    return `System.getenv("${envVarName}")`;
+    return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
   },
 
   /**

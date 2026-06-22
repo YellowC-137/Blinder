@@ -53,22 +53,22 @@ function isNextjsClientSideFile(relPath: string, absPath: string): boolean {
   return false;
 }
 
-function pickAccessor(buildTool: ReactBuildTool | null, envVarName: string, isClientSide: boolean = false): string {
+function pickAccessor(buildTool: ReactBuildTool | null, envVarName: string, isClientSide: boolean = false, match: string = ''): string {
   switch (buildTool) {
     case 'cra':
       // CRA exposes only REACT_APP_* env vars to the bundle
-      return `process.env.REACT_APP_${envVarName}`;
+      return `(process.env.REACT_APP_${envVarName} || "${match}")`;
     case 'vite':
-      return `import.meta.env.VITE_${envVarName}`;
+      return `(import.meta.env.VITE_${envVarName} || "${match}")`;
     case 'nextjs':
       // Client-side files need NEXT_PUBLIC_ prefix to reach the browser
       // bundle. Server-side files (App Router default, pages/api/*, lib/*)
       // can use bare process.env.X.
       return isClientSide
-        ? `process.env.NEXT_PUBLIC_${envVarName}`
-        : `process.env.${envVarName}`;
+        ? `(process.env.NEXT_PUBLIC_${envVarName} || "${match}")`
+        : `(process.env.${envVarName} || "${match}")`;
     default:
-      return `process.env.${envVarName}`;
+      return `(process.env.${envVarName} || "${match}")`;
   }
 }
 
@@ -173,7 +173,7 @@ out/
 
   getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
     const state = activeRepoPath ? getState(activeRepoPath) : { buildTool: 'cra' as ReactBuildTool, clientSide: false };
-    return pickAccessor(state.buildTool || 'cra', envVarName, state.clientSide);
+    return pickAccessor(state.buildTool || 'cra', envVarName, state.clientSide, match);
   }
 });
 

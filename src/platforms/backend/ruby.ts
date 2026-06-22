@@ -139,8 +139,8 @@ vendor/bundle/
     };
   },
 
-  getAutoFixReplacement: (_match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
-    return `ENV["${envVarName}"]`;
+  getAutoFixReplacement: (match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
+    return `(ENV["${envVarName}"] || "${match}")`;
   }
 });
 

@@ -102,7 +102,7 @@ GoogleService-Info.plist
     }
     // Default Swift/ObjC accessor
     if (ext === '.swift') {
-        return `(Bundle.main.object(forInfoDictionaryKey: "${envVarName}") as? String ?? "")`;
+        return `(Bundle.main.object(forInfoDictionaryKey: "${envVarName}") as? String ?? "${match}")`;
     }
     if (ext === '.m' || ext === '.mm' || ext === '.h') {
         return `[[NSBundle mainBundle] objectForInfoDictionaryKey:@"${envVarName}"]`;

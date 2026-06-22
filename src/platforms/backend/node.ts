@@ -58,7 +58,7 @@ coverage/
 .npm/
 `,
 
-  getAutoFixReplacement: (_match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
-    return `process.env.${envVarName}`;
+  getAutoFixReplacement: (match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
+    return `(process.env.${envVarName} || "${match}")`;
   }
 });
