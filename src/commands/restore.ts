@@ -10,6 +10,7 @@ import {
   detectChanges, 
   repairMissingImports 
 } from '../services/restoreService.js';
+import { mapPathFor, legacyMapPathFor } from '../utils/mapPath.js';
 import type { MaskingMap } from '../types/index.js';
 
 interface RestoreOptions {
@@ -39,8 +40,8 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
 
   // Map lives in .blinder_maps/<maskDirName>.json; fall back to the legacy
   // in-maskDir location for copies created by older versions.
-  const newMapPath: string = path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`);
-  const legacyMapPath: string = path.join(maskDir, '.blinder_map.json');
+  const newMapPath: string = mapPathFor(repoPath, maskDir);
+  const legacyMapPath: string = legacyMapPathFor(maskDir);
   const mapPath: string = fs.existsSync(newMapPath) ? newMapPath : legacyMapPath;
   if (!fs.existsSync(mapPath)) {
     logger.error(t('restore_no_map_in_dir', { dir: maskDir }));

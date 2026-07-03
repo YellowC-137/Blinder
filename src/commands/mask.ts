@@ -7,7 +7,8 @@ const { glob } = fg;
 import logger from '../utils/logger.js';
 import { scanProject } from '../detectors/scanner.js';
 import { detectProjectType } from '../utils/detector.js';
-import { performMasking } from '../services/maskingService.js';
+import { performMasking, prepareMaskDir } from '../services/maskingService.js';
+import { mapPathFor } from '../utils/mapPath.js';
 import { t } from '../utils/i18n.js';
 import type { MaskOptions, ScannerOptions } from '../platforms/types.js';
 
@@ -63,6 +64,10 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
   const defaultMaskOutput: string = `maskedProject_${projectName}`;
   const maskDir: string = path.join(repoPath, options.maskOutput || defaultMaskOutput);
   const maskOutputDirName: string = options.maskOutput || defaultMaskOutput;
+
+  // Fail before the (potentially long) scan when the output dir is blocked.
+  // Also runs in dry-run so the preview predicts the real run.
+  prepareMaskDir(repoPath, maskDir, options.dryRun === true);
 
   const excludePaths: string[] = [
     'node_modules/**',
@@ -181,6 +186,6 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
 
   logger.header(t('mask_complete'));
   logger.info(t('mask_safe_copy', { dir: maskDir }));
-  logger.success(t('mask_mapping_saved', { path: path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`) }));
+  logger.success(t('mask_mapping_saved', { path: mapPathFor(repoPath, maskDir) }));
   logger.warn(t('mask_note_ai'));
 }

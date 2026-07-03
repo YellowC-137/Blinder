@@ -3,8 +3,44 @@ import path from 'path';
 import crypto from 'crypto';
 import logger from '../utils/logger.js';
 import { t } from '../utils/i18n.js';
+import { mapPathFor, legacyMapPathFor } from '../utils/mapPath.js';
 import type { MaskingMap, ScanResult, CodeSecretMatch } from '../types/index.js';
 import type { MaskOptions } from '../platforms/types.js';
+
+/**
+ * prepareMaskDir
+ * A reused maskDir keeps stale masked files that are absent from the new
+ * map's allFiles — restore then classifies them as "added" and copies
+ * placeholder text over the real sources. Clear the dir, but only when a
+ * previous map proves Blinder created THIS directory; otherwise refuse.
+ * Called early from mask.ts (fail before the scan) and again from
+ * performMasking (safety for direct callers) — second call is a no-op.
+ */
+export function prepareMaskDir(repoPath: string, maskDir: string, dryRun: boolean): void {
+  if (!fs.existsSync(maskDir)) return;
+
+  let ownedByBlinder = false;
+  const prevMapPath = mapPathFor(repoPath, maskDir);
+  if (fs.existsSync(prevMapPath)) {
+    // Maps are keyed by basename — two different dirs can share one. Only the
+    // recorded maskDir path proves ownership; a map without it proves nothing.
+    try {
+      const prev = JSON.parse(fs.readFileSync(prevMapPath, 'utf8')) as MaskingMap;
+      ownedByBlinder = prev.maskDir === path.relative(repoPath, maskDir);
+    } catch { /* unreadable map proves nothing */ }
+  }
+  // Pre-relocation maskDirs carry their map inside the dir itself.
+  if (!ownedByBlinder && fs.existsSync(legacyMapPathFor(maskDir))) ownedByBlinder = true;
+
+  if (!ownedByBlinder) throw new Error(t('mask_dir_exists_err', { dir: maskDir }));
+
+  if (dryRun) {
+    logger.info(t('mask_dir_would_clear', { dir: maskDir }));
+    return;
+  }
+  fs.rmSync(maskDir, { recursive: true, force: true });
+  logger.info(t('mask_dir_cleared', { dir: maskDir }));
+}
 
 /**
  * performMasking
@@ -21,6 +57,9 @@ export async function performMasking(
     version: '1.0',
     createdAt: new Date().toISOString(),
     projectRoot: repoPath,
+    // Ownership proof for prepareMaskDir: maps are basename-keyed, so without
+    // this a same-basename foreign directory could be cleared on re-mask.
+    maskDir: path.relative(repoPath, maskDir),
     mappings: {},
     fileHashes: {},
     allFiles: []
@@ -34,19 +73,7 @@ export async function performMasking(
 
   const dryRun = options.dryRun === true;
 
-  if (!dryRun && fs.existsSync(maskDir)) {
-    // A reused maskDir keeps stale masked files that are absent from the new
-    // map's allFiles — restore then classifies them as "added" and copies
-    // placeholder text over the real sources. Clear the dir, but only when a
-    // previous map proves Blinder created it; otherwise refuse to touch it.
-    const prevMapPath = path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`);
-    if (fs.existsSync(prevMapPath)) {
-      fs.rmSync(maskDir, { recursive: true, force: true });
-      logger.info(t('mask_dir_cleared', { dir: maskDir }));
-    } else {
-      throw new Error(t('mask_dir_exists_err', { dir: maskDir }));
-    }
-  }
+  prepareMaskDir(repoPath, maskDir, dryRun);
   if (!dryRun && !fs.existsSync(maskDir)) {
     fs.mkdirSync(maskDir, { recursive: true });
   }
@@ -121,9 +148,8 @@ export async function performMasking(
   // sharing the masked directory with an AI agent cannot leak secrets.
   // Dry-run returns the in-memory preview without touching disk.
   if (!dryRun) {
-    const mapsDir = path.join(repoPath, '.blinder_maps');
-    fs.mkdirSync(mapsDir, { recursive: true });
-    const mapPath = path.join(mapsDir, `${path.basename(maskDir)}.json`);
+    const mapPath = mapPathFor(repoPath, maskDir);
+    fs.mkdirSync(path.dirname(mapPath), { recursive: true });
     fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
   }
 

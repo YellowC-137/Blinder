@@ -76,7 +76,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_note_ai: '참고: 본 파일들은 AI 컨텍스트용입니다. 운영 환경에서는 원본 파일을 사용하세요.',
     mask_dryrun_summary: '드라이런: 파일 {files}개 스캔, 시크릿 {secrets}종 발견. {dir}에 생성될 예정(미생성).',
     mask_dir_cleared: '기존 마스킹 디렉토리를 초기화했습니다: {dir}',
-    mask_dir_exists_err: '출력 디렉토리가 이미 존재하지만 Blinder 매핑(.blinder_maps)이 없습니다: {dir}\n디렉토리를 삭제하거나 다른 출력 경로(-o)를 지정하세요.',
+    mask_dir_would_clear: '(dry-run) 기존 마스킹 디렉토리가 실제 실행 시 초기화됩니다: {dir}',
+    mask_dir_exists_err: '출력 디렉토리가 이미 존재하지만 Blinder가 이 디렉토리를 생성했다는 매핑을 찾지 못했습니다: {dir}\n디렉토리를 삭제하거나 다른 출력 경로(-o)를 지정하세요.',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 민감 파일 발견 ({count}건):',
@@ -119,6 +120,7 @@ const translations: Record<string, Record<string, string>> = {
     rollback_deleted: '삭제됨: {label}',
     rollback_gitignore: '복원됨: .gitignore (Blinder 섹션 제거됨)',
     rollback_env_kept: '⚠️ 시크릿 {count}개가 코드로 복원되지 않아 .env를 삭제하지 않습니다. 직접 확인 후 삭제하세요.',
+    rollback_env_kept_no_restore: '⚠️ 복원된 시크릿이 없어 .env와 .blinder_protect.json을 유지합니다. (.blinder_protect.json이 없거나 비어있는지 확인하세요.)',
     rollback_nothing: '정리할 것이 없습니다. 프로젝트가 이미 원래 상태입니다.',
     rollback_complete: '롤백 완료',
 
@@ -360,7 +362,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_note_ai: 'Note: These files are for AI context. Use original files for production.',
     mask_dryrun_summary: 'Dry-run: scanned {files} files, found {secrets} secret type(s). Would create {dir} (not created).',
     mask_dir_cleared: 'Cleared previous mask directory: {dir}',
-    mask_dir_exists_err: 'Output directory already exists but has no Blinder map (.blinder_maps): {dir}\nRemove it or choose a different output path (-o).',
+    mask_dir_would_clear: '(dry-run) Existing mask directory would be cleared on a real run: {dir}',
+    mask_dir_exists_err: 'Output directory already exists but no Blinder map proves it was created by Blinder: {dir}\nRemove it or choose a different output path (-o).',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 Sensitive Files Detected ({count}):',
@@ -403,6 +406,7 @@ const translations: Record<string, Record<string, string>> = {
     rollback_deleted: 'Deleted: {label}',
     rollback_gitignore: 'Restored: .gitignore (Removed Blinder sections)',
     rollback_env_kept: '⚠️ {count} secret(s) were not restored into source — keeping .env. Verify and delete it manually.',
+    rollback_env_kept_no_restore: '⚠️ Nothing was restored into source — keeping .env and .blinder_protect.json. (Is .blinder_protect.json missing or empty?)',
     rollback_nothing: 'Nothing to clean up. Project is already in original state.',
     rollback_complete: 'Rollback Complete',
 

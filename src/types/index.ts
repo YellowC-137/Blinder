@@ -64,6 +64,8 @@ export interface MaskingMap {
   version: string;
   createdAt: string;
   projectRoot: string;
+  /** maskDir relative to projectRoot — absent in maps from older versions */
+  maskDir?: string;
   mappings: Record<string, {
     originalValue: string;
     redactedTag: string;

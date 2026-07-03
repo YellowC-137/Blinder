@@ -141,7 +141,15 @@ export function detectChanges(maskDir: string, repoPath: string, mapData: Maskin
   const { allFiles } = mapData;
 
   const currentFiles = fs.readdirSync(maskDir, { recursive: true, withFileTypes: true })
-    .filter(d => d.isFile())
+    .filter(d => {
+      if (d.isFile()) return true;
+      // Dirent.isFile() is lstat-based: false for symlinks. Follow them like
+      // the old statSync walker did, or a symlinked file is reported as
+      // "deleted" and restore offers to delete the original source file.
+      if (!d.isSymbolicLink()) return false;
+      try { return fs.statSync(path.join(d.parentPath, d.name)).isFile(); }
+      catch { return false; } // broken link — ignore
+    })
     .map(d => path.relative(maskDir, path.join(d.parentPath, d.name)))
     .filter(f => f !== '.blinder_map.json' && !isOsMetadata(f));
 

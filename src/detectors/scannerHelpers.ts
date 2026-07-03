@@ -211,10 +211,3 @@ export function getEnvVarName(
   return envVarName;
 }
 
-/**
- * 바이트 오프셋 → 1-base 라인 번호.
- */
-export function getLineNumber(content: string, index: number): number {
-  const prefix = content.substring(0, index);
-  return prefix.split('\n').length;
-}

@@ -87,6 +87,60 @@ const ok = (name) => { passed++; console.log(`✅ PASS: ${name}`); };
   await assert.rejects(() => performMasking(dirB, ['a.js'], [], foreign, {}));
   assert.ok(fs.existsSync(path.join(foreign, 'user_data.txt')), 'foreign dir must be untouched');
   ok('existing non-blinder output dir refused and untouched');
+
+  // Basename collision: map for 'masked' exists, but a DIFFERENT dir named
+  // 'masked' (sub/masked) must not be cleared by that map.
+  const dirC = tmpProject();
+  fs.writeFileSync(path.join(dirC, 'a.js'), 'x\n');
+  fs.mkdirSync(path.join(dirC, '.blinder_maps'));
+  fs.writeFileSync(path.join(dirC, '.blinder_maps', 'masked.json'), JSON.stringify({ maskDir: 'masked' }));
+  const collide = path.join(dirC, 'sub', 'masked');
+  fs.mkdirSync(collide, { recursive: true });
+  fs.writeFileSync(path.join(collide, 'user_data.txt'), 'do not delete\n');
+  await assert.rejects(() => performMasking(dirC, ['a.js'], [], collide, {}));
+  assert.ok(fs.existsSync(path.join(collide, 'user_data.txt')), 'same-basename foreign dir must survive');
+  ok('basename-collision dir refused (map records its own maskDir)');
+
+  // Legacy layout: map inside maskDir proves ownership → re-mask allowed.
+  const dirD = tmpProject();
+  fs.writeFileSync(path.join(dirD, 'a.js'), 'x\n');
+  const legacy = path.join(dirD, 'oldmasked');
+  fs.mkdirSync(legacy);
+  fs.writeFileSync(path.join(legacy, '.blinder_map.json'), '{}');
+  fs.writeFileSync(path.join(legacy, 'stale.js'), 'old\n');
+  await performMasking(dirD, ['a.js'], [], legacy, {});
+  assert.ok(!fs.existsSync(path.join(legacy, 'stale.js')), 'legacy blinder maskDir must be cleared, not refused');
+  ok('legacy in-dir map accepted on re-mask');
+}
+
+// Rollback with missing metadata: skipReasons are all 0 but nothing was
+// restored — .env must survive.
+{
+  const dir = tmpProject();
+  fs.writeFileSync(path.join(dir, '.env'), 'MY_KEY=supersecret\n');
+  await rollbackSecrets(dir, { yes: true });
+  assert.ok(fs.existsSync(path.join(dir, '.env')), '.env must survive when no metadata / nothing restored');
+  ok('rollback without metadata keeps .env');
+}
+
+// Partial rollback keeps .blinder_protect.json alongside .env so a retry is
+// possible after the accessor is fixed.
+{
+  const dir = tmpProject();
+  fs.writeFileSync(path.join(dir, 'app.js'), 'const key = somethingElse();\n');
+  fs.writeFileSync(path.join(dir, '.env'), 'MY_KEY=supersecret\n');
+  fs.writeFileSync(path.join(dir, '.blinder_protect.json'), JSON.stringify({
+    migrations: [{ file: 'app.js', envVarName: 'MY_KEY', accessor: 'process.env.MY_KEY' }]
+  }));
+  await rollbackSecrets(dir, { yes: true });
+  assert.ok(fs.existsSync(path.join(dir, '.blinder_protect.json')), 'metadata must survive partial rollback');
+  // Retry after restoring the accessor must now succeed end-to-end.
+  fs.writeFileSync(path.join(dir, 'app.js'), 'const key = process.env.MY_KEY;\n');
+  await rollbackSecrets(dir, { yes: true });
+  assert.strictEqual(fs.readFileSync(path.join(dir, 'app.js'), 'utf8'), 'const key = "supersecret";\n');
+  assert.ok(!fs.existsSync(path.join(dir, '.env')), 'clean retry deletes .env');
+  assert.ok(!fs.existsSync(path.join(dir, '.blinder_protect.json')), 'clean retry deletes metadata');
+  ok('partial rollback keeps metadata; retry completes');
 }
 
 // Fix 5: same secret twice on one line — one migration per occurrence,
