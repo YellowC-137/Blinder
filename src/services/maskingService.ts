@@ -13,11 +13,14 @@ import type { MaskOptions } from '../platforms/types.js';
  * map's allFiles — restore then classifies them as "added" and copies
  * placeholder text over the real sources. Clear the dir, but only when a
  * previous map proves Blinder created THIS directory; otherwise refuse.
- * Called early from mask.ts (fail before the scan) and again from
- * performMasking (safety for direct callers) — second call is a no-op.
+ *
+ * Returns true if the dir exists and is Blinder-owned (i.e. cleared, or would
+ * be cleared when `checkOnly`). Throws if it exists but isn't Blinder-owned.
+ * Called early from mask.ts with `checkOnly` (fail before the scan, prompt
+ * before deleting) and again from performMasking to do the actual clear.
  */
-export function prepareMaskDir(repoPath: string, maskDir: string, dryRun: boolean): void {
-  if (!fs.existsSync(maskDir)) return;
+export function prepareMaskDir(repoPath: string, maskDir: string, checkOnly: boolean): boolean {
+  if (!fs.existsSync(maskDir)) return false;
 
   let ownedByBlinder = false;
   const prevMapPath = mapPathFor(repoPath, maskDir);
@@ -34,12 +37,10 @@ export function prepareMaskDir(repoPath: string, maskDir: string, dryRun: boolea
 
   if (!ownedByBlinder) throw new Error(t('mask_dir_exists_err', { dir: maskDir }));
 
-  if (dryRun) {
-    logger.info(t('mask_dir_would_clear', { dir: maskDir }));
-    return;
-  }
+  if (checkOnly) return true;
   fs.rmSync(maskDir, { recursive: true, force: true });
   logger.info(t('mask_dir_cleared', { dir: maskDir }));
+  return true;
 }
 
 /**

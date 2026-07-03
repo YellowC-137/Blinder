@@ -65,9 +65,25 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
   const maskDir: string = path.join(repoPath, options.maskOutput || defaultMaskOutput);
   const maskOutputDirName: string = options.maskOutput || defaultMaskOutput;
 
-  // Fail before the (potentially long) scan when the output dir is blocked.
-  // Also runs in dry-run so the preview predicts the real run.
-  prepareMaskDir(repoPath, maskDir, options.dryRun === true);
+  // Fail before the (potentially long) scan when the output dir is blocked;
+  // check-only so nothing is deleted before the user confirms below.
+  const willClear = prepareMaskDir(repoPath, maskDir, true);
+  if (willClear) {
+    if (options.dryRun) {
+      logger.info(t('mask_dir_would_clear', { dir: maskDir }));
+    } else if (!options.yes) {
+      const { confirmClear } = await inquirer.prompt<{ confirmClear: boolean }>([{
+        type: 'confirm',
+        name: 'confirmClear',
+        message: t('mask_dir_clear_confirm', { dir: maskDir }),
+        default: true
+      }]);
+      if (!confirmClear) {
+        logger.info(t('mask_aborted'));
+        return;
+      }
+    }
+  }
 
   const excludePaths: string[] = [
     'node_modules/**',

@@ -77,6 +77,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_dryrun_summary: '드라이런: 파일 {files}개 스캔, 시크릿 {secrets}종 발견. {dir}에 생성될 예정(미생성).',
     mask_dir_cleared: '기존 마스킹 디렉토리를 초기화했습니다: {dir}',
     mask_dir_would_clear: '(dry-run) 기존 마스킹 디렉토리가 실제 실행 시 초기화됩니다: {dir}',
+    mask_dir_clear_confirm: '기존 마스킹 디렉토리를 초기화하고 다시 생성합니다: {dir}\n계속할까요?',
+    mask_aborted: '사용자가 취소했습니다. 마스킹을 중단합니다.',
     mask_dir_exists_err: '출력 디렉토리가 이미 존재하지만 Blinder가 이 디렉토리를 생성했다는 매핑을 찾지 못했습니다: {dir}\n디렉토리를 삭제하거나 다른 출력 경로(-o)를 지정하세요.',
 
     // Sensitive files banner
@@ -363,6 +365,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_dryrun_summary: 'Dry-run: scanned {files} files, found {secrets} secret type(s). Would create {dir} (not created).',
     mask_dir_cleared: 'Cleared previous mask directory: {dir}',
     mask_dir_would_clear: '(dry-run) Existing mask directory would be cleared on a real run: {dir}',
+    mask_dir_clear_confirm: 'The existing mask directory will be cleared and regenerated: {dir}\nProceed?',
+    mask_aborted: 'Aborted by user. Masking cancelled.',
     mask_dir_exists_err: 'Output directory already exists but no Blinder map proves it was created by Blinder: {dir}\nRemove it or choose a different output path (-o).',
 
     // Sensitive files banner

@@ -189,25 +189,16 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
         }
 
         let lineContent = contentLines[lineIdx];
-        const exactObjc = `@"${match}"`;
-        const exactDouble = `"${match}"`;
-        const exactSingle = `'${match}'`;
+        // ObjC @"..." first so it wins over the plain "..." it contains.
+        const quoted = [`@"${match}"`, `"${match}"`, `'${match}'`];
+        const exact = quoted.find(q => lineContent.includes(q));
 
-        if (lineContent.includes(exactObjc)) {
-          replacedText = exactObjc;
+        if (exact) {
+          replacedText = exact;
           injectedText = accessor;
-          occurrences = lineContent.split(exactObjc).length - 1;
-          lineContent = lineContent.replaceAll(exactObjc, injectedText);
-        } else if (lineContent.includes(exactDouble)) {
-          replacedText = exactDouble;
-          injectedText = accessor;
-          occurrences = lineContent.split(exactDouble).length - 1;
-          lineContent = lineContent.replaceAll(exactDouble, injectedText);
-        } else if (lineContent.includes(exactSingle)) {
-          replacedText = exactSingle;
-          injectedText = accessor;
-          occurrences = lineContent.split(exactSingle).length - 1;
-          lineContent = lineContent.replaceAll(exactSingle, injectedText);
+          const parts = lineContent.split(exact);
+          occurrences = parts.length - 1;
+          lineContent = parts.join(injectedText);
         } else {
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
           const regex = isAlphanumeric ? new RegExp(`\\b${escapeRegExp(match)}\\b`) : new RegExp(escapeRegExp(match));

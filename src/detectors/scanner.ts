@@ -174,7 +174,10 @@ async function processMatch(
     if (!isValid) return;
   }
 
-  if (inXmlComment?.(match.index!)) return;
+  // Whole-file offset (astBaseOffset converts a line-relative index): keeps
+  // the XML-comment test correct in both paths, so populating inXmlComment on
+  // the large path can never silently mismatch offsets.
+  if (inXmlComment?.(astBaseOffset + match.index!)) return;
 
   const isComment = isCommentLine(lineText, platforms);
   if (isLowConfidenceMatch(matchValue, pattern.name, varName)) return;
