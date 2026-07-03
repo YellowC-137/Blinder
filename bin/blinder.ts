@@ -380,7 +380,7 @@ program
           {
             type: 'input',
             name: 'additionalIgnores',
-            message: t('prompt_exclude_dirs_blind'),
+            message: t('prompt_exclude_dirs'),
             default: ''
           }
         ]);

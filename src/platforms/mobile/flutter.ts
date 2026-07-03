@@ -100,14 +100,5 @@ export default definePlatform({
             }
         }
     }
-  },
-
-  testCases: [
-    {
-      input: "const apiKey = 'secret';",
-      expected: "const apiKey = String.fromEnvironment('API_KEY');",
-      ext: '.dart',
-      envVarName: 'API_KEY'
-    }
-  ]
+  }
 });

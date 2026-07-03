@@ -199,7 +199,7 @@ function normalizeSpringKey(key: string): string {
 // ──────────────────────────────────────────────────────────────
 
 function matchesAny(patterns: RegExp[], value: string): boolean {
-  return patterns.some(p => (p instanceof RegExp ? p.test(value) : value.startsWith(p as never) || value === (p as never)));
+  return patterns.some(p => p.test(value));
 }
 
 function startsWithAny(prefixes: string[], value: string): boolean {

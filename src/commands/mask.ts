@@ -32,7 +32,7 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
       {
         type: 'input',
         name: 'additionalIgnores',
-        message: t('prompt_exclude_dirs_mask'),
+        message: t('prompt_exclude_dirs'),
         default: ''
       },
       {

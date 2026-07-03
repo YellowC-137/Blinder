@@ -30,15 +30,12 @@ const translations: Record<string, Record<string, string>> = {
     lang_changed: '언어가 {lang}(으)로 변경되었습니다.',
 
     // First-run language selection
-    first_run_welcome: '\n👋 Blinder에 오신 것을 환영합니다 / Welcome to Blinder',
-    first_run_choose_lang: '사용할 언어를 선택하세요 / Choose your language',
     lang_saved: '언어 설정이 {lang}(으)로 저장되었습니다. (~/.blinder/config.json)',
 
     // Prompts
     prompt_target_subdir: '마스킹할 하위 디렉토리를 입력하세요 (전체 프로젝트는 Enter):',
     prompt_target_subdir_hint: ' (예: src/features/login)',
-    prompt_exclude_dirs_mask: '제외할 폴더 또는 파일이 있나요? (콤마로 구분된 glob 패턴, 예: "**/ExtLib/**, **/Temp/**", 없으면 Enter):',
-    prompt_exclude_dirs_blind: '제외할 폴더 또는 파일이 있나요? (콤마로 구분된 glob 패턴, 예: "**/ExtLib/**, **/Temp/**", 없으면 Enter):',
+    prompt_exclude_dirs: '제외할 폴더 또는 파일이 있나요? (콤마로 구분된 glob 패턴, 예: "**/ExtLib/**, **/Temp/**", 없으면 Enter):',
     prompt_scan_comments: '주석 처리된 코드 안의 시크릿도 스캔할까요? (테스트/상용 값을 주석으로 토글하는 설정 파일에 유용)',
     prompt_committed: '현재 변경 사항을 커밋하셨고 진행할 준비가 되셨나요?',
     prompt_choose_proceed: '시크릿 보호 진행 방식을 선택하세요:',
@@ -317,15 +314,12 @@ const translations: Record<string, Record<string, string>> = {
     lang_changed: 'Language changed to {lang}.',
 
     // First-run language selection
-    first_run_welcome: '\n👋 Welcome to Blinder / Blinder에 오신 것을 환영합니다',
-    first_run_choose_lang: 'Choose your language / 사용할 언어를 선택하세요',
     lang_saved: 'Language saved as {lang}. (~/.blinder/config.json)',
 
     // Prompts
     prompt_target_subdir: 'Enter a specific subdirectory to mask (or press Enter for the entire project):',
     prompt_target_subdir_hint: ' (e.g., src/features/login)',
-    prompt_exclude_dirs_mask: 'Are there any folders or files you want to EXCLUDE from masking? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
-    prompt_exclude_dirs_blind: 'Are there any folders or files you want to EXCLUDE? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
+    prompt_exclude_dirs: 'Are there any folders or files you want to EXCLUDE? (Enter glob patterns separated by comma, e.g., "**/ExtLib/**, **/Temp/**", or leave empty):',
     prompt_scan_comments: 'Also scan secrets inside commented-out code? (useful when configs swap test/prod values via comments)',
     prompt_committed: 'Have you committed your current changes and are you ready to proceed?',
     prompt_choose_proceed: 'Choose how to proceed with secret protection:',

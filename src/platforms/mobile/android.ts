@@ -139,14 +139,5 @@ google-services.json
             }
         }
     }
-  },
-
-  testCases: [
-    {
-      input: 'String apiKey = "secret";',
-      expected: 'String apiKey = BuildConfig.API_KEY;',
-      ext: '.java',
-      envVarName: 'API_KEY'
-    }
-  ]
+  }
 });

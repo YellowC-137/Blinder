@@ -51,6 +51,11 @@ export function scanStructuredFile(
       entries = parseManifestMetaData(content)
         .filter(e => e.value !== null)
         .map(e => ({ key: e.name, value: e.value as string, line: e.line }));
+    } else if (/^application(-[\w.]+)?\.properties$/.test(base)) {
+      // Spring Boot config — must not fall through to the Android-oriented
+      // 'properties' rules (different system-key blacklist/secret hints).
+      fileType = 'spring';
+      entries = parseProperties(content);
     } else if (ext === '.properties' || base === 'gradle.properties' || base === 'local.properties') {
       fileType = 'properties';
       entries = parseProperties(content);

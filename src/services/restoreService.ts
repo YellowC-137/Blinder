@@ -3,22 +3,6 @@ import path from 'path';
 import crypto from 'crypto';
 import type { MaskingMap } from '../types/index.js';
 
-/**
- * getAllFilesRecursive
- */
-export function getAllFilesRecursive(dirPath: string, arrayOfFiles: string[] = []): string[] {
-  const files = fs.readdirSync(dirPath);
-  files.forEach(file => {
-    const filePath = path.join(dirPath, file);
-    if (fs.statSync(filePath).isDirectory()) {
-      arrayOfFiles = getAllFilesRecursive(filePath, arrayOfFiles);
-    } else {
-      arrayOfFiles.push(filePath);
-    }
-  });
-  return arrayOfFiles;
-}
-
 interface ImportInfo {
   importRegex: RegExp;
 }
@@ -156,8 +140,9 @@ export function detectChanges(maskDir: string, repoPath: string, mapData: Maskin
   const changes: ChangeReport = { modified: [], added: [], deleted: [], unchanged: 0 };
   const { allFiles } = mapData;
 
-  const currentFiles = getAllFilesRecursive(maskDir)
-    .map(f => path.relative(maskDir, f))
+  const currentFiles = fs.readdirSync(maskDir, { recursive: true, withFileTypes: true })
+    .filter(d => d.isFile())
+    .map(d => path.relative(maskDir, path.join(d.parentPath, d.name)))
     .filter(f => f !== '.blinder_map.json' && !isOsMetadata(f));
 
   const pathPrefixes = options.paths && options.paths.length > 0 ? options.paths : [];

@@ -107,11 +107,3 @@ export interface SensitiveFile {
   severity: Severity;
   reason: string;
 }
-
-// ─── Test Case ───
-export interface PlatformTestCase {
-  input: string;
-  expected: string;
-  ext: string;
-  envVarName: string;
-}

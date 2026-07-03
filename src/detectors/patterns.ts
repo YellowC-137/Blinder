@@ -45,8 +45,11 @@ export const patterns: SecretPattern[] = [
     severity: 'CRITICAL'
   },
   {
+    // Real Firebase api_key values are Google API keys (39 chars, AIza…).
+    // `[^"]+` matched ANY value — `{"api_key": "test"}` in a mock fixture
+    // became a HIGH auto-fixable finding. Require key-like charset/length.
     name: 'Firebase API Key',
-    regex: /"api_key":\s*"([^"]+)"/g,
+    regex: /"api_key":\s*"([A-Za-z0-9_\-]{20,})"/g,
     severity: 'HIGH'
   },
 

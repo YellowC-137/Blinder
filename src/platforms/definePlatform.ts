@@ -1,11 +1,13 @@
-import { BasePlatform } from './BasePlatform.js';
 import type { PlatformConfig, Platform } from './types.js';
 
 /**
  * definePlatform - Platform Plugin Helper
- * 
+ *
+ * Validates required fields and fills defaults. Optional hooks stay absent —
+ * every call site guards them (`platform.setupBridge?`, etc.).
+ *
  * @param config - Platform configuration object
- * @returns Complete platform configuration as a BasePlatform instance
+ * @returns Complete platform configuration
  */
 export function definePlatform(config: PlatformConfig): Platform {
   if (!config.id) throw new Error('Platform plugin must have an "id" property.');
@@ -15,5 +17,10 @@ export function definePlatform(config: PlatformConfig): Platform {
     throw new Error('Platform plugin must have at least one entry in "commonExtensions".');
   }
 
-  return new BasePlatform(config);
+  return {
+    sensitiveFiles: [],
+    ignorePaths: [],
+    commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
+    ...config
+  };
 }

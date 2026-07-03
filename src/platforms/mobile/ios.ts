@@ -286,14 +286,5 @@ GoogleService-Info.plist
     if (fs.existsSync(scriptPath)) {
         fs.unlinkSync(scriptPath);
     }
-  },
-
-  testCases: [
-    {
-      input: 'NSString *const API_KEY = @"secret";',
-      expected: '#define API_KEY ((NSString *)[[NSBundle mainBundle] objectForInfoDictionaryKey:@"API_KEY"])',
-      ext: '.m',
-      envVarName: 'API_KEY'
-    }
-  ]
+  }
 });

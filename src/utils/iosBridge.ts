@@ -4,34 +4,12 @@ import { execFileSync } from 'child_process';
 import logger from './logger.js';
 import { t } from './i18n.js';
 
-const IOS_SETUP_SCRIPT: string = `#!/bin/bash
-# Blinder iOS Setup Script
-
-ENV_FILE=".env"
-if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ .env file not found. Please run 'blinder blind' first."
-    exit 1
-fi
-
-echo "🛡️ Blinder - Integrating .env with Xcode Info.plist"
-
-if ! command -v /usr/libexec/PlistBuddy &> /dev/null; then
-    echo "❌ PlistBuddy not found. This script requires macOS."
-    exit 1
-fi
-
-echo ""
-echo "${t('ios_bridge_steps_title')}"
-echo "${t('ios_bridge_step1')}"
-echo "${t('ios_bridge_step2')}"
-echo "${t('ios_bridge_step3')}"
-echo "${t('ios_bridge_step4')}"
-echo "${t('ios_bridge_step5')}"
-echo "${t('ios_bridge_step6')}"
-echo ""
-echo "----------------------------------------------------------------"
-cat << 'EOF'
-# --- Blinder Run Script Start ---
+// Canonical Xcode run-script (env → Info.plist via PlistBuddy). Embedded
+// verbatim in BOTH the setup shell script (quoted heredoc) and the Podfile
+// Ruby hook (quoted squiggly heredoc) — neither interpolates, so the same
+// text must serve both. Keep it single-sourced: the two previous inline
+// copies had already drifted in escaping/comments.
+const IOS_ENV_INJECT_SCRIPT: string = `# --- Blinder Run Script Start ---
 # Support both Native iOS and Flutter project structures
 if [ -f "\${SRCROOT}/.env" ]; then
     ENV_FILE="\${SRCROOT}/.env"
@@ -67,7 +45,36 @@ while read -r line || [[ -n "\$line" ]]; do
     fi
 done < "\$ENV_FILE"
 echo "✅ Blinder: Info.plist updated successfully."
-# --- Blinder Run Script End ---
+# --- Blinder Run Script End ---`;
+
+const IOS_SETUP_SCRIPT: string = `#!/bin/bash
+# Blinder iOS Setup Script
+
+ENV_FILE=".env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env file not found. Please run 'blinder blind' first."
+    exit 1
+fi
+
+echo "🛡️ Blinder - Integrating .env with Xcode Info.plist"
+
+if ! command -v /usr/libexec/PlistBuddy &> /dev/null; then
+    echo "❌ PlistBuddy not found. This script requires macOS."
+    exit 1
+fi
+
+echo ""
+echo "${t('ios_bridge_steps_title')}"
+echo "${t('ios_bridge_step1')}"
+echo "${t('ios_bridge_step2')}"
+echo "${t('ios_bridge_step3')}"
+echo "${t('ios_bridge_step4')}"
+echo "${t('ios_bridge_step5')}"
+echo "${t('ios_bridge_step6')}"
+echo ""
+echo "----------------------------------------------------------------"
+cat << 'EOF'
+${IOS_ENV_INJECT_SCRIPT}
 EOF
 echo "----------------------------------------------------------------"
 echo ""
@@ -92,41 +99,7 @@ def blinder_post_install(installer)
       puts "  [Blinder] Adding Run Script to #{target.name}"
       phase = target.new_shell_script_build_phase(phase_name)
       phase.shell_script = <<~'SCRIPT'
-# --- Blinder Run Script Start ---
-if [ -f "\${SRCROOT}/.env" ]; then
-    ENV_FILE="\${SRCROOT}/.env"
-elif [ -f "\${SRCROOT}/../.env" ]; then
-    ENV_FILE="\${SRCROOT}/../.env"
-else
-    echo "⚠️ Blinder: .env file not found. Skipping injection."
-    exit 0
-fi
-
-PLIST_PATH="\${BUILT_PRODUCTS_DIR}/\${INFOPLIST_PATH}"
-
-echo "🛡️ Blinder: Loading .env from $ENV_FILE"
-while read -r line || [[ -n "$line" ]]; do
-    if [[ ! "$line" =~ ^# ]] && [[ "$line" =~ = ]]; then
-        key=$(echo "\${line%%=*}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-        value=$(echo "\${line#*=}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
-
-        # 키 형식 검증: 영숫자 + 언더스코어만 (인젝션 방지)
-        if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-            echo "⚠️ Blinder: Skipping invalid key '$key'"
-            continue
-        fi
-
-        # 값 내부 \\, ", $, \` escape — PlistBuddy 인자 파싱 및 쉘 인젝션 방지
-        esc_value=$(printf '%s' "$value" | sed -e 's/\\\\/\\\\\\\\/g' -e 's/"/\\\\"/g' -e 's/\$/\\\\\$/g' -e 's/\`/\\\\\`/g')
-
-        if [ -n "$key" ]; then
-            /usr/libexec/PlistBuddy -c "Set :$key \\"$esc_value\\"" "$PLIST_PATH" 2>/dev/null || \\
-            /usr/libexec/PlistBuddy -c "Add :$key string \\"$esc_value\\"" "$PLIST_PATH"
-        fi
-    fi
-done < "$ENV_FILE"
-echo "✅ Blinder: Info.plist updated successfully."
-# --- Blinder Run Script End ---
+${IOS_ENV_INJECT_SCRIPT}
 SCRIPT
     end
 

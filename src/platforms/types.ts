@@ -1,4 +1,4 @@
-import type { Severity, SensitiveFile, PlatformTestCase, ScanResult, Migration, SecretPattern } from '../types/index.js';
+import type { SensitiveFile, ScanResult, Migration, SecretPattern } from '../types/index.js';
 
 // ─── Platform Hook Contexts ───
 export interface PreFixContext {
@@ -49,7 +49,6 @@ export interface PlatformConfig {
   sensitiveFiles?: SensitiveFile[];
   commentRegex?: RegExp;
   ignorePaths?: string[];
-  testCases?: PlatformTestCase[];
 
   getAutoFixReplacement?(match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string;
   getGitignoreTemplate?(): string;

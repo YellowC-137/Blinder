@@ -97,55 +97,87 @@ async function scanSmallFile(
     : [];
   const inXmlComment = (offset: number): boolean => xmlCommentRanges.some(([s, e]) => offset >= s && offset < e);
 
+  const ctx: MatchContext = { filePath, repoPath, ext, astLang, platforms, options, usedEnvNames, results, inXmlComment };
+
   for (const pattern of allPatterns) {
     // .matchAll() 은 lastIndex 공유 없이 fresh iterator 반환 — 동시성 안전
     // (이전: pattern.regex.exec 루프는 모듈 전역 정규식의 lastIndex 를 공유)
     for (const match of content.matchAll(pattern.regex)) {
-      let { matchValue, varName } = extractMatchDetails(pattern, match as RegExpExecArray, content, ext);
-
-      if (astLang && !options.skipAST) {
-        // Use offset of the captured value (not match[0]) so AST validation hits the string literal,
-        // not surrounding identifiers (e.g., `apiKey` in `apiKey = "..."`).
-        const valueOffsetInMatch = match[0].indexOf(matchValue);
-        const valueOffset = match.index! + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
-        const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset, { allowComments: options.scanComments === true });
-        if (!isValid) continue;
-      }
-
-      if (inXmlComment(match.index!)) continue;
-
       const startLine = getLineNumber(content, match.index!);
-      const currentLineText = lines[startLine - 1] || '';
-      const isComment = isCommentLine(currentLineText, platforms);
-
-      if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
-      if (isComment && !options.scanComments) continue;
-      // Pass matchValue (extracted secret) to postFilter, not full match text
-      if (pattern.postFilter && !pattern.postFilter(matchValue)) continue;
-
-      const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
-      const isTest = isTestKey(currentLineText, filePath, matchValue);
-
-      results.push({
-        file: path.relative(repoPath, filePath),
-        line: startLine,
-        match: matchValue,
-        fullMatch: match[0],
-        patternName: pattern.name,
-        envVarName,
-        severity: isTest ? 'LOW' as Severity : pattern.severity,
-        isFixable: pattern.isFixable !== false,
-        isTestKey: isTest,
-        isSensitiveFile: false as const,
-        isComment,
-        isMultiline: pattern.multiline || match[0].includes('\n'),
-        content: currentLineText.trim(),
-        isLikelyExample: isFalsePositive(currentLineText, filePath)
-      } as CodeSecretMatch);
+      await processMatch(pattern, match as RegExpExecArray, content, 0, lines[startLine - 1] || '', startLine, ctx);
     }
   }
 
   scanStructuredFile(filePath, repoPath, content, results as CodeSecretMatch[], usedEnvNames);
+}
+
+interface MatchContext {
+  filePath: string;
+  repoPath: string;
+  ext: string;
+  astLang: string | undefined;
+  platforms: Platform[];
+  options: ScannerOptions;
+  usedEnvNames: Map<string, string>;
+  results: ScanResult[];
+  inXmlComment?: (offset: number) => boolean;
+}
+
+/**
+ * Shared per-match pipeline for both small- and large-file paths:
+ * AST validate → filter (XML comment / low-confidence / comment / postFilter)
+ * → push. `sourceText` is whatever match.index is relative to (whole file
+ * for the small path, a single line for the large path); `astBaseOffset`
+ * converts that to a whole-file string index for the AST engine.
+ */
+async function processMatch(
+  pattern: SecretPattern,
+  match: RegExpExecArray,
+  sourceText: string,
+  astBaseOffset: number,
+  lineText: string,
+  lineNumber: number,
+  ctx: MatchContext
+): Promise<void> {
+  const { filePath, repoPath, ext, astLang, platforms, options, usedEnvNames, results, inXmlComment } = ctx;
+  const { matchValue, varName } = extractMatchDetails(pattern, match, sourceText, ext);
+
+  if (astLang && !options.skipAST) {
+    // Use offset of the captured value (not match[0]) so AST validation hits the string literal,
+    // not surrounding identifiers (e.g., `apiKey` in `apiKey = "..."`).
+    const valueOffsetInMatch = match[0].indexOf(matchValue);
+    const valueOffset = astBaseOffset + match.index! + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
+    const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset, { allowComments: options.scanComments === true });
+    if (!isValid) return;
+  }
+
+  if (inXmlComment?.(match.index!)) return;
+
+  const isComment = isCommentLine(lineText, platforms);
+  if (isLowConfidenceMatch(matchValue, pattern.name, varName)) return;
+  if (isComment && !options.scanComments) return;
+  // Pass matchValue (extracted secret) to postFilter, not full match text
+  if (pattern.postFilter && !pattern.postFilter(matchValue)) return;
+
+  const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
+  const isTest = isTestKey(lineText, filePath, matchValue);
+
+  results.push({
+    file: path.relative(repoPath, filePath),
+    line: lineNumber,
+    match: matchValue,
+    fullMatch: match[0],
+    patternName: pattern.name,
+    envVarName,
+    severity: isTest ? 'LOW' as Severity : pattern.severity,
+    isFixable: pattern.isFixable !== false,
+    isTestKey: isTest,
+    isSensitiveFile: false as const,
+    isComment,
+    isMultiline: pattern.multiline || match[0].includes('\n'),
+    content: lineText.trim(),
+    isLikelyExample: isFalsePositive(lineText, filePath)
+  } as CodeSecretMatch);
 }
 
 async function scanLargeFile(
@@ -191,6 +223,8 @@ async function scanLargeFile(
   // non-ASCII character and silently drops real secrets.
   let charOffset = 0;
 
+  const ctx: MatchContext = { filePath, repoPath, ext, astLang, platforms, options, usedEnvNames, results };
+
   for await (const line of rl) {
     lineNumber++;
     // Same guard as scanSmallFile's single-line bail, per line: a 500KB+
@@ -204,39 +238,7 @@ async function scanLargeFile(
 
       // matchAll 사용 — lastIndex 공유 회피
       for (const match of (line as string).matchAll(pattern.regex)) {
-        let { matchValue, varName } = extractMatchDetails(pattern, match as RegExpExecArray, line as string, ext);
-
-        if (astLang && !options.skipAST) {
-           const valueOffsetInMatch = match[0].indexOf(matchValue);
-           const valueOffset = charOffset + match.index! + (valueOffsetInMatch >= 0 ? valueOffsetInMatch : 0);
-           const isValid = await ASTProvider.validateMatch(filePath, astLang, matchValue, valueOffset, { allowComments: options.scanComments === true });
-           if (!isValid) continue;
-        }
-
-        if (isLowConfidenceMatch(matchValue, pattern.name, varName)) continue;
-
-        const lineIsComment = isCommentLine(line as string, platforms);
-        if (lineIsComment && !options.scanComments) continue;
-
-        const isTest = isTestKey(line as string, filePath, matchValue);
-        const envVarName = getEnvVarName(pattern, varName, match[2], usedEnvNames, matchValue);
-
-        results.push({
-          file: path.relative(repoPath, filePath),
-          line: lineNumber,
-          match: matchValue,
-          fullMatch: match[0],
-          patternName: pattern.name,
-          envVarName,
-          severity: isTest ? 'LOW' as Severity : pattern.severity,
-          isFixable: pattern.isFixable !== false,
-          isTestKey: isTest,
-          isSensitiveFile: false as const,
-          isComment: lineIsComment,
-          isMultiline: false,
-          content: (line as string).trim(),
-          isLikelyExample: isFalsePositive(line as string, filePath)
-        } as CodeSecretMatch);
+        await processMatch(pattern, match as RegExpExecArray, line as string, charOffset, line as string, lineNumber, ctx);
       }
     }
     // +1 for LF. CRLF is handled by crlfDelay: Infinity which strips \r from lines,

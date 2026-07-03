@@ -87,14 +87,5 @@ credentials/
 
   getAutoFixReplacement: (_originalMatch: string, envVarName: string, _fileExtension: string, _options?: Record<string, unknown>): string => {
     return `process.env.${envVarName}`;
-  },
-
-  testCases: [
-    {
-      input: '"my-secret-value-12345"',
-      expected: 'process.env.MY_SECRET',
-      ext: '.json',
-      envVarName: 'MY_SECRET'
-    }
-  ]
+  }
 });

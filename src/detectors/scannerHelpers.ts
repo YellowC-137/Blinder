@@ -68,7 +68,8 @@ export function isPlaceholderValue(value: string): boolean {
     'your_secret_here', 'your-secret-here', 'your_api_key', 'your-api-key',
     'placeholder', 'example', 'sample', 'todo', 'tbd',
     'secret', 'token', 'apikey', 'api_key', 'api-key',
-    'string', 'value', 'replace_me', 'replace-me'
+    'string', 'value', 'replace_me', 'replace-me',
+    'test', 'foo', 'bar', 'foobar', 'none', 'null', 'undefined', 'dummy'
   ]);
   if (literals.has(v)) return true;
   if (/^x{4,}$/i.test(v)) return true;
