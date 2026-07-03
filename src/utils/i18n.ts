@@ -78,6 +78,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_mapping_saved: '시크릿 매핑 저장됨: {path}',
     mask_note_ai: '참고: 본 파일들은 AI 컨텍스트용입니다. 운영 환경에서는 원본 파일을 사용하세요.',
     mask_dryrun_summary: '드라이런: 파일 {files}개 스캔, 시크릿 {secrets}종 발견. {dir}에 생성될 예정(미생성).',
+    mask_dir_cleared: '기존 마스킹 디렉토리를 초기화했습니다: {dir}',
+    mask_dir_exists_err: '출력 디렉토리가 이미 존재하지만 Blinder 매핑(.blinder_maps)이 없습니다: {dir}\n디렉토리를 삭제하거나 다른 출력 경로(-o)를 지정하세요.',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 민감 파일 발견 ({count}건):',
@@ -119,6 +121,7 @@ const translations: Record<string, Record<string, string>> = {
     rollback_prompt_delete: '이 파일들을 삭제하여 완전히 롤백하시겠습니까?',
     rollback_deleted: '삭제됨: {label}',
     rollback_gitignore: '복원됨: .gitignore (Blinder 섹션 제거됨)',
+    rollback_env_kept: '⚠️ 시크릿 {count}개가 코드로 복원되지 않아 .env를 삭제하지 않습니다. 직접 확인 후 삭제하세요.',
     rollback_nothing: '정리할 것이 없습니다. 프로젝트가 이미 원래 상태입니다.',
     rollback_complete: '롤백 완료',
 
@@ -213,7 +216,7 @@ const translations: Record<string, Record<string, string>> = {
     add_platform_step3: '  3. 테스트: blinder scan --path /your/project --dry-run',
 
     // AST Provider
-    ast_engine_disabled: 'AST 엔진 비활성화: Node.js v24.8.0 Turboshaft 크래시 버그로 인해 WebAssembly가 우회되었습니다. 정규식 전용 모드로 대체합니다.',
+    ast_engine_disabled: 'AST 검증 비활성화: Node.js v24 WASM 크래시 버그 회피로 정규식 전용 모드로 동작합니다 (오탐 증가 가능). 강제 활성화: BLINDER_FORCE_AST=1',
 
     // Flutter Bridge
     flutter_vscode_updated: 'VS Code launch.json 파일이 --dart-define-from-file 로 업데이트되었습니다',
@@ -362,6 +365,8 @@ const translations: Record<string, Record<string, string>> = {
     mask_mapping_saved: 'Secret mapping saved: {path}',
     mask_note_ai: 'Note: These files are for AI context. Use original files for production.',
     mask_dryrun_summary: 'Dry-run: scanned {files} files, found {secrets} secret type(s). Would create {dir} (not created).',
+    mask_dir_cleared: 'Cleared previous mask directory: {dir}',
+    mask_dir_exists_err: 'Output directory already exists but has no Blinder map (.blinder_maps): {dir}\nRemove it or choose a different output path (-o).',
 
     // Sensitive files banner
     section_sensitive_files: '\n🚨 Sensitive Files Detected ({count}):',
@@ -403,6 +408,7 @@ const translations: Record<string, Record<string, string>> = {
     rollback_prompt_delete: 'Delete these files to fully rollback?',
     rollback_deleted: 'Deleted: {label}',
     rollback_gitignore: 'Restored: .gitignore (Removed Blinder sections)',
+    rollback_env_kept: '⚠️ {count} secret(s) were not restored into source — keeping .env. Verify and delete it manually.',
     rollback_nothing: 'Nothing to clean up. Project is already in original state.',
     rollback_complete: 'Rollback Complete',
 
@@ -497,7 +503,7 @@ const translations: Record<string, Record<string, string>> = {
     add_platform_step3: '  3. Test: blinder scan --path /your/project --dry-run',
 
     // AST Provider
-    ast_engine_disabled: 'AST Engine disabled: WebAssembly is bypassed due to Node.js v24.8.0 Turboshaft crash bug. Falling back to regex-only mode.',
+    ast_engine_disabled: 'AST validation disabled: running regex-only mode to avoid a Node.js v24 WASM crash bug (more false positives possible). Force-enable with BLINDER_FORCE_AST=1.',
 
     // Flutter Bridge
     flutter_vscode_updated: 'VS Code launch.json updated with --dart-define-from-file',

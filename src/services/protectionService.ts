@@ -147,6 +147,11 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
       let injectedText = '';
       let replacedText = '';
       let handledByPlatform = false;
+      // Scanner dedup collapses identical values on one line into a single
+      // ScanResult, but replaceAll below rewrites every occurrence. Rollback
+      // restores one occurrence per migration entry, so record one entry per
+      // occurrence to keep forward/reverse replacement counts symmetric.
+      let occurrences = 1;
 
       // Stage 1: Advanced Fix
       if (matchingPlatform?.applyAdvancedFix) {
@@ -191,14 +196,17 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
         if (lineContent.includes(exactObjc)) {
           replacedText = exactObjc;
           injectedText = accessor;
+          occurrences = lineContent.split(exactObjc).length - 1;
           lineContent = lineContent.replaceAll(exactObjc, injectedText);
         } else if (lineContent.includes(exactDouble)) {
           replacedText = exactDouble;
           injectedText = accessor;
+          occurrences = lineContent.split(exactDouble).length - 1;
           lineContent = lineContent.replaceAll(exactDouble, injectedText);
         } else if (lineContent.includes(exactSingle)) {
           replacedText = exactSingle;
           injectedText = accessor;
+          occurrences = lineContent.split(exactSingle).length - 1;
           lineContent = lineContent.replaceAll(exactSingle, injectedText);
         } else {
           const isAlphanumeric = /^[a-zA-Z0-9_]+$/.test(match);
@@ -232,14 +240,16 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
       }
 
       if (injectedText) {
-        migrations.push({
-          file: relPath,
-          envVarName,
-          accessor: accessor || injectedText,
-          injectedText,
-          replacedText: replacedText || match,
-          line: s.line
-        });
+        for (let i = 0; i < occurrences; i++) {
+          migrations.push({
+            file: relPath,
+            envVarName,
+            accessor: accessor || injectedText,
+            injectedText,
+            replacedText: replacedText || match,
+            line: s.line
+          });
+        }
       }
     }
 

@@ -50,7 +50,9 @@ class ASTProvider {
     if (nodeVersion >= 24 && !forceAst) {
       if (!this._warnedNoWasm) {
         this._warnedNoWasm = true;
-        logger.debug(t('ast_engine_disabled'));
+        // warn, not debug: the tool's core AST cross-check silently turning
+        // off for the current LTS must be visible to the user.
+        logger.warn(t('ast_engine_disabled'));
       }
       this.disabled = true;
       return false;

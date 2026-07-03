@@ -44,7 +44,14 @@ export async function rollbackSecrets(repoPath: string, options: RollbackOptions
 
   const filesToClean: FileToClean[] = [];
   if (fs.existsSync(metadataPath)) filesToClean.push({ path: metadataPath, label: '.blinder_protect.json' });
-  if (fs.existsSync(envPath)) filesToClean.push({ path: envPath, label: '.env' });
+  // accessorNotFound/fileNotFound skips mean those secrets were NOT written
+  // back into source — .env is their only remaining copy, so never delete it.
+  // (secretMissing/alreadyRestored don't depend on .env contents.)
+  const unrestoredCount = report.skipReasons.accessorNotFound + report.skipReasons.fileNotFound;
+  if (fs.existsSync(envPath)) {
+    if (unrestoredCount > 0) logger.warn(t('rollback_env_kept', { count: unrestoredCount }));
+    else filesToClean.push({ path: envPath, label: '.env' });
+  }
   if (fs.existsSync(envExamplePath)) filesToClean.push({ path: envExamplePath, label: '.env.example' });
   if (fs.existsSync(reportsDir)) filesToClean.push({ path: reportsDir, label: 'blinder_reports/', isDir: true });
 

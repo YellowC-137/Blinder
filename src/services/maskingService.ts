@@ -34,6 +34,19 @@ export async function performMasking(
 
   const dryRun = options.dryRun === true;
 
+  if (!dryRun && fs.existsSync(maskDir)) {
+    // A reused maskDir keeps stale masked files that are absent from the new
+    // map's allFiles — restore then classifies them as "added" and copies
+    // placeholder text over the real sources. Clear the dir, but only when a
+    // previous map proves Blinder created it; otherwise refuse to touch it.
+    const prevMapPath = path.join(repoPath, '.blinder_maps', `${path.basename(maskDir)}.json`);
+    if (fs.existsSync(prevMapPath)) {
+      fs.rmSync(maskDir, { recursive: true, force: true });
+      logger.info(t('mask_dir_cleared', { dir: maskDir }));
+    } else {
+      throw new Error(t('mask_dir_exists_err', { dir: maskDir }));
+    }
+  }
   if (!dryRun && !fs.existsSync(maskDir)) {
     fs.mkdirSync(maskDir, { recursive: true });
   }

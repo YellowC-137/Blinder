@@ -102,8 +102,10 @@ export async function performRollback(repoPath: string, options: RollbackOptions
         if (content.includes(targetToRemove)) {
           const restoredValue = mig.replacedText !== undefined ? mig.replacedText : `"${secretValue}"`;
           // Replace first occurrence only to prevent unintended multi-replacements
-          // when the same accessor appears in different contexts
-          content = content.replace(targetToRemove, restoredValue);
+          // when the same accessor appears in different contexts.
+          // Replacer function: a literal replacement string would interpret
+          // $&, $`, $', $$ in the secret value as substitution tokens.
+          content = content.replace(targetToRemove, () => restoredValue);
           fileModified = true;
           report.restoreCount++;
         } else {

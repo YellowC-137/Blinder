@@ -30,8 +30,8 @@ async function runUnitTests() {
   const android = platforms.find(p => p.id === 'android');
   if (android) {
     test('Android - Kotlin/Java replacement', () => {
-      assert.strictEqual(android.getAutoFixReplacement('secret', 'MY_KEY', '.kt'), 'BuildConfig.MY_KEY');
-      assert.strictEqual(android.getAutoFixReplacement('secret', 'MY_KEY', '.java'), 'BuildConfig.MY_KEY');
+      assert.strictEqual(android.getAutoFixReplacement('secret', 'MY_KEY', '.kt'), '(if (BuildConfig.MY_KEY.isNullOrEmpty()) "secret" else BuildConfig.MY_KEY)');
+      assert.strictEqual(android.getAutoFixReplacement('secret', 'MY_KEY', '.java'), '(BuildConfig.MY_KEY == null || BuildConfig.MY_KEY.isEmpty() ? "secret" : BuildConfig.MY_KEY)');
     });
     test('Android - XML replacement', () => {
       assert.strictEqual(android.getAutoFixReplacement('secret', 'MY_KEY', '.xml'), '${MY_KEY}');
@@ -61,7 +61,7 @@ async function runUnitTests() {
   const flutter = platforms.find(p => p.id === 'flutter');
   if (flutter) {
     test('Flutter - Dart replacement', () => {
-      assert.strictEqual(flutter.getAutoFixReplacement('secret', 'MY_KEY', '.dart'), "String.fromEnvironment('MY_KEY')");
+      assert.strictEqual(flutter.getAutoFixReplacement('secret', 'MY_KEY', '.dart'), "String.fromEnvironment('MY_KEY', defaultValue: 'secret')");
     });
   }
 
@@ -142,8 +142,8 @@ async function runUnitTests() {
     }
 
     test('Node.js - JS replacement', () => {
-      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.js'), 'process.env.MY_KEY');
-      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.ts'), 'process.env.MY_KEY');
+      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.js'), '(process.env.MY_KEY || "secret")');
+      assert.strictEqual(node.getAutoFixReplacement('secret', 'MY_KEY', '.ts'), '(process.env.MY_KEY || "secret")');
     });
 
     await asyncTest2('Node.js detect — Express minimal (match)', async () => {
@@ -193,7 +193,7 @@ async function runUnitTests() {
     }
 
     test('Java - .java replacement', () => {
-      assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.java'), 'System.getenv("MY_KEY")');
+      assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.java'), '(System.getenv("MY_KEY") == null || System.getenv("MY_KEY").isEmpty() ? "s" : System.getenv("MY_KEY"))');
     });
     test('Java - .properties replacement', () => {
       assert.strictEqual(java.getAutoFixReplacement('s', 'MY_KEY', '.properties'), '${MY_KEY}');
@@ -266,10 +266,10 @@ async function runUnitTests() {
     }
 
     test('Spring Boot - .java replacement', () => {
-      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.java'), 'System.getenv("DB_PW")');
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.java'), '(System.getenv("DB_PW") == null || System.getenv("DB_PW").isEmpty() ? "s" : System.getenv("DB_PW"))');
     });
     test('Spring Boot - .kt replacement', () => {
-      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.kt'), 'System.getenv("DB_PW")');
+      assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.kt'), '(if (System.getenv("DB_PW").isNullOrEmpty()) "s" else System.getenv("DB_PW"))');
     });
     test('Spring Boot - .properties replacement', () => {
       assert.strictEqual(springboot.getAutoFixReplacement('s', 'DB_PW', '.properties'), '${DB_PW}');
@@ -383,19 +383,19 @@ async function runUnitTests() {
 
     test('React - CRA accessor', () => {
       __test.setBuildTool('cra');
-      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.REACT_APP_API_KEY');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), '(process.env.REACT_APP_API_KEY || "s")');
     });
     test('React - Vite accessor', () => {
       __test.setBuildTool('vite');
-      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'import.meta.env.VITE_API_KEY');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), '(import.meta.env.VITE_API_KEY || "s")');
     });
     test('React - Next.js accessor (server-side default)', () => {
       __test.setBuildTool('nextjs');
-      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.API_KEY');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), '(process.env.API_KEY || "s")');
     });
     test('React - unknown build tool falls back to CRA', () => {
       __test.setBuildTool(null);
-      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.REACT_APP_API_KEY');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), '(process.env.REACT_APP_API_KEY || "s")');
     });
 
     await asyncTest5('React detect — CRA project (match)', async () => {
@@ -445,7 +445,7 @@ async function runUnitTests() {
     test('React - Next.js client-side accessor (NEXT_PUBLIC_)', () => {
       __test.setBuildTool('nextjs');
       __test.setClientSide(true);
-      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), 'process.env.NEXT_PUBLIC_API_KEY');
+      assert.strictEqual(react.getAutoFixReplacement('s', 'API_KEY', '.tsx'), '(process.env.NEXT_PUBLIC_API_KEY || "s")');
       __test.setClientSide(false);
     });
 
