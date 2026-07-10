@@ -2,6 +2,7 @@ import fs from 'fs';
 import { readSafe } from '../../utils/fsUtils.js';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
+import { javaEnvAccessor } from '../common.js';
 import type { AdvancedFixContext, AdvancedFixResult } from '../types.js';
 
 function detectSpringBoot(repoPath: string): boolean {
@@ -31,7 +32,6 @@ export default definePlatform({
   id: 'springboot',
   name: 'Spring Boot',
   category: 'backend',
-  astLanguage: 'java',
 
   // Detect: Spring Boot via Maven (spring-boot-starter) or Gradle (org.springframework.boot)
   detect: async (repoPath: string): Promise<boolean> => detectSpringBoot(repoPath),
@@ -52,7 +52,6 @@ export default definePlatform({
     { glob: '**/credentials.properties', severity: 'HIGH', reason: '관용적 자격증명 properties' }
   ],
 
-  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
 
   ignorePaths: [
     '**/target/**',
@@ -111,17 +110,12 @@ out/
 bin/
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, _options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
     if (ext === '.kt') {
         return `(if (System.getenv("${envVarName}").isNullOrEmpty()) "${match}" else System.getenv("${envVarName}"))`;
     }
-    if (ext === '.java') {
-        return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
-    }
-    if (ext === '.properties') return `\${${envVarName}}`;
-    if (ext === '.yml' || ext === '.yaml') return `\${${envVarName}}`;
-    if (ext === '.xml') return `\${${envVarName}}`;
-    return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
+    if (ext === '.properties' || ext === '.yml' || ext === '.yaml' || ext === '.xml') return `\${${envVarName}}`;
+    return javaEnvAccessor(envVarName, match);
   },
 
   /**

@@ -46,7 +46,7 @@ export function isCommentLine(line: string, platforms: Platform[]): boolean {
  * Shannon entropy (bits/char). 무작위/암호화 시크릿은 보통 ≥ 3.5,
  * 더미/반복 문자열(예: "xxxxx", "password")은 훨씬 낮음.
  */
-export function shannonEntropy(s: string): number {
+function shannonEntropy(s: string): number {
   if (!s || typeof s !== 'string') return 0;
   const counts = new Map<string, number>();
   for (const c of s) counts.set(c, (counts.get(c) || 0) + 1);
@@ -61,7 +61,7 @@ export function shannonEntropy(s: string): number {
 /**
  * 흔한 더미/플레이스홀더 문자열 (대소문자 무시).
  */
-export function isPlaceholderValue(value: string): boolean {
+function isPlaceholderValue(value: string): boolean {
   const v = value.trim().toLowerCase();
   const literals = new Set([
     'password', 'passwd', 'changeme', 'change-me', 'changethis',
@@ -126,6 +126,47 @@ export function collectXmlCommentRanges(content: string): [number, number][] {
     }
   }
   return ranges;
+}
+
+/**
+ * 개행 오프셋 테이블 생성 — lineNumberAt 과 함께 사용.
+ * (scanner / plistParser / manifestParser 가 공유)
+ */
+export function buildLineIndex(content: string): number[] {
+  const starts: number[] = [0];
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) starts.push(i + 1);
+  }
+  return starts;
+}
+
+/**
+ * 문자열 오프셋 → 1-based 라인 번호 (이진 탐색).
+ */
+export function lineNumberAt(lineStarts: number[], index: number): number {
+  let lo = 0, hi = lineStarts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lineStarts[mid] <= index) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
+}
+
+/**
+ * env 이름 충돌 회피 — 같은 base 가 다른 값으로 점유되어 있으면 `_N` 부여.
+ * 같은 값이면 기존 이름 재사용. used 맵에 결과를 기록하고 반환.
+ */
+export function dedupeEnvName(base: string, value: string, used: Map<string, string>): string {
+  let name = base;
+  const existing = used.get(name);
+  if (existing !== undefined && existing !== value) {
+    let counter = 1;
+    while (used.has(`${base}_${counter}`) && used.get(`${base}_${counter}`) !== value) counter++;
+    name = `${base}_${counter}`;
+  }
+  used.set(name, value);
+  return name;
 }
 
 /**
@@ -198,16 +239,6 @@ export function getEnvVarName(
   }
   if (!baseEnvName) baseEnvName = 'SECRET';
 
-  let envVarName = baseEnvName;
-  const existingValue = usedEnvNames.get(envVarName);
-  if (existingValue && existingValue !== matchValue) {
-    let counter = 1;
-    while (usedEnvNames.has(`${baseEnvName}_${counter}`) && usedEnvNames.get(`${baseEnvName}_${counter}`) !== matchValue) {
-      counter++;
-    }
-    envVarName = `${baseEnvName}_${counter}`;
-  }
-  usedEnvNames.set(envVarName, matchValue);
-  return envVarName;
+  return dedupeEnvName(baseEnvName, matchValue, usedEnvNames);
 }
 

@@ -17,6 +17,11 @@ import type { SecretPattern, Severity } from '../types/index.js';
 
 const NESTED_QUANTIFIER = /\([^()]*[+*]\s*[?+]?\s*\)\s*[+*]/;
 
+/** 리터럴 문자열을 RegExp 소스에 안전하게 삽입하기 위한 이스케이프. */
+export function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface RawPattern {
   name?: string;
   regex?: string | RegExp;

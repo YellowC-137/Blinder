@@ -2,12 +2,12 @@ import fs from 'fs';
 import { readSafe } from '../../utils/fsUtils.js';
 import path from 'path';
 import { definePlatform } from '../definePlatform.js';
+import { javaEnvAccessor } from '../common.js';
 
 export default definePlatform({
   id: 'java',
   name: 'Java',
   category: 'backend',
-  astLanguage: 'java',
 
   // Detect: Maven (pom.xml) or pure Java Gradle, with Maven src/main/java standard layout
   // Excludes: Spring Boot (separate plugin) and Android (com.android.* gradle plugin)
@@ -49,7 +49,6 @@ export default definePlatform({
     { glob: '**/credentials.properties', severity: 'HIGH', reason: '관용적 자격증명 properties' }
   ],
 
-  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
 
   ignorePaths: [
     '**/target/**',
@@ -83,10 +82,8 @@ hs_err_pid*.log
 out/
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, _options?: Record<string, unknown>): string => {
-    if (ext === '.java') return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
-    if (ext === '.properties') return `\${${envVarName}}`;
-    if (ext === '.xml') return `\${${envVarName}}`;
-    return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
+    if (ext === '.properties' || ext === '.xml') return `\${${envVarName}}`;
+    return javaEnvAccessor(envVarName, match);
   }
 });

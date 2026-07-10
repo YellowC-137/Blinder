@@ -210,7 +210,7 @@ function startsWithAny(prefixes: string[], value: string): boolean {
  * iOS Info.plist 키가 auto-fix 안전한지 판정.
  * @returns {{ allowed: boolean, reason: string }}
  */
-export function classifyPlistKey(key: string): ClassifyResult {
+function classifyPlistKey(key: string): ClassifyResult {
   if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
   if (IOS_PLIST_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system key (exact match)' };
   if (startsWithAny(IOS_PLIST_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system key prefix' };
@@ -221,7 +221,7 @@ export function classifyPlistKey(key: string): ClassifyResult {
 /**
  * iOS xcconfig 키 — 자체참조 위험으로 영구 detection-only.
  */
-export function classifyXcconfigKey(key: string): ClassifyResult {
+function classifyXcconfigKey(key: string): ClassifyResult {
   if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
   if (IOS_XCCONFIG_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system build setting' };
   if (startsWithAny(IOS_XCCONFIG_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system build setting prefix' };
@@ -231,7 +231,7 @@ export function classifyXcconfigKey(key: string): ClassifyResult {
 /**
  * AndroidManifest meta-data 키 판정.
  */
-export function classifyManifestMetaKey(key: string): ClassifyResult {
+function classifyManifestMetaKey(key: string): ClassifyResult {
   if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
   if (ANDROID_META_BLACKLIST_EXACT.has(key)) return { allowed: false, reason: 'system meta-data (exact match)' };
   if (startsWithAny(ANDROID_META_BLACKLIST_PREFIX, key)) return { allowed: false, reason: 'system meta-data prefix' };
@@ -243,7 +243,7 @@ export function classifyManifestMetaKey(key: string): ClassifyResult {
  * Android properties 키 — local.properties 영구 차단, gradle.properties는
  * 시스템 prefix 차단 + key 이름 힌트 매칭 시 detection 가능 (auto-fix는 별도 결정).
  */
-export function classifyPropertiesKey(key: string, filename?: string): ClassifyResult {
+function classifyPropertiesKey(key: string, filename?: string): ClassifyResult {
   if (!key || typeof key !== 'string') return { allowed: false, reason: 'invalid key' };
   if (filename && filename.endsWith('local.properties')) {
     return { allowed: false, reason: 'local.properties 자동치환 영구 차단 (gitignore 대상)' };
@@ -282,11 +282,3 @@ export function classifyKey({ fileType, key, filename }: ClassifyKeyInput): Clas
   }
 }
 
-export const _internal = {
-  IOS_PLIST_WHITELIST, IOS_PLIST_BLACKLIST_PREFIX, IOS_PLIST_BLACKLIST_EXACT,
-  IOS_XCCONFIG_BLACKLIST_PREFIX, IOS_XCCONFIG_BLACKLIST_EXACT,
-  ANDROID_META_WHITELIST, ANDROID_META_BLACKLIST_PREFIX, ANDROID_META_BLACKLIST_EXACT,
-  ANDROID_PROPS_BLACKLIST_PREFIX, ANDROID_PROPS_WHITELIST_KEY_HINT,
-  SPRING_BLACKLIST_PREFIX, SPRING_BLACKLIST_EXACT, SPRING_WHITELIST_KEY_HINT,
-  normalizeSpringKey
-};

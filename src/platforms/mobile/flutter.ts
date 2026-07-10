@@ -7,7 +7,6 @@ export default definePlatform({
   id: 'flutter',
   name: 'Flutter',
   category: 'mobile',
-  astLanguage: 'dart',
 
   detect: async (repoPath: string): Promise<boolean> => {
     return fs.existsSync(path.join(repoPath, 'pubspec.yaml'));
@@ -48,7 +47,7 @@ export default definePlatform({
 **/generated_plugin_registrant.dart
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
     if (ext === '.dart') {
         return `String.fromEnvironment('${envVarName}', defaultValue: '${match}')`;
     }

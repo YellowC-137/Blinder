@@ -19,14 +19,12 @@ export interface AdvancedFixContext {
   prevLine: string;
   nextLine: string;
   match: string;
-  fullMatch: string;
   envVarName: string;
   ext: string;
   repoPath: string;
   relPath: string;
   options: ProtectionOptions;
   migrations: Migration[];
-  logger?: Logger;
 }
 
 export interface AdvancedFixResult {
@@ -41,7 +39,6 @@ export interface PlatformConfig {
   id: string;
   name: string;
   category: 'backend' | 'frontend' | 'mobile' | 'core';
-  astLanguage?: string;
 
   detect(repoPath: string): Promise<boolean>;
   commonExtensions: string[];
@@ -50,7 +47,7 @@ export interface PlatformConfig {
   commentRegex?: RegExp;
   ignorePaths?: string[];
 
-  getAutoFixReplacement?(match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string;
+  getAutoFixReplacement?(match: string, envVarName: string, ext: string): string;
   getGitignoreTemplate?(): string;
   applyAdvancedFix?(context: AdvancedFixContext): Promise<AdvancedFixResult>;
   setupBridge?(repoPath: string): Promise<void>;
@@ -103,15 +100,5 @@ export interface Logger {
   divider(): void;
   maskSecret(secret: string): string;
   header(msg: string): void;
-  finding(opts: FindingOptions): void;
-}
-
-export interface FindingOptions {
-  severity?: string;
-  file: string;
-  line?: number;
-  patternName: string;
-  match?: string;
-  masked?: boolean;
 }
 

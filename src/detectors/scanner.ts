@@ -17,9 +17,13 @@ import {
   collectXmlCommentRanges,
   isLowConfidenceMatch,
   extractMatchDetails,
-  getEnvVarName
+  getEnvVarName,
+  buildLineIndex,
+  lineNumberAt
 } from './scannerHelpers.js';
 import { scanStructuredFile } from './structuredScanner.js';
+import { dedupeResults } from './dedupe.js';
+import { DEFAULT_IGNORE_PATTERNS } from './defaultIgnores.js';
 import { t } from '../utils/i18n.js';
 
 /**
@@ -106,10 +110,7 @@ async function scanSmallFile(
   // Line number per raw match: an O(file) substring scan per match goes
   // O(matches × file size) on match-heavy files — index line starts once,
   // then binary-search each offset.
-  const lineStarts: number[] = [0];
-  for (let i = 0; i < content.length; i++) {
-    if (content.charCodeAt(i) === 10) lineStarts.push(i + 1);
-  }
+  const lineStarts = buildLineIndex(content);
 
   for (const pattern of allPatterns) {
     // .matchAll() 은 lastIndex 공유 없이 fresh iterator 반환 — 동시성 안전
@@ -121,17 +122,6 @@ async function scanSmallFile(
   }
 
   scanStructuredFile(filePath, repoPath, content, results as CodeSecretMatch[], usedEnvNames);
-}
-
-// 1-based line number for a string index, via the lineStarts index above.
-function lineNumberAt(lineStarts: number[], index: number): number {
-  let lo = 0, hi = lineStarts.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (lineStarts[mid] <= index) lo = mid;
-    else hi = mid - 1;
-  }
-  return lo + 1;
 }
 
 interface MatchContext {
@@ -327,64 +317,7 @@ export async function scanProject(repoPath: string, platforms: Platform[], optio
 
   const platformIgnores = platforms.flatMap(p => p.ignorePaths || []);
   const ignorePatterns: string[] = [
-    '**/node_modules/**', '**/Pods/**', '**/Carthage/**', '**/vendor/**', '**/third_party/**',
-    '**/build/**', '**/dist/**', '**/.git/**', '**/.env', '**/.blinder_maps/**',
-    // 1. 키, 인증서 및 보안 파일
-    '**/id_rsa', '**/id_rsa.pub', '**/*.ppk', '**/known_hosts',
-    '**/*.pem', '**/*.cer', '**/*.crt', '**/*.p12', '**/*.keystore', '**/*.jks', '**/*.certSigningRequest',
-    '**/.aws/credentials', '**/gcp-sa-key.json', '**/*.ovpn', '**/*.mobileprovision',
-    // 2. 메모리 덤프 및 런타임 로그
-    '**/*.hprof', '**/*.dump', '**/core.*',
-    '**/*.log', '**/*.crash', '**/*.out',
-    '**/*.sqlite', '**/*.db', '**/*.realm',
-    // 3. 인프라 배포 및 환경 설정 스크립트
-    '**/*.sh', '**/*.bat', '**/*.command',
-    '**/*.tfstate', '**/terraform.tfvars',
-    '**/Fastfile', '**/Appfile', '**/Matchfile',
-    // 4. 로컬 빌드 환경 변수
-    '**/local.properties', '**/.npmrc', '**/.yarnrc',
-    // 5. 모바일 빌드 산출물 / Xcode-IDE 캐시
-    '**/*.dSYM/**', '**/*.ipa', '**/*.app/**', '**/*.xcarchive/**',
-    '**/xcuserdata/**', '**/*.xcuserstate',
-    '**/*.apk', '**/*.aab', '**/*.iml', '**/*.bks',
-    '**/lint-results-*.xml', '**/lint-baseline.xml',
-    // 6. Flutter 자동생성 / 데스크톱 플랫폼
-    '**/.flutter-plugins', '**/.flutter-plugins-dependencies',
-    '**/Generated.xcconfig', '**/flutter_export_environment.sh',
-    '**/.metadata', '**/.last_build_id',
-    // 7. 패키지 매니저 인증 / IDE 워크스페이스
-    '**/.netrc', '**/_netrc',
-    '**/.docker/config.json', '**/.dockercfg',
-    '**/.kube/config', '**/*.kubeconfig', '**/.htpasswd',
-    '**/auth.json', '**/.composer/auth.json',
-    '**/.bundle/config', '**/.gem/credentials',
-    '**/.pypirc', '**/.cargo/credentials', '**/.cargo/credentials.toml',
-    '**/.idea/workspace.xml', '**/.idea/dataSources.xml', '**/.idea/dataSources/**',
-    '**/.vscode/sftp.json',
-    // 8. 환경변수 변형 / Rails 시크릿 / 일반 시크릿 컨벤션
-    '**/.env.local', '**/.env.*.local',
-    '**/.env.development', '**/.env.production', '**/.env.staging', '**/.env.test',
-    '**/.env.vault',
-    '**/secrets.yml', '**/secrets.yaml', '**/secrets.json', '**/*.secrets',
-    '**/*.kdbx', '**/*.kdb',
-    '**/master.key', '**/.master.key',
-    '**/config/master.key', '**/config/credentials/*.yml.enc',
-    '**/service-account*.json', '**/*-credentials.json', '**/credentials.json',
-    '**/.firebaserc', '**/firebase-debug.log',
-    // 9. 추가 인증/암호화 자산
-    '**/*.pfx', '**/*.gpg', '**/*.asc', '**/*.enc',
-    // 10. 백업 / 임시 / OS 메타
-    '**/*.swp', '**/*.swo', '**/*.bak', '**/*.backup', '**/*~',
-    '**/.DS_Store', '**/Thumbs.db',
-    // 11. 컴파일 산출물 / 네이티브 라이브러리 / 압축
-    '**/*.class', '**/*.jar', '**/*.aar', '**/*.war', '**/*.ear',
-    '**/*.so', '**/*.a', '**/*.dll', '**/*.dylib', '**/*.lib',
-    '**/*.pyc', '**/__pycache__/**',
-    '**/*.zip', '**/*.tar', '**/*.tar.gz', '**/*.tgz', '**/*.7z', '**/*.rar',
-    '**/*.dmg', '**/*.pkg',
-    // 12. DB 데이터 덤프 추가
-    '**/*.sql', '**/*.sql.gz', '**/dump.sql',
-    '**/*.bson', '**/*.mdb', '**/*.accdb', '**/*.dbf',
+    ...DEFAULT_IGNORE_PATTERNS,
     ...platformIgnores, ...(options.ignore || [])
   ];
 
@@ -449,99 +382,4 @@ export async function scanProject(repoPath: string, platforms: Platform[], optio
   const fileWarnings = await scanSensitiveFiles(repoPath, platforms);
   results.push(...fileWarnings);
   return dedupeResults(results, allPatterns);
-}
-
-/**
- * dedupeResults
- *
- * The same secret value on the same line can match multiple patterns — the
- * specific one (e.g. "AWS Access Key ID") and the catch-all (e.g. "Generic
- * API Key"). Both findings inflate the report and produce duplicate .env
- * entries. This collapses (file, line, matchValue) groups, keeping the
- * most-specific pattern.
- *
- * Specificity = position in `allPatterns` (lower index = more specific, by
- * convention of patterns.js ordering). Structured-file and sensitive-file
- * findings have no entry in allPatterns; they are always kept (line=0 for
- * sensitive files makes them unlikely to collide anyway).
- */
-function dedupeResults(results: ScanResult[], allPatterns: SecretPattern[]): ScanResult[] {
-  const patternRank = new Map<string, number>();
-  allPatterns.forEach((p, i) => patternRank.set(p.name, i));
-  const rankOf = (r: ScanResult): number => patternRank.has(r.patternName) ? patternRank.get(r.patternName)! : Infinity;
-
-  const candidates: ScanResult[] = [];
-  const standalone: ScanResult[] = [];
-
-  for (const r of results) {
-    if (r.isSensitiveFile || !patternRank.has(r.patternName)) {
-      standalone.push(r);
-    } else {
-      candidates.push(r);
-    }
-  }
-
-  // Group by (file, line) — overlapping matches always sit on the same line.
-  const byLine = new Map<string, ScanResult[]>();
-  for (const r of candidates) {
-    const key = `${r.file}|${r.line}`;
-    if (!byLine.has(key)) byLine.set(key, []);
-    byLine.get(key)!.push(r);
-  }
-
-  const kept: ScanResult[] = [];
-  for (const group of byLine.values()) {
-    // Sort by specificity (most-specific first); ties broken by longer match
-    // length so substring losers come after the superset winner.
-    group.sort((a, b) => {
-      const ra = rankOf(a), rb = rankOf(b);
-      if (ra !== rb) return ra - rb;
-      return b.match.length - a.match.length;
-    });
-
-    const accepted: ScanResult[] = [];
-    for (const r of group) {
-      const subsumed = accepted.some(a =>
-        a.match === r.match || a.match.includes(r.match) || r.match.includes(a.match)
-      );
-      if (!subsumed) accepted.push(r);
-    }
-    kept.push(...accepted);
-  }
-
-  return reindexEnvVarNames([...standalone, ...kept]);
-}
-
-/**
- * reindexEnvVarNames
- *
- * After dedup, envVarNames may contain non-sequential indexes (e.g.
- * `ENDPOINT_URL_321`) because the scanner's per-pattern counter advanced
- * for matches that were later subsumed or filtered. Re-walk the kept
- * results in stable order and reassign indexes per (baseName, value) so
- * users see `_1, _2, _3, ...` instead of `_5, _28, _321`.
- *
- * Same value across multiple findings keeps the same index — only
- * distinct values consume new indexes.
- */
-function reindexEnvVarNames(results: ScanResult[]): ScanResult[] {
-  const baseCounters = new Map<string, number>(); // baseName → next index
-  const valueIndex = new Map<string, string>();   // baseName|value → assigned name
-  const stripIndex = (name: string): string => name.replace(/_\d+$/, '');
-
-  for (const r of results) {
-    if (r.isSensitiveFile || !('envVarName' in r) || !r.envVarName) continue;
-    const base = stripIndex(r.envVarName);
-    const key = `${base}|${r.match}`;
-    if (valueIndex.has(key)) {
-      r.envVarName = valueIndex.get(key)!;
-      continue;
-    }
-    const next = baseCounters.get(base) || 0;
-    const newName = next === 0 ? base : `${base}_${next}`;
-    valueIndex.set(key, newName);
-    baseCounters.set(base, next + 1);
-    r.envVarName = newName;
-  }
-  return results;
 }

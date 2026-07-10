@@ -6,6 +6,7 @@
  * and on multiple lines.
  */
 
+import { buildLineIndex, lineNumberAt } from '../scannerHelpers.js';
 import type { ManifestEntry } from './types.js';
 
 const META_TAG_REGEX = /<meta-data\b((?:[^>"]|"[^"]*")*?)\s*\/?>/g;
@@ -16,28 +17,14 @@ const ATTR_REGEX = /android:(\w+)\s*=\s*"([^"]*)"/g;
  */
 export function parseManifestMetaData(content: string): ManifestEntry[] {
   if (typeof content !== 'string' || !content.includes('<meta-data')) return [];
-  const lines = content.split('\n');
-  const lineOffsets: number[] = [];
-  let cursor = 0;
-  for (const ln of lines) {
-    lineOffsets.push(cursor);
-    cursor += ln.length + 1;
-  }
+  const lineStarts = buildLineIndex(content);
 
   const out: ManifestEntry[] = [];
   META_TAG_REGEX.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = META_TAG_REGEX.exec(content)) !== null) {
     const tagBody = m[1];
-    const offset = m.index;
-    // Binary search for the line containing this offset
-    let lo = 0, hi = lineOffsets.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >>> 1;
-      if (lineOffsets[mid] <= offset) lo = mid;
-      else hi = mid - 1;
-    }
-    const line = lo + 1;
+    const line = lineNumberAt(lineStarts, m.index);
 
     const attrs: Record<string, string> = {};
     ATTR_REGEX.lastIndex = 0;

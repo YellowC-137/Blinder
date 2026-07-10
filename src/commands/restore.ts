@@ -56,7 +56,7 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
     logger.info(t('restore_target_paths', { paths: options.paths.join(', ') }));
   }
 
-  const spinner: void = logger.info(t('restore_analyzing'));
+  logger.info(t('restore_analyzing'));
   const changes = detectChanges(maskDir, repoPath, mapData, options);
 
   logger.divider();

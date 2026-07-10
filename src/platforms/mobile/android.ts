@@ -7,7 +7,6 @@ export default definePlatform({
   id: 'android',
   name: 'Android',
   category: 'mobile',
-  astLanguage: 'kotlin',
 
   detect: async (repoPath: string): Promise<boolean> => {
     // Strong signal 1: AndroidManifest.xml anywhere in standard locations
@@ -65,7 +64,6 @@ export default definePlatform({
     { glob: '**/agconnect-services.json', severity: 'HIGH', reason: 'Huawei AppGallery 서비스 설정' }
   ],
 
-  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
 
   ignorePaths: [
     '**/.gradle/**', 
@@ -93,7 +91,7 @@ captures/
 google-services.json
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
     if (ext === '.kt') {
         return `(if (BuildConfig.${envVarName}.isNullOrEmpty()) "${match}" else BuildConfig.${envVarName})`;
     }
@@ -101,7 +99,6 @@ google-services.json
         return `(BuildConfig.${envVarName} == null || BuildConfig.${envVarName}.isEmpty() ? "${match}" : BuildConfig.${envVarName})`;
     }
     if (ext === '.gradle') {
-        // Detect Kotlin DSL (.gradle.kts) vs Groovy DSL (.gradle) at call site
         return `System.getenv('${envVarName}') ?: ""`;
     }
     if (ext === '.xml') {

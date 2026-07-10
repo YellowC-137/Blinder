@@ -12,7 +12,7 @@ import { parsePlist, isInfoPlist } from './parsers/plistParser.js';
 import { parseProperties } from './parsers/propertiesParser.js';
 import { parseManifestMetaData, isAndroidManifest } from './parsers/manifestParser.js';
 import { classifyKey } from '../protectors/keyClassifier.js';
-import { sanitizeEnvName } from './scannerHelpers.js';
+import { sanitizeEnvName, dedupeEnvName } from './scannerHelpers.js';
 import type { CodeSecretMatch } from '../types/index.js';
 import type { ParsedEntry } from './parsers/types.js';
 import type { ClassifyKeyInput } from '../protectors/types.js';
@@ -86,13 +86,7 @@ export function scanStructuredFile(
 
     const verdict = classifyKey({ fileType: fileType!, key, filename: base });
     const sanitized = sanitizeEnvName(key);
-    let envVarName = sanitized || `STRUCT_${fileType!.toUpperCase()}_KEY`;
-    if (usedEnvNames.has(envVarName) && usedEnvNames.get(envVarName) !== value) {
-      let counter = 1;
-      while (usedEnvNames.has(`${envVarName}_${counter}`) && usedEnvNames.get(`${envVarName}_${counter}`) !== value) counter++;
-      envVarName = `${envVarName}_${counter}`;
-    }
-    usedEnvNames.set(envVarName, value);
+    const envVarName = dedupeEnvName(sanitized || `STRUCT_${fileType!.toUpperCase()}_KEY`, value, usedEnvNames);
 
     results.push({
       file: relPath,

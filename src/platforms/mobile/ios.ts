@@ -10,7 +10,6 @@ export default definePlatform({
   id: 'ios',
   name: 'iOS',
   category: 'mobile',
-  astLanguage: 'swift',
 
   detect: async (repoPath: string): Promise<boolean> => {
     const hasIosDir = fs.existsSync(path.join(repoPath, 'ios'));
@@ -96,7 +95,7 @@ GoogleService-Info.plist
 *.xcconfig
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
     if (ext === '.plist' || ext === '.xcconfig') {
       return `$(${envVarName})`;
     }
@@ -115,7 +114,7 @@ GoogleService-Info.plist
    * Handles complex Objective-C constant/macro replacements
    */
   applyAdvancedFix: (context: AdvancedFixContext): Promise<AdvancedFixResult> => {
-    const { lineContent, match, envVarName, ext, repoPath, relPath, options, migrations, logger } = context;
+    const { lineContent, match, envVarName, ext, repoPath, relPath, options, migrations } = context;
     
     const isObjcFile = ext === '.m' || ext === '.h' || ext === '.mm';
     if (!isObjcFile) return Promise.resolve({ handled: false });

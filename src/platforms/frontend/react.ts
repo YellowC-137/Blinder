@@ -76,7 +76,6 @@ export default definePlatform({
   id: 'react',
   name: 'React',
   category: 'frontend',
-  astLanguage: 'tsx',
 
   // Detect: package.json with `react` in production dependencies.
   // devDependencies/peerDependencies don't count — backend frameworks (e.g.,
@@ -99,7 +98,6 @@ export default definePlatform({
     { glob: '**/service-account*.json', severity: 'CRITICAL', reason: 'GCP 서비스 어카운트' }
   ],
 
-  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
 
   ignorePaths: [
     '**/node_modules/**',
@@ -171,7 +169,7 @@ out/
       : false;
   },
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string, options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
     const state = activeRepoPath ? getState(activeRepoPath) : { buildTool: 'cra' as ReactBuildTool, clientSide: false };
     return pickAccessor(state.buildTool || 'cra', envVarName, state.clientSide, match);
   }

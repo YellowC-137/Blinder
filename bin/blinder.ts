@@ -318,9 +318,8 @@ program
       await generateGitignore(repoPath, project.platforms);
     }
 
-    // --yes mode defaults to false (skip comment scanning) for faster CI runs.
-    // Users who need comment scanning in non-interactive mode should use: --scan-comments
-    let scanComments: boolean = globalOptions.yes ? false : false;
+    // --yes mode skips comment scanning for faster CI runs.
+    let scanComments = false;
     if (!globalOptions.yes) {
       const response = await inquirer.prompt<{ scanComments: boolean }>([
         {

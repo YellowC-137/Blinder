@@ -29,7 +29,7 @@ export function readPackageJson(repoPath: string): PackageJson | null {
 /**
  * True if pkg has the named dependency in dependencies, devDependencies, or peerDependencies.
  */
-export function hasDep(pkg: PackageJson | null, depName: string): boolean {
+function hasDep(pkg: PackageJson | null, depName: string): boolean {
   if (!pkg) return false;
   return !!(
     pkg.dependencies?.[depName] ||

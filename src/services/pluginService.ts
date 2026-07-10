@@ -67,7 +67,7 @@ export default definePlatform({
   commonExtensions: ${extArray},
 
   // 환경 변수 접근자 코드 생성
-  getAutoFixReplacement: (match, envVarName, ext, options) => {
+  getAutoFixReplacement: (match, envVarName, ext) => {
     ${autoFixBody}
   }
 });

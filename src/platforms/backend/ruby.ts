@@ -61,7 +61,7 @@ function findEnclosingRubyLiteral(lineContent: string, matchStart: number, match
  * with a bare ENV[...] expression breaks parsing — we need an interpolated
  * string instead so the chain stays string-typed.
  */
-function isPartOfMultilineConcat(lineContent: string, prevLine: string, nextLine: string): boolean {
+function isPartOfMultilineConcat(lineContent: string, prevLine: string): boolean {
   if (prevLine && /\\\s*$/.test(prevLine)) return true;
   if (/\\\s*$/.test(lineContent)) return true;
   if (/^\s*[+]\s*['"]/.test(lineContent)) return true;
@@ -104,7 +104,7 @@ config/credentials/*.key
 vendor/bundle/
 `,
 
-  applyAdvancedFix: async ({ lineContent, prevLine, nextLine, match, envVarName, ext, relPath }: AdvancedFixContext): Promise<AdvancedFixResult> => {
+  applyAdvancedFix: async ({ lineContent, prevLine, match, envVarName, ext, relPath }: AdvancedFixContext): Promise<AdvancedFixResult> => {
     if (ext !== '.rb') return { handled: false };
 
     // Ruby/Rails test trees (spec/, test/, features/, fixtures/, factories/)
@@ -124,7 +124,7 @@ vendor/bundle/
 
     // String concat chains require interpolated form to keep the result
     // string-typed; standalone literals can use bare ENV[...].
-    const accessor = isPartOfMultilineConcat(lineContent, prevLine, nextLine)
+    const accessor = isPartOfMultilineConcat(lineContent, prevLine)
       ? `"#{ENV['${envVarName}']}"`
       : `ENV["${envVarName}"]`;
 
@@ -139,12 +139,7 @@ vendor/bundle/
     };
   },
 
-  getAutoFixReplacement: (match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, _ext: string): string => {
     return `(ENV["${envVarName}"] || "${match}")`;
   }
 });
-
-export const __test = {
-  findEnclosingRubyLiteral,
-  isPartOfMultilineConcat
-};

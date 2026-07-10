@@ -6,6 +6,12 @@
  */
 import { definePlatform } from './definePlatform.js';
 
+// Java 소스용 env 접근자 — java/springboot 플랫폼이 공유.
+// 문자열이 char 단위로 동일해야 rollback 이 원문 복원 시 정확히 매칭된다.
+export function javaEnvAccessor(envVarName: string, match: string): string {
+  return `(System.getenv("${envVarName}") == null || System.getenv("${envVarName}").isEmpty() ? "${match}" : System.getenv("${envVarName}"))`;
+}
+
 export default definePlatform({
   id: 'common',
   name: 'Common Environment',
@@ -85,7 +91,7 @@ secrets/
 credentials/
 `,
 
-  getAutoFixReplacement: (_originalMatch: string, envVarName: string, _fileExtension: string, _options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (_originalMatch: string, envVarName: string, _fileExtension: string): string => {
     return `process.env.${envVarName}`;
   }
 });

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger.js';
 import { t } from '../utils/i18n.js';
+import { escapeRegExp } from '../utils/regexGuard.js';
 import type { Migration, ScanResult, CodeSecretMatch } from '../types/index.js';
 import type { Platform, ProtectionOptions } from '../platforms/types.js';
 
@@ -12,13 +13,6 @@ function findPlatformForExtension(platforms: Platform[], ext: string): Platform 
   const matching = platforms.find(p => (p.commonExtensions || []).includes(ext));
   if (matching) return matching;
   return platforms.find(p => p.id === 'common') || platforms[0];
-}
-
-/**
- * escapeRegExp
- */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 interface StringLiteralBounds {
@@ -138,7 +132,7 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
       if (s.isSensitiveFile || !s.isFixable) continue;
 
       const cs = s as CodeSecretMatch;
-      const { envVarName, match, fullMatch, line } = cs;
+      const { envVarName, match, line } = cs;
       if (!envVarName) continue;
       const lineIdx = line - 1;
       if (lineIdx < 0 || lineIdx >= contentLines.length) continue;
@@ -160,7 +154,6 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
           prevLine: lineIdx > 0 ? contentLines[lineIdx - 1] : '',
           nextLine: lineIdx + 1 < contentLines.length ? contentLines[lineIdx + 1] : '',
           match,
-          fullMatch,
           envVarName,
           ext,
           repoPath,
@@ -183,7 +176,7 @@ export async function applyAutoFixes(repoPath: string, selectedSecrets: ScanResu
       // Stage 2: Basic Fix
       if (!handledByPlatform) {
         if (matchingPlatform?.getAutoFixReplacement) {
-          accessor = matchingPlatform.getAutoFixReplacement(match, envVarName, ext, options as Record<string, unknown>);
+          accessor = matchingPlatform.getAutoFixReplacement(match, envVarName, ext);
         } else {
           accessor = `process.env.${envVarName}`;
         }
@@ -292,7 +285,7 @@ export function prepareEnvContent(results: Array<ScanResult & { envVarName: stri
   const selected: Array<ScanResult & { envVarName: string; secretValue: string }> = [];
 
   for (const res of results) {
-    const { match, envVarName, secretValue } = res;
+    const { envVarName, secretValue } = res;
     selected.push(res);
     if (!envContent.includes(`${envVarName}=`)) {
       envContent += `${envVarName}=${secretValue}\n`;

@@ -5,7 +5,6 @@ export default definePlatform({
   id: 'node',
   name: 'Node.js',
   category: 'backend',
-  astLanguage: 'javascript',
 
   // Detect: package.json present AND not a frontend project
   // (frontend projects belong to React/Vue/etc. plugins)
@@ -29,7 +28,6 @@ export default definePlatform({
     { glob: '**/ecosystem.config.js', severity: 'MEDIUM', reason: 'pm2 설정에 시크릿 가능' }
   ],
 
-  commentRegex: /^\s*(\/\/|\/\*|\*|#)/,
 
   ignorePaths: [
     '**/node_modules/**',
@@ -58,7 +56,7 @@ coverage/
 .npm/
 `,
 
-  getAutoFixReplacement: (match: string, envVarName: string, _ext: string, _options?: Record<string, unknown>): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, _ext: string): string => {
     return `(process.env.${envVarName} || "${match}")`;
   }
 });

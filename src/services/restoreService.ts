@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { escapeRegExp } from '../utils/regexGuard.js';
 import type { MaskingMap } from '../types/index.js';
 
 interface ImportInfo {
@@ -39,8 +40,7 @@ export function repairMissingImports(fileName: string, originalContent: string, 
   for (const imp of missing) {
     const id = imp.identifier.split('.').pop();
     if (!id) continue;
-    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const usageRegex = new RegExp(`\\b${escaped}\\b`);
+    const usageRegex = new RegExp(`\\b${escapeRegExp(id)}\\b`);
     if (usageRegex.test(newContentString)) {
       toRestore.push(imp.full);
     }
@@ -99,7 +99,7 @@ function getLanguageSpecificImportInfo(ext: string): ImportInfo | null {
 /**
  * hasBeenModifiedByAI
  */
-export function hasBeenModifiedByAI(relPath: string, maskedContent: string, originalContent: string, mapData: MaskingMap): boolean {
+function hasBeenModifiedByAI(relPath: string, maskedContent: string, originalContent: string, mapData: MaskingMap): boolean {
   let remasked = originalContent;
   const sortedMappings = Object.entries(mapData.mappings)
     .sort((a, b) => b[1].originalValue.length - a[1].originalValue.length);
