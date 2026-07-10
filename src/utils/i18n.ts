@@ -217,7 +217,7 @@ const translations: Record<string, Record<string, string>> = {
     add_platform_step3: '  3. 테스트: blinder scan --path /your/project --dry-run',
 
     // AST Provider
-    ast_engine_disabled: 'AST 검증 비활성화: Node.js v24 WASM 크래시 버그 회피로 정규식 전용 모드로 동작합니다 (오탐 증가 가능). 강제 활성화: BLINDER_FORCE_AST=1',
+    ast_swift_disabled: 'Swift AST 검증 비활성화: Node.js v24 의 tree-sitter-swift WASM 크래시 버그 회피 — .swift 파일은 정규식 전용으로 검사합니다 (다른 언어 AST 검증은 정상 동작). 강제 활성화: BLINDER_FORCE_AST=1',
 
     // Flutter Bridge
     flutter_vscode_updated: 'VS Code launch.json 파일이 --dart-define-from-file 로 업데이트되었습니다',
@@ -505,7 +505,7 @@ const translations: Record<string, Record<string, string>> = {
     add_platform_step3: '  3. Test: blinder scan --path /your/project --dry-run',
 
     // AST Provider
-    ast_engine_disabled: 'AST validation disabled: running regex-only mode to avoid a Node.js v24 WASM crash bug (more false positives possible). Force-enable with BLINDER_FORCE_AST=1.',
+    ast_swift_disabled: 'Swift AST validation disabled: avoiding a Node.js v24 tree-sitter-swift WASM crash bug — .swift files are checked regex-only (AST validation for other languages works normally). Force-enable with BLINDER_FORCE_AST=1.',
 
     // Flutter Bridge
     flutter_vscode_updated: 'VS Code launch.json updated with --dart-define-from-file',

@@ -47,7 +47,7 @@ export default definePlatform({
     return false;
   },
 
-  commonExtensions: ['.kt', '.java', '.xml', '.gradle', '.properties', '.json'],
+  commonExtensions: ['.kt', '.kts', '.java', '.xml', '.gradle', '.properties', '.json'],
 
   sensitiveFiles: [
     { glob: '**/google-services.json', severity: 'CRITICAL', reason: 'Google 서비스 인증 정보가 포함된 파일' },
@@ -100,6 +100,10 @@ google-services.json
     }
     if (ext === '.gradle') {
         return `System.getenv('${envVarName}') ?: ""`;
+    }
+    if (ext === '.kts') {
+        // Kotlin DSL — 문자열은 반드시 큰따옴표 (Groovy 와 달리 '...' 불가)
+        return `System.getenv("${envVarName}") ?: ""`;
     }
     if (ext === '.xml') {
         return `\${${envVarName}}`;

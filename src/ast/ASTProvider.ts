@@ -22,14 +22,23 @@ class ASTProvider {
   private initialized: boolean;
   private wasmDir: string;
   private disabled: boolean;
-  private _warnedNoWasm: boolean;
+  private swiftBlocked: boolean;
+  private _warnedSwift: boolean;
 
   constructor() {
     this.parser = null;
     this.languages = new Map();
     this.initialized = false;
     this.disabled = false;
-    this._warnedNoWasm = false;
+    this._warnedSwift = false;
+    // Node v24+ 에서 tree-sitter-swift wasm 이 V8 Turboshaft 컴파일 중
+    // "Fatal process out of memory: Zone" 으로 프로세스를 죽임 (재현 100%,
+    // --liftoff/--no-wasm-tier-up 으로도 회피 불가). swift 그램마만 차단하고
+    // 나머지 7개 언어는 정상 동작 확인됨 — 언어별 스트레스 테스트 결과
+    // (300회 파싱) swift 만 crash. BLINDER_FORCE_AST=1 로 강제 해제 가능
+    // (V8 이 고쳐진 미래 Node 버전용).
+    const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
+    this.swiftBlocked = nodeVersion >= 24 && process.env.BLINDER_FORCE_AST !== '1';
     const wasmsDir = path.dirname(require.resolve('tree-sitter-wasms/package.json'));
     this.wasmDir = path.join(wasmsDir, 'out');
   }
@@ -42,21 +51,6 @@ class ASTProvider {
    */
   async init(): Promise<boolean> {
     if (this.initialized) return true;
-
-    // Node v24.x 에서는 WASM 관련 Turboshaft 컴파일러 버그로 SIGSEGV가 간헐적으로 발생함.
-    const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
-    const forceAst = process.env.BLINDER_FORCE_AST === '1';
-
-    if (nodeVersion >= 24 && !forceAst) {
-      if (!this._warnedNoWasm) {
-        this._warnedNoWasm = true;
-        // warn, not debug: the tool's core AST cross-check silently turning
-        // off for the current LTS must be visible to the user.
-        logger.warn(t('ast_engine_disabled'));
-      }
-      this.disabled = true;
-      return false;
-    }
 
     try {
       // 런타임 wasm 파일명: ≤0.25 는 tree-sitter.wasm, 0.26+ 는 web-tree-sitter.wasm
@@ -122,6 +116,14 @@ class ASTProvider {
   ): Promise<boolean> {
     // WASM 비활성화 상태면 즉시 regex fallback
     if (this.disabled) return true;
+    // swift 그램마는 Node 24+ V8 크래시 유발 — regex 결과 신뢰 (생성자 주석 참고)
+    if (langId === 'swift' && this.swiftBlocked) {
+      if (!this._warnedSwift) {
+        this._warnedSwift = true;
+        logger.warn(t('ast_swift_disabled'));
+      }
+      return true;
+    }
     if (!this.initialized && !(await this.init())) return true; // Fallback to Regex
 
     try {
