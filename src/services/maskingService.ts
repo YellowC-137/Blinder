@@ -152,6 +152,15 @@ export async function performMasking(
     const mapPath = mapPathFor(repoPath, maskDir);
     fs.mkdirSync(path.dirname(mapPath), { recursive: true });
     fs.writeFileSync(mapPath, JSON.stringify(mappingData, null, 2));
+
+    const agentsMd = `# AI Agent Instructions
+
+DO NOT ATTEMPT to read, create, or request \`.env\` files, \`.env.*\`, or any sensitive credentials.
+This project has been masked by Blinder to protect sensitive data.
+Secret values have been replaced with \`__BLINDER_VARNAME__\` tags.
+Do not modify these tags. They will be automatically restored to their original values when this directory is merged back into the source.
+`;
+    fs.writeFileSync(path.join(maskDir, 'agents.md'), agentsMd);
   }
 
   return mappingData;

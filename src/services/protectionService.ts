@@ -3,6 +3,7 @@ import path from 'path';
 import logger from '../utils/logger.js';
 import { t } from '../utils/i18n.js';
 import { escapeRegExp } from '../utils/regexGuard.js';
+import { parseEnv } from './rollbackService.js';
 import type { Migration, ScanResult, CodeSecretMatch } from '../types/index.js';
 import type { Platform, ProtectionOptions } from '../platforms/types.js';
 
@@ -282,14 +283,17 @@ interface EnvResult {
 export function prepareEnvContent(results: Array<ScanResult & { envVarName: string; secretValue: string }>, existingEnv: string = ''): EnvResult {
   let envContent = existingEnv;
   let envExampleContent = '';
+  const existingEnvVars = parseEnv(existingEnv);
   const selected: Array<ScanResult & { envVarName: string; secretValue: string }> = [];
 
   for (const res of results) {
     const { envVarName, secretValue } = res;
     selected.push(res);
-    if (!envContent.includes(`${envVarName}=`)) {
+    if (!Object.prototype.hasOwnProperty.call(existingEnvVars, envVarName)) {
+      if (envContent && !envContent.endsWith('\n')) envContent += '\n';
       envContent += `${envVarName}=${secretValue}\n`;
       envExampleContent += `${envVarName}=your_secret_here\n`;
+      existingEnvVars[envVarName] = secretValue;
     }
   }
 

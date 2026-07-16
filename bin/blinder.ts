@@ -488,7 +488,14 @@ program
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
     logger.info(t('mask_tip_settings'));
-    await maskFiles(repoPath, { ...options, ...globalOptions, ...config, maskOutput: options.output });
+    await maskFiles(repoPath, {
+      ...config,
+      ...globalOptions,
+      ...options,
+      // Commander returns undefined when -o/--output is omitted; preserve
+      // the configured maskOutput in that case.
+      maskOutput: options.output ?? config.maskOutput
+    });
   }));
 
 program

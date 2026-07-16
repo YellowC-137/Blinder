@@ -27,6 +27,26 @@ interface PlannedModification {
   newContent: string;
 }
 
+function isSafeRelativeFilePath(file: unknown): file is string {
+  if (typeof file !== 'string' || file.length === 0 || path.isAbsolute(file)) return false;
+  const parts = file.split(/[\\/]/);
+  return !parts.includes('..') && !parts.includes('') && path.normalize(file) === file;
+}
+
+/** Reject untrusted map paths before they can be joined to repoPath. */
+export function validateMaskingMapPaths(mapData: MaskingMap): void {
+  const paths = [
+    ...(Array.isArray(mapData.allFiles) ? mapData.allFiles : []),
+    ...Object.keys(mapData.fileHashes || {}),
+    ...Object.values(mapData.mappings || {}).flatMap(info => Array.isArray(info.files) ? info.files : [])
+  ];
+
+  if (!Array.isArray(mapData.allFiles) || !mapData.mappings || typeof mapData.mappings !== 'object' ||
+      !mapData.fileHashes || typeof mapData.fileHashes !== 'object' || !paths.every(isSafeRelativeFilePath)) {
+    throw new Error('Invalid masking map: contains an unsafe file path');
+  }
+}
+
 export async function restoreFromMasked(repoPath: string, options: RestoreOptions = {}): Promise<void> {
   let maskDir: string | null = (options.maskOutput && options.maskOutput !== '.blinder_masked')
     ? path.join(repoPath, options.maskOutput)
@@ -50,6 +70,7 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
 
   logger.header(t('restore_header'));
   const mapData: MaskingMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+  validateMaskingMapPaths(mapData);
   logger.info(t('restore_source', { dir: maskDir }));
   logger.info(t('restore_masked_at', { date: mapData.createdAt }));
   if (options.paths && options.paths.length > 0) {

@@ -92,6 +92,10 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
     'blinder_reports/**',
     '.env',
     '.env.example',
+    // A masked copy is meant to be safe to share. Environment-file variants
+    // are credentials by convention, so exclude all of them, not only a
+    // hand-picked list of common names below.
+    '**/.env.*',
     '.blinder_map.json',
     '.blinder_maps/**',
     'Pods/**',
@@ -141,9 +145,7 @@ export async function maskFiles(repoPath: string, options: MaskCommandOptions = 
     '**/.idea/workspace.xml', '**/.idea/dataSources.xml', '**/.idea/dataSources/**',
     '**/.vscode/sftp.json',
     // 8. 환경변수 변형 / Rails 시크릿 / 일반 시크릿 컨벤션
-    '**/.env.local', '**/.env.*.local',
-    '**/.env.development', '**/.env.production', '**/.env.staging', '**/.env.test',
-    '**/.env.vault',
+    '**/.env.*',
     '**/secrets.yml', '**/secrets.yaml', '**/secrets.json', '**/*.secrets',
     '**/*.kdbx', '**/*.kdb',
     '**/master.key', '**/.master.key',

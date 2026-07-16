@@ -2,9 +2,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { parseEnv, cleanGitignore } from '../src/services/rollbackService.js';
+import { prepareEnvContent } from '../src/services/protectionService.js';
 import { validateCustomPattern } from '../src/utils/regexGuard.js';
 import { performMasking } from '../src/services/maskingService.js';
 import { findMaskedDirectory } from '../src/services/restoreService.js';
+import { maskFiles } from '../src/commands/mask.js';
+import { restoreFromMasked } from '../src/commands/restore.js';
 
 let pass = 0;
 let fail = 0;
@@ -35,6 +38,17 @@ expect('parseEnv lone single quote kept as-is', env.B, "'");
 expect('parseEnv normal quoted value unwrapped', env.C, 'hello');
 expect('parseEnv empty single-quoted pair', env.D, '');
 expect('parseEnv empty double-quoted pair', env.E, '');
+
+// --- prepareEnvContent: exact env-var matching, including a final line without \n ---
+{
+  const result = prepareEnvContent([{
+    envVarName: 'API_KEY', secretValue: 'new-secret', file: 'app.js', line: 1,
+    match: 'new-secret', fullMatch: 'new-secret', patternName: 'x', severity: 'HIGH',
+    isFixable: true, isTestKey: false, isSensitiveFile: false, isComment: false,
+    isMultiline: false, content: '', isLikelyExample: false
+  }], 'MY_API_KEY=existing');
+  expect('prepareEnvContent does not confuse substring key names', result.envContent, 'MY_API_KEY=existing\nAPI_KEY=new-secret\n');
+}
 
 // --- cleanGitignore: paired END-marker blocks removed, user lines preserved ---
 {
@@ -135,6 +149,36 @@ expect('parseEnv empty double-quoted pair', env.E, '');
   expect('dryRun: maskDir not created', fs.existsSync(maskDir), false);
   expect('dryRun: map file not written', fs.existsSync(path.join(repo, '.blinder_maps', 'maskedProject_demo.json')), false);
   expect('dryRun: still returns mapping preview', map.mappings.GENERIC_API_KEY?.originalValue, 'sk-aaaabbbbccccdddd');
+  fs.rmSync(repo, { recursive: true, force: true });
+}
+
+// --- maskFiles: all .env variants stay out of shareable copies ---
+{
+  const repo = tmpDir('blinder-env-variant-');
+  fs.writeFileSync(path.join(repo, '.env.qa'), 'API_KEY=real-secret\n');
+  fs.writeFileSync(path.join(repo, 'app.js'), 'console.log("safe");\n');
+  await maskFiles(repo, { yes: true });
+  const maskDir = path.join(repo, `maskedProject_${path.basename(repo)}`);
+  expect('mask excludes arbitrary .env variants', fs.existsSync(path.join(maskDir, '.env.qa')), false);
+  fs.rmSync(repo, { recursive: true, force: true });
+}
+
+// --- restore: reject traversal paths from an untrusted legacy map ---
+{
+  const repo = tmpDir('blinder-unsafe-map-');
+  const maskDir = path.join(repo, 'legacy-mask');
+  fs.mkdirSync(maskDir);
+  fs.writeFileSync(path.join(maskDir, '.blinder_map.json'), JSON.stringify({
+    version: '1.0', createdAt: '', projectRoot: repo, allFiles: ['../outside.txt'],
+    fileHashes: {}, mappings: {}
+  }));
+  let threw = false;
+  try {
+    await restoreFromMasked(repo, { maskOutput: 'legacy-mask', yes: true });
+  } catch (err) {
+    threw = String(err).includes('unsafe file path');
+  }
+  expect('restore rejects traversal path in legacy map', threw, true);
   fs.rmSync(repo, { recursive: true, force: true });
 }
 
