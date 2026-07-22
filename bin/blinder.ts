@@ -18,9 +18,7 @@ import { maskFiles } from '../src/commands/mask.js';
 import { restoreFromMasked } from '../src/commands/restore.js';
 import { addPlatform } from '../src/commands/add_platform.js';
 import { t } from '../src/utils/i18n.js';
-import { getGlobalConfig, saveGlobalConfig, isLanguageConfigured } from '../src/utils/globalConfig.js';
-
-import type { Platform } from '../src/platforms/types.js';
+import { saveGlobalConfig, isLanguageConfigured } from '../src/utils/globalConfig.js';
 import type { ScanResult, ProjectDetection } from '../src/types/index.js';
 
 /** Global CLI options parsed from commander .opts() */
@@ -117,7 +115,6 @@ async function report(
   results: ScanResult[],
   repoPath: string,
   options: { output?: string; ci?: boolean },
-  skipConfirm: boolean = false,
   project: ProjectDetection | null = null
 ): Promise<boolean> {
   const reportDir = path.join(repoPath, 'blinder_reports');
@@ -294,7 +291,7 @@ program
     });
     scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
-    await report(results, repoPath, options, false, project);
+    await report(results, repoPath, options, project);
   }));
 
 program
@@ -340,7 +337,7 @@ program
     });
     scanSpinner.succeed(t('scan_complete', { count: results.length }));
 
-    const hasSecrets = await report(results, repoPath, {}, false, project);
+    const hasSecrets = await report(results, repoPath, {}, project);
 
     if (hasSecrets) {
       logger.info(`\n${t('tips')}`);

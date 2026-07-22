@@ -13,7 +13,7 @@ interface AddPlatformAnswers {
   detectFile: string;
 }
 
-export async function addPlatform(repoPath: string): Promise<void> {
+export async function addPlatform(_repoPath: string): Promise<void> {
   logger.header(t('add_platform_header'));
   logger.info(t('add_platform_start'));
 

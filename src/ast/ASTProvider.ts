@@ -110,7 +110,7 @@ class ASTProvider {
   async validateMatch(
     filePath: string,
     langId: string,
-    matchValue: string,
+    _matchValue: string,
     startOffset: number,
     opts: ValidateMatchOptions = {}
   ): Promise<boolean> {

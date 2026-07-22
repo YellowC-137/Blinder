@@ -169,7 +169,7 @@ out/
       : false;
   },
 
-  getAutoFixReplacement: (match: string, envVarName: string, ext: string): string => {
+  getAutoFixReplacement: (match: string, envVarName: string, _ext: string): string => {
     const state = activeRepoPath ? getState(activeRepoPath) : { buildTool: 'cra' as ReactBuildTool, clientSide: false };
     return pickAccessor(state.buildTool || 'cra', envVarName, state.clientSide, match);
   }

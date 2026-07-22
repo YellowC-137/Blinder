@@ -20,7 +20,8 @@
       "Bash(ls:*)",
       "Bash(git stash:*)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Skill(code-review:code-review)"
     ]
   },
   "hooks": {

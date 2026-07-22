@@ -91,7 +91,7 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
   const missingTags: Array<{ file: string; tag: string }> = [];
   for (const f of changes.modified) {
     const content: string = fs.readFileSync(path.join(maskDir, f), 'utf8');
-    for (const [varName, info] of Object.entries(mapData.mappings)) {
+    for (const [, info] of Object.entries(mapData.mappings)) {
       if (info.files.includes(f) && !content.includes(info.redactedTag)) {
         missingTags.push({ file: f, tag: info.redactedTag });
       }
@@ -124,7 +124,7 @@ export async function restoreFromMasked(repoPath: string, options: RestoreOption
     const sortedMappings = Object.entries(mapData.mappings)
       .sort((a, b) => b[1].redactedTag.length - a[1].redactedTag.length);
       
-    for (const [varName, info] of sortedMappings) {
+    for (const [, info] of sortedMappings) {
       content = content.split(info.redactedTag).join(info.originalValue);
     }
 

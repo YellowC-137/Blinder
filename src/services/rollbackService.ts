@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import logger from '../utils/logger.js';
 import type { Migration, ProtectionMetadata, RollbackReport } from '../types/index.js';
 import type { Platform, RollbackOptions } from '../platforms/types.js';
 

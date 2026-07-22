@@ -104,7 +104,7 @@ function hasBeenModifiedByAI(relPath: string, maskedContent: string, originalCon
   const sortedMappings = Object.entries(mapData.mappings)
     .sort((a, b) => b[1].originalValue.length - a[1].originalValue.length);
     
-  for (const [varName, info] of sortedMappings) {
+  for (const [, info] of sortedMappings) {
     if (info.files.includes(relPath)) {
       remasked = remasked.split(info.originalValue).join(info.redactedTag);
     }
