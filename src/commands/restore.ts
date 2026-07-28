@@ -34,7 +34,7 @@ function isSafeRelativeFilePath(file: unknown): file is string {
 }
 
 /** Reject untrusted map paths before they can be joined to repoPath. */
-export function validateMaskingMapPaths(mapData: MaskingMap): void {
+function validateMaskingMapPaths(mapData: MaskingMap): void {
   const paths = [
     ...(Array.isArray(mapData.allFiles) ? mapData.allFiles : []),
     ...Object.keys(mapData.fileHashes || {}),

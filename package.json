@@ -2,7 +2,7 @@
   "name": "blinder",
   "version": "1.2.1",
   "description": "Blinder - AI-Agent Security & Secret Protection with Plugin Architecture",
-  "main": "index.js",
+  "main": "dist/bin/blinder.js",
   "type": "module",
   "bin": {
     "blinder": "./dist/bin/blinder.js"

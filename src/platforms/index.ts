@@ -26,4 +26,3 @@ export const platforms: Platform[] = [
   java
 ];
 
-export default platforms;
