@@ -4,6 +4,7 @@ import logger from '../utils/logger.js';
 import { t } from '../utils/i18n.js';
 import { detectProjectType } from '../utils/detector.js';
 import { scanProject } from '../detectors/scanner.js';
+import { dedupeEnvName } from '../detectors/scannerHelpers.js';
 import { hookMapPath, SHADOW_DIR } from '../services/hookExec.js';
 import type { MaskingMap, CodeSecretMatch } from '../types/index.js';
 
@@ -33,21 +34,21 @@ export async function installHook(repoPath: string): Promise<void> {
     fileHashes: {},
     allFiles: []
   };
+  const usedEnvNames = new Map<string, string>();
   for (const s of secrets) {
     // Same envVarName with a different value must not be dropped — an
-    // unmapped value would be served to the agent unmasked.
-    let name = s.envVarName;
-    let n = 2;
-    while (map.mappings[name] && map.mappings[name].originalValue !== s.match) {
-      name = `${s.envVarName}_${n++}`;
-    }
+    // unmapped value would be served to the agent unmasked. scanProject
+    // already dedupes per run; this guards the invariant at map-build time.
+    const name = dedupeEnvName(s.envVarName, s.match, usedEnvNames);
     map.mappings[name] ??= { originalValue: s.match, redactedTag: `__BLINDER_${name}__`, files: [] };
     if (!map.mappings[name].files.includes(s.file)) map.mappings[name].files.push(s.file);
   }
 
   const mapFile = hookMapPath(repoPath);
   fs.mkdirSync(path.dirname(mapFile), { recursive: true });
-  fs.writeFileSync(mapFile, JSON.stringify(map, null, 2));
+  // Atomic replace: a concurrent blinder-hook must never see a torn map.
+  fs.writeFileSync(`${mapFile}.tmp`, JSON.stringify(map, null, 2));
+  fs.renameSync(`${mapFile}.tmp`, mapFile);
 
   // Invalidate stale shadows from a previous install in one stroke — they
   // are regenerated on demand from the fresh map.

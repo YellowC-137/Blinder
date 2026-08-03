@@ -18,6 +18,7 @@ import { maskFiles } from '../src/commands/mask.js';
 import { restoreFromMasked } from '../src/commands/restore.js';
 import { addPlatform } from '../src/commands/add_platform.js';
 import { installHook } from '../src/commands/hook.js';
+import { parseExternalReport } from '../src/detectors/externalReport.js';
 import { t } from '../src/utils/i18n.js';
 import { saveGlobalConfig, isLanguageConfigured } from '../src/utils/globalConfig.js';
 import type { ScanResult, ProjectDetection } from '../src/types/index.js';
@@ -298,7 +299,8 @@ program
 program
   .command('blind')
   .description(t('blind_desc'))
-  .action(() => handleAction(async () => {
+  .option('--from <report>', 'Use an external scanner report (Gitleaks JSON / TruffleHog NDJSON) instead of the built-in scanner')
+  .action((cmdOptions: { from?: string }) => handleAction(async () => {
     const globalOptions = program.opts<GlobalOptions>();
     const repoPath = path.resolve(globalOptions.path);
     const config = loadConfig(repoPath);
@@ -318,7 +320,7 @@ program
 
     // --yes mode skips comment scanning for faster CI runs.
     let scanComments = false;
-    if (!globalOptions.yes) {
+    if (!globalOptions.yes && !cmdOptions.from) {
       const response = await inquirer.prompt<{ scanComments: boolean }>([
         {
           type: 'confirm',
@@ -330,13 +332,21 @@ program
       scanComments = response.scanComments;
     }
 
-    const scanSpinner = ora(t('scanning_secrets')).start();
-    const results = await scanProject(repoPath, project.platforms, {
-      customPatterns: config.customPatterns,
-      ignore: config.ignorePaths,
-      scanComments
-    });
-    scanSpinner.succeed(t('scan_complete', { count: results.length }));
+    let results: ScanResult[];
+    if (cmdOptions.from) {
+      // Detection delegated to a dedicated scanner — Blinder only fixes.
+      const parseSpinner = ora(t('external_parsing', { file: cmdOptions.from })).start();
+      results = parseExternalReport(repoPath, path.resolve(cmdOptions.from));
+      parseSpinner.succeed(t('scan_complete', { count: results.length }));
+    } else {
+      const scanSpinner = ora(t('scanning_secrets')).start();
+      results = await scanProject(repoPath, project.platforms, {
+        customPatterns: config.customPatterns,
+        ignore: config.ignorePaths,
+        scanComments
+      });
+      scanSpinner.succeed(t('scan_complete', { count: results.length }));
+    }
 
     const hasSecrets = await report(results, repoPath, {}, project);
 
@@ -372,7 +382,8 @@ program
       logger.info(t('files_for_autofix', { files: uniqueFiles.map(f => `  - ${f}`).join('\n') }));
 
       let additionalIgnores = '';
-      if (!globalOptions.yes) {
+      // Skipped with --from: the report is already a curated finding list.
+      if (!globalOptions.yes && !cmdOptions.from) {
         const response = await inquirer.prompt<{ additionalIgnores: string }>([
           {
             type: 'input',

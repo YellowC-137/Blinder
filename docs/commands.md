@@ -21,6 +21,13 @@
 플래그:
 - `-y, --yes`: 모든 프롬프트 자동 'yes' 처리. CI/CD 적합.
 - `--dry-run`: 실제 수정 없이 변경 미리보기.
+- `--from <report>`: 내장 스캐너 대신 **외부 스캐너 리포트**를 탐지 소스로 사용. Gitleaks JSON(`gitleaks dir . -r report.json`)과 TruffleHog v3 NDJSON(`trufflehog filesystem . -j > report.ndjson`)을 자동 판별. 각 항목은 워킹 트리와 대조해 검증되며(파일 없음·시크릿 불일치 항목은 건너뜀), 멀티라인 시크릿(개인키 등)은 리포트만 되고 auto-fix에서 제외됩니다.
+
+```bash
+# 탐지는 전용 스캐너, 수정은 Blinder
+gitleaks dir . --report-path gitleaks.json
+blinder blind --from gitleaks.json
+```
 
 > [!NOTE]
 > **주석 시크릿 처리**: 옵트인 시 발견되더라도 auto-fix는 건너뜁니다 (이미 dead code → env 치환 무의미). 별도 `💬 Commented-out Secrets` 섹션으로 보고되며, 사용자가 수동으로 해당 라인을 삭제하도록 권고합니다.

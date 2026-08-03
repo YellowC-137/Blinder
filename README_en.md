@@ -108,6 +108,13 @@ The secret ↔ token mapping is stored **outside** the copy (`<project root>/.bl
 
 Dedicated scanners like [Gitleaks](https://github.com/gitleaks/gitleaks) (160+ patterns) and [TruffleHog](https://trufflesecurity.com/trufflehog) (800+ detectors, live key verification) are optimized for **finding** secrets — leave that job to them. Blinder's job starts **after**: extracting the found secrets into `.env` and auto-fixing the platform wiring so the build doesn't break. The built-in `blinder scan` is a lightweight scanner; for CI gating we recommend a dedicated scanner.
 
+You can also feed a dedicated scanner's findings straight into Blinder:
+
+```bash
+gitleaks dir . --report-path gitleaks.json
+blinder blind --from gitleaks.json      # Gitleaks finds, Blinder fixes
+```
+
 ---
 
 ## 🧩 Supported Platforms / Languages

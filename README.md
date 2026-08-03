@@ -108,6 +108,13 @@ blinder restore     # AI 수정안(mask 사본)을 원본에 머지
 
 [Gitleaks](https://github.com/gitleaks/gitleaks)(160+ 패턴)나 [TruffleHog](https://trufflesecurity.com/trufflehog)(800+ 탐지기, 라이브 키 검증) 같은 전용 스캐너는 시크릿을 **찾는** 데 최적화되어 있고, 그 역할은 그들에게 맡기는 것이 맞습니다. Blinder의 역할은 그 **다음**입니다 — 찾은 시크릿을 `.env`로 빼고, 빌드가 깨지지 않도록 플랫폼 연동까지 자동으로 고치는 것. 내장 `blinder scan`은 간이 스캐너이며, CI 게이팅은 전용 스캐너를 권장합니다.
 
+전용 스캐너의 결과를 그대로 이어받을 수도 있습니다:
+
+```bash
+gitleaks dir . --report-path gitleaks.json
+blinder blind --from gitleaks.json      # 탐지는 Gitleaks, 수정은 Blinder
+```
+
 ---
 
 ## 🧩 지원 플랫폼 / 언어

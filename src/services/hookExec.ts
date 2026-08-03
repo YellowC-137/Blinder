@@ -68,6 +68,12 @@ export function handleHookInput(input: PreToolUseInput, repoRootOverride?: strin
   let map: MaskingMap;
   try {
     map = JSON.parse(fs.readFileSync(mapFile, 'utf8')) as MaskingMap;
+    // Parseable-but-wrong-shape JSON (torn write, manual edit) must not
+    // masquerade as "no mappings" — that would serve secret files raw.
+    if (!map || typeof map !== 'object' || Array.isArray(map) ||
+        !map.mappings || typeof map.mappings !== 'object') {
+      throw new Error('invalid map shape');
+    }
   } catch {
     // Can't know which files hold secrets — fail closed rather than leak
     // (Read) or write literal tokens into sources (Edit/Write).
@@ -79,8 +85,14 @@ export function handleHookInput(input: PreToolUseInput, repoRootOverride?: strin
   if (relPath.startsWith('..') || path.isAbsolute(relPath)) return null; // outside project
   if (relPath.split(path.sep)[0] === SHADOW_DIR) return null; // shadow itself
 
-  if (tool === 'Read') return handleRead(repoRoot, relPath, absPath, map, mapFile);
-  return handleEditWrite(tool, input, relPath, map, mapFile);
+  try {
+    if (tool === 'Read') return handleRead(repoRoot, relPath, absPath, map, mapFile);
+    return handleEditWrite(tool, input, relPath, map, mapFile);
+  } catch (err) {
+    // An unexpected throw here would otherwise bubble up to blinder-hook,
+    // print nothing to stdout, and fall through to a RAW tool call.
+    return deny(`Blinder hook failed on ${relPath}: ${(err as Error).message}`);
+  }
 }
 
 function handleRead(
@@ -92,6 +104,8 @@ function handleRead(
 ): HookDecision | null {
   const mapped = Object.values(map.mappings ?? {}).some(m => m.files?.includes(relPath));
   if (!mapped) return null;
+  // Deleted since install: nothing to leak — let the tool report it naturally.
+  if (!fs.existsSync(absPath)) return null;
 
   try {
     const shadowAbs = ensureShadow(repoRoot, relPath, absPath, map, fs.statSync(mapFile).mtimeMs);
@@ -149,7 +163,9 @@ function handleEditWrite(
   }
   if (mapChanged) {
     try {
-      fs.writeFileSync(mapFile, JSON.stringify(map, null, 2));
+      // Atomic replace: a concurrent blinder-hook must never see a torn map.
+      fs.writeFileSync(`${mapFile}.tmp`, JSON.stringify(map, null, 2));
+      fs.renameSync(`${mapFile}.tmp`, mapFile);
     } catch (err) {
       // Without the registration a later Read would serve the secret raw.
       return deny(`Blinder could not update its hook map: ${(err as Error).message}`);

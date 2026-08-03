@@ -140,6 +140,24 @@ expect('corrupt map → edit denied',
   handleHookInput(editInput(path.join(repo, 'src/config.js'), '__BLINDER_STRIPE_KEY__', 'x'), repo)?.hookSpecificOutput?.permissionDecision,
   'deny');
 
+// 14) Parseable-but-wrong-shape maps (torn write) → still fail closed
+for (const bad of ['null', '42', '[]', '{}', '{"mappings": null}', '{"mappings": 3}']) {
+  fs.writeFileSync(mapFile, bad);
+  expect(`malformed map ${bad} → read denied`,
+    handleHookInput(readInput(path.join(repo, 'src/config.js')), repo)?.hookSpecificOutput?.permissionDecision,
+    'deny');
+}
+
+// 15) Map with a null mapping entry → deny (not an uncaught throw / raw read)
+fs.writeFileSync(mapFile, '{"mappings": {"X": null}}');
+let threw = false;
+let decision15;
+try {
+  decision15 = handleHookInput(readInput(path.join(repo, 'src/config.js')), repo);
+} catch { threw = true; }
+expect('null mapping entry → no throw', threw, false);
+expect('null mapping entry → denied', decision15?.hookSpecificOutput?.permissionDecision, 'deny');
+
 fs.rmSync(repo, { recursive: true, force: true });
 
 console.log(`\n${pass} passed, ${fail} failed`);

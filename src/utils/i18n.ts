@@ -23,6 +23,10 @@ const translations: Record<string, Record<string, string>> = {
     hook_settings_updated: 'Claude Code 설정 갱신: {path}',
     hook_restart_note: '새 Claude Code 세션부터 적용됩니다. 시크릿을 추가/변경했다면 "blinder hook install"을 다시 실행하세요.',
 
+    // External report
+    external_parsing: '외부 스캐너 리포트 파싱 중: {file}...',
+    external_skipped: '리포트 항목 {count}건 건너뜀 (파일 없음 · 시크릿 불일치 · 프로젝트 밖 경로)',
+
     // Messages
     detecting_project: '프로젝트 유형 감지 중...',
     project_root: '프로젝트 루트:',
@@ -319,6 +323,10 @@ const translations: Record<string, Record<string, string>> = {
     hook_install_summary: 'Mapped {secrets} secrets across {files} files → {map}',
     hook_settings_updated: 'Claude Code settings updated: {path}',
     hook_restart_note: 'Takes effect in new Claude Code sessions. Re-run "blinder hook install" after adding or changing secrets.',
+
+    // External report
+    external_parsing: 'Parsing external scanner report: {file}...',
+    external_skipped: 'Skipped {count} report entries (missing file · secret not present · path outside project)',
 
     // Messages
     detecting_project: 'Detecting project type...',
