@@ -2,7 +2,7 @@
 
 # Blinder 🛡️
 
-**AI에게 코드 복붙 전, 시크릿만 사라지게.**
+**하드코딩된 시크릿을, 빌드가 깨지지 않게 `.env`로.**
 
 [🇰🇷 한국어](./README.md) · [🇺🇸 English](./README_en.md) · [기여 가이드](./CONTRIBUTING.md)
 
@@ -17,9 +17,9 @@
 
 </div>
 
-> **Blinder**는 Cursor / ChatGPT / Claude 같은 AI 에이전트에 코드를 넘기기 전, 소스 속 하드코딩된 API 키·자격증명·인증서가 외부로 유출되는 것을 사전 차단합니다.
+> **Blinder**는 소스 속 하드코딩된 API 키·자격증명을 `.env`로 분리하고, `BuildConfig` / `Info.plist` / `dart-define` 같은 플랫폼별 빌드 시스템 연동까지 자동으로 배선하는 **시크릿 리팩터링 도구**입니다. 스캐너는 시크릿을 *찾아주기만* 하지만, Blinder는 찾은 이후의 수정 노동을 자동화합니다.
 >
-> 모바일(iOS·Android·Flutter)부터 백엔드(Spring Boot·Node.js·Java·Ruby), 프론트엔드(React/CRA/Vite/Next.js)까지 — **플러그인 아키텍처**로 모든 플랫폼을 커버.
+> 모바일(iOS·Android·Flutter)부터 백엔드(Spring Boot·Node.js·Java·Ruby), 프론트엔드(React/CRA/Vite/Next.js)까지 — **플러그인 아키텍처**로 모든 플랫폼을 커버. AI 에이전트(Cursor / ChatGPT / Claude)에 코드를 공유하기 전 시크릿을 가리는 `mask` 워크플로우도 함께 제공합니다.
 
 ---
 
@@ -32,11 +32,11 @@ npm install -g github:YellowC-137/Blinder
 # 2) 프로젝트 디렉토리로 이동
 cd /path/to/your/project
 
-# 3) AI 공유용 마스킹 사본 생성 (원본 무수정)
-blinder mask
-
-# 4) 또는 운영용: 시크릿을 .env로 분리
+# 3) 시크릿을 .env로 분리 + 빌드 시스템 자동 연동 (빌드 유지)
 blinder blind && blinder bridge
+
+# 4) 또는 AI 공유용: 마스킹 사본 생성 (원본 무수정)
+blinder mask
 
 # 5) 되돌리기
 blinder rollback    # blind 취소
@@ -61,7 +61,9 @@ blinder restore     # AI 수정안을 원본에 머지
 + String apiKey = BuildConfig.STRIPE_KEY   # After (빌드 가능)
 ```
 
-**`blinder mask`** — AI에 넘길 읽기 전용 사본 생성:
+**`blinder bridge`** — 분리된 `.env`를 플랫폼 빌드 시스템에 자동 연동. Android `BuildConfig`, iOS Run Script + `Info.plist`, Flutter `--dart-define-from-file`을 멱등하게 주입해 분리 후에도 빌드가 그대로 돌아갑니다. 이 "찾은 다음의 수정"을 자동화하는 것이 Blinder의 코어입니다.
+
+**`blinder mask`** — (보조 워크플로우) AI에 넘길 읽기 전용 사본 생성:
 
 ```diff
 - apiKey: "AIzaSy9xK2mP3rT..."              # 원본 (유출 위험)
@@ -84,9 +86,15 @@ blinder restore     # AI 수정안을 원본에 머지
 | 🧨 **빌드 깨짐 우려** — 키를 `.env`로 옮기면 `BuildConfig`/`Info.plist`/`dart-define` 연동을 다 손봐야 함 | `bridge`가 플랫폼별 빌드 시스템 연동을 멱등하게 자동 주입 |
 | 🔁 **AI 수정안을 원본에 머지** — 토큰을 다시 시크릿으로 돌리는 작업이 수동/위험 | `restore`가 `.blinder_maps/` 매핑 기반으로 자동 복원 |
 | 📦 **사본 통째 공유 시 맵 파일 유출** — 매핑 파일에 원본 시크릿 전체가 들어 있음 | 매핑을 사본 **밖** (`.blinder_maps/`)에 저장 — 사본엔 시크릿 0개 |
-| 🚨 **CI/CD에서 사고 차단** | `scan --ci` 비-0 종료 코드로 파이프라인 게이팅 |
+| 🚨 **CI/CD에서 사고 차단** | `scan --ci` 간이 게이트 제공 (정밀 게이팅은 아래 "스캐너와의 관계" 참고) |
 
 </details>
+
+---
+
+## 🧭 스캐너와의 관계
+
+[Gitleaks](https://github.com/gitleaks/gitleaks)(160+ 패턴)나 [TruffleHog](https://trufflesecurity.com/trufflehog)(800+ 탐지기, 라이브 키 검증) 같은 전용 스캐너는 시크릿을 **찾는** 데 최적화되어 있고, 그 역할은 그들에게 맡기는 것이 맞습니다. Blinder의 역할은 그 **다음**입니다 — 찾은 시크릿을 `.env`로 빼고, 빌드가 깨지지 않도록 플랫폼 연동까지 자동으로 고치는 것. 내장 `blinder scan`은 간이 스캐너이며, CI 게이팅은 전용 스캐너를 권장합니다.
 
 ---
 
@@ -130,6 +138,7 @@ Blinder는 현재 워킹 트리 기준. 과거 커밋은 [BFG Repo-Cleaner](http
 ❌ 절대 안 됩니다. `__BLINDER_*__` 토큰 때문에 컴파일 에러 발생. 사본은 **읽기 전용**.
 
 **Q. CI/CD에 통합하려면?**
+정밀 게이팅은 Gitleaks/TruffleHog를 권장하고, 간단히 시작하려면:
 ```yaml
 - name: Scan secrets
   run: npx -y github:YellowC-137/Blinder scan --ci

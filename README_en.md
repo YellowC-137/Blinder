@@ -2,7 +2,7 @@
 
 # Blinder 🛡️
 
-**Keep your code. Lose the secrets. Safe for AI.**
+**Hardcoded secrets out, into `.env` — without breaking the build.**
 
 [🇰🇷 한국어](./README.md) · [🇺🇸 English](./README_en.md) · [Contributing](./CONTRIBUTING.md)
 
@@ -17,9 +17,9 @@
 
 </div>
 
-> **Blinder** prevents hardcoded API keys, credentials, and certificates from leaking when you hand source code to AI agents (Cursor, ChatGPT, Claude, …).
+> **Blinder** is a **secret-refactoring tool**: it extracts hardcoded API keys and credentials into `.env` and auto-wires the platform build system — `BuildConfig`, `Info.plist`, `dart-define` — so the build keeps working. Scanners only *find* secrets; Blinder automates the fixing that comes after.
 >
-> From mobile (iOS · Android · Flutter) to backend (Spring Boot · Node.js · Java · Ruby) and frontend (React/CRA/Vite/Next.js) — a **plugin architecture** covers every platform.
+> From mobile (iOS · Android · Flutter) to backend (Spring Boot · Node.js · Java · Ruby) and frontend (React/CRA/Vite/Next.js) — a **plugin architecture** covers every platform. A `mask` workflow for safely sharing code with AI agents (Cursor, ChatGPT, Claude) is included too.
 
 ---
 
@@ -32,11 +32,11 @@ npm install -g github:YellowC-137/Blinder
 # 2) Move into your project
 cd /path/to/your/project
 
-# 3) AI sharing: create a masked read-only copy (original untouched)
-blinder mask
-
-# 4) Or production: extract secrets to .env
+# 3) Extract secrets to .env + auto-wire the build system (build keeps working)
 blinder blind && blinder bridge
+
+# 4) Or for AI sharing: create a masked read-only copy (original untouched)
+blinder mask
 
 # 5) Undo
 blinder rollback    # revert blind
@@ -61,8 +61,9 @@ blinder restore     # merge AI edits back to original
 + String apiKey = BuildConfig.STRIPE_KEY   # After (still builds)
 ```
 
+**`blinder bridge`** — auto-wire the extracted `.env` into each platform's build system. Idempotently injects Android `BuildConfig`, an iOS Run Script + `Info.plist` wiring, and Flutter `--dart-define-from-file`, so the build keeps working after extraction. Automating this "fixing after finding" is Blinder's core.
 
-**`blinder mask`** — create a read-only copy safe to share with AI:
+**`blinder mask`** — (secondary workflow) create a read-only copy safe to share with AI:
 
 ```diff
 - apiKey: "AIzaSy9xK2mP3rT..."              # original (leak risk)
@@ -85,9 +86,15 @@ The secret ↔ token mapping is stored **outside** the copy (`<project root>/.bl
 | 🧨 **Worried about breaking the build** — moving keys to `.env` needs BuildConfig / Info.plist / dart-define wiring | `bridge` idempotently injects per-platform build-system wiring |
 | 🔁 **Merging AI edits back** — flipping tokens back to real secrets is error-prone | `restore` auto-restores from the `.blinder_maps/` mapping |
 | 📦 **Sharing the copy wholesale leaks the map** — the mapping file holds every original secret | The map lives **outside** the copy (`.blinder_maps/`) — the copy contains zero secrets |
-| 🚨 **CI/CD gate needed** | `scan --ci` returns non-zero exit code for pipeline gating |
+| 🚨 **CI/CD gate needed** | `scan --ci` offers a simple gate (see "Relation to scanners" below for serious gating) |
 
 </details>
+
+---
+
+## 🧭 Relation to secret scanners
+
+Dedicated scanners like [Gitleaks](https://github.com/gitleaks/gitleaks) (160+ patterns) and [TruffleHog](https://trufflesecurity.com/trufflehog) (800+ detectors, live key verification) are optimized for **finding** secrets — leave that job to them. Blinder's job starts **after**: extracting the found secrets into `.env` and auto-fixing the platform wiring so the build doesn't break. The built-in `blinder scan` is a lightweight scanner; for CI gating we recommend a dedicated scanner.
 
 ---
 
@@ -131,6 +138,7 @@ Almost always caused by skipping `bridge`. Run `blinder bridge`. Still broken? `
 ❌ Never. Every secret is replaced with a `__BLINDER_*__` token — compile errors guaranteed. The copy is **read-only**.
 
 **Q. How do I integrate with CI/CD?**
+For serious gating we recommend Gitleaks/TruffleHog; for a quick start:
 ```yaml
 - name: Scan secrets
   run: npx -y github:YellowC-137/Blinder scan --ci

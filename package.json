@@ -1,7 +1,7 @@
 {
   "name": "blinder",
   "version": "1.2.1",
-  "description": "Blinder - AI-Agent Security & Secret Protection with Plugin Architecture",
+  "description": "Blinder - Secret refactoring: extract hardcoded secrets to .env and auto-wire platform build systems (iOS/Android/Flutter/Spring/Node/React), plus AI-agent masking",
   "main": "dist/bin/blinder.js",
   "type": "module",
   "bin": {
@@ -25,7 +25,10 @@
   },
   "keywords": [
     "security",
-    "secret-scanning",
+    "secret-refactoring",
+    "codemod",
+    "env-migration",
+    "dotenv",
     "ai-agent",
     "ios",
     "android",

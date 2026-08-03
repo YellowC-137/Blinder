@@ -104,6 +104,9 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 
 시크릿 탐지 + 상세 리포트 생성. 코드 수정 없음.
 
+> [!NOTE]
+> `scan`은 간이 스캐너입니다. 정밀 탐지·CI 게이팅은 Gitleaks/TruffleHog 같은 전용 스캐너를 권장합니다 — Blinder의 코어는 탐지가 아니라 탐지 **이후**의 수정 자동화(`blind`+`bridge`)입니다.
+
 - `--ci`: 시크릿 발견 시 비-0 종료 코드 → CI 파이프라인 차단.
 - `-o <file>`: JSON 결과 출력.
 - `--include-examples`: `test/example` 폴더 내 매치도 포함.

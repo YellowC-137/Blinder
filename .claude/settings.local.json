@@ -21,9 +21,13 @@
       "Bash(git stash:*)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(echo \"exit: $?\")",
-      "Skill(code-review:code-review)"
+      "Skill(code-review:code-review)",
+      "WebSearch"
     ]
   },
+  "enabledMcpjsonServers": [
+    "code-review-graph"
+  ],
   "hooks": {
     "PreToolUse": [
       {
