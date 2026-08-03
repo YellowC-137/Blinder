@@ -17,6 +17,7 @@ import { loadConfig } from '../src/utils/config.js';
 import { maskFiles } from '../src/commands/mask.js';
 import { restoreFromMasked } from '../src/commands/restore.js';
 import { addPlatform } from '../src/commands/add_platform.js';
+import { installHook } from '../src/commands/hook.js';
 import { t } from '../src/utils/i18n.js';
 import { saveGlobalConfig, isLanguageConfigured } from '../src/utils/globalConfig.js';
 import type { ScanResult, ProjectDetection } from '../src/types/index.js';
@@ -519,6 +520,16 @@ program
     const repoPath = path.resolve(globalOptions.path);
     const project = applyPlatformFilter(await detectProjectType(repoPath), globalOptions.platform);
     await generateGitignore(repoPath, project.platforms);
+  }));
+
+const hookCommand = program.command('hook').description(t('hook_desc'));
+hookCommand
+  .command('install')
+  .description(t('hook_install_desc'))
+  .action(() => handleAction(async () => {
+    const globalOptions = program.opts<GlobalOptions>();
+    const repoPath = path.resolve(globalOptions.path);
+    await installHook(repoPath);
   }));
 
 program

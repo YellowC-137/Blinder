@@ -13,6 +13,15 @@ const translations: Record<string, Record<string, string>> = {
     gitignore_desc: '플랫폼별 .gitignore 생성',
     add_platform_desc: '새로운 플랫폼 플러그인 스캐폴딩 추가',
     set_language_desc: 'CLI 표시 언어 설정 (ko/en)',
+    hook_desc: 'Claude Code 훅 기반 실시간 시크릿 마스킹',
+    hook_install_desc: 'PreToolUse(Read) 훅 설치 — 시크릿 파일을 마스킹된 사본으로 읽게 함',
+
+    // Hook
+    hook_install_done: '훅 설치 완료',
+    hook_no_secrets: '하드코딩된 시크릿이 발견되지 않았습니다 — 훅은 설치되지만 마스킹 대상이 없습니다.',
+    hook_install_summary: '시크릿 {secrets}개 · 파일 {files}개 매핑 → {map}',
+    hook_settings_updated: 'Claude Code 설정 갱신: {path}',
+    hook_restart_note: '새 Claude Code 세션부터 적용됩니다. 시크릿을 추가/변경했다면 "blinder hook install"을 다시 실행하세요.',
 
     // Messages
     detecting_project: '프로젝트 유형 감지 중...',
@@ -301,6 +310,15 @@ const translations: Record<string, Record<string, string>> = {
     gitignore_desc: 'Generate platform-specific .gitignore',
     add_platform_desc: 'Add a new platform plugin scaffolding',
     set_language_desc: 'Set CLI language (ko/en)',
+    hook_desc: 'Real-time secret masking via Claude Code hooks',
+    hook_install_desc: 'Install a PreToolUse(Read) hook — secret files are read through masked copies',
+
+    // Hook
+    hook_install_done: 'Hook installed',
+    hook_no_secrets: 'No hardcoded secrets found — the hook is installed, but nothing needs masking.',
+    hook_install_summary: 'Mapped {secrets} secrets across {files} files → {map}',
+    hook_settings_updated: 'Claude Code settings updated: {path}',
+    hook_restart_note: 'Takes effect in new Claude Code sessions. Re-run "blinder hook install" after adding or changing secrets.',
 
     // Messages
     detecting_project: 'Detecting project type...',
