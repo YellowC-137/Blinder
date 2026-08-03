@@ -35,12 +35,13 @@ cd /path/to/your/project
 # 3) 시크릿을 .env로 분리 + 빌드 시스템 자동 연동 (빌드 유지)
 blinder blind && blinder bridge
 
-# 4) 또는 AI 공유용: 마스킹 사본 생성 (원본 무수정)
-blinder mask
+# 4) 또는 AI 공유용:
+blinder hook install   # Claude Code — 사본 없이 실시간 마스킹 훅 설치
+blinder mask           # 복붙 공유용 — 마스킹 사본 생성 (원본 무수정)
 
 # 5) 되돌리기
 blinder rollback    # blind 취소
-blinder restore     # AI 수정안을 원본에 머지
+blinder restore     # AI 수정안(mask 사본)을 원본에 머지
 ```
 
 > [!IMPORTANT]
@@ -63,7 +64,9 @@ blinder restore     # AI 수정안을 원본에 머지
 
 **`blinder bridge`** — 분리된 `.env`를 플랫폼 빌드 시스템에 자동 연동. Android `BuildConfig`, iOS Run Script + `Info.plist`, Flutter `--dart-define-from-file`을 멱등하게 주입해 분리 후에도 빌드가 그대로 돌아갑니다. 이 "찾은 다음의 수정"을 자동화하는 것이 Blinder의 코어입니다.
 
-**`blinder mask`** — (보조 워크플로우) AI에 넘길 읽기 전용 사본 생성:
+**`blinder hook install`** — Claude Code용 실시간 마스킹. 사본 없이 원본 리포에서 작업하되, 시크릿이 든 파일을 Read하면 마스킹된 내용(`__BLINDER_*__` 토큰)만 보이고, 토큰이 포함된 Edit/Write는 자동으로 실값 역치환되어 원본에 적용됩니다. 빌드·테스트는 그대로 동작. ([상세·한계](./docs/commands.md#b-3-blinder-hook-install--claude-code-실시간-마스킹-사본-불필요))
+
+**`blinder mask`** — 복붙 공유용(ChatGPT 웹 등 훅이 없는 환경) 읽기 전용 사본 생성:
 
 ```diff
 - apiKey: "AIzaSy9xK2mP3rT..."              # 원본 (유출 위험)
@@ -75,6 +78,14 @@ blinder restore     # AI 수정안을 원본에 머지
 > [!IMPORTANT]
 > mask를 실행할 경우, build가 불가합니다. AI Agent 읽기전용 프로젝트 생성. 
 
+### 어떤 워크플로를 쓸까?
+
+| 상황 | 사용할 명령 |
+|---|---|
+| 운영 코드에서 하드코딩 시크릿 제거 (근본 해결) | `blinder blind && blinder bridge` |
+| Claude Code 등 훅 지원 에이전트로 리포에서 직접 작업 | `blinder hook install` — 사본 없음, 빌드·테스트 유지 |
+| ChatGPT 웹 등에 코드 복붙 / 폴더 공유 | `blinder mask` → 작업 후 `blinder restore` |
+
 
 <details>
 <summary><strong>🤔 왜 Blinder인가?</strong></summary>
@@ -83,6 +94,7 @@ blinder restore     # AI 수정안을 원본에 머지
 |---|---|
 | 🪣 **`.env`만 빼고 폴더 공유** — 소스 속 하드코딩 키가 그대로 노출 | `blind`가 소스의 평문 키를 `.env`로 분리 + env 접근자로 자동 치환 |
 | 🤖 **AI에게 "리팩터링해줘"** — 답변에 키 일부가 그대로 인용되어 외부 학습 데이터로 흘러감 | `mask`가 모든 시크릿을 `__BLINDER_*__` 토큰으로 치환한 **읽기 전용 사본** 생성 |
+| 🖥️ **Claude Code가 리포 전체를 읽음** — 에이전트 컨텍스트로 시크릿이 흘러감 | `hook install`이 시크릿 파일 Read를 마스킹 사본으로 리다이렉트 + Edit/Write 자동 역치환 (사본·워크플로 변경 없음) |
 | 🧨 **빌드 깨짐 우려** — 키를 `.env`로 옮기면 `BuildConfig`/`Info.plist`/`dart-define` 연동을 다 손봐야 함 | `bridge`가 플랫폼별 빌드 시스템 연동을 멱등하게 자동 주입 |
 | 🔁 **AI 수정안을 원본에 머지** — 토큰을 다시 시크릿으로 돌리는 작업이 수동/위험 | `restore`가 `.blinder_maps/` 매핑 기반으로 자동 복원 |
 | 📦 **사본 통째 공유 시 맵 파일 유출** — 매핑 파일에 원본 시크릿 전체가 들어 있음 | 매핑을 사본 **밖** (`.blinder_maps/`)에 저장 — 사본엔 시크릿 0개 |
@@ -120,7 +132,7 @@ blinder restore     # AI 수정안을 원본에 머지
 
 | 문서 | 내용 |
 |---|---|
-| [📋 commands.md](./docs/commands.md) | 전체 명령어 상세 가이드 (`blind`, `mask`, `scan`, `bridge`, `rollback`, `restore`) |
+| [📋 commands.md](./docs/commands.md) | 전체 명령어 상세 가이드 (`blind`, `bridge`, `hook`, `mask`, `restore`, `scan`, `rollback`) |
 | [⚙️ configuration.md](./docs/configuration.md) | `.blinderSettings` 옵션, 커스텀 패턴, 메타데이터 파일 |
 | [🔧 platforms.md](./docs/platforms.md) | 플랫폼별 Auto-fix 예시, 유의사항, 구조화 파일 정책 |
 | [🔌 architecture.md](./docs/architecture.md) | 플러그인 아키텍처, IPlatform 인터페이스, 신규 플랫폼 추가 가이드 |

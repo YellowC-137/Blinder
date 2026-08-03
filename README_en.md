@@ -35,12 +35,13 @@ cd /path/to/your/project
 # 3) Extract secrets to .env + auto-wire the build system (build keeps working)
 blinder blind && blinder bridge
 
-# 4) Or for AI sharing: create a masked read-only copy (original untouched)
-blinder mask
+# 4) Or for AI sharing:
+blinder hook install   # Claude Code — real-time masking hook, no copy needed
+blinder mask           # copy-paste sharing — masked read-only copy (original untouched)
 
 # 5) Undo
 blinder rollback    # revert blind
-blinder restore     # merge AI edits back to original
+blinder restore     # merge AI edits (from a mask copy) back to original
 ```
 
 > [!IMPORTANT]
@@ -63,7 +64,9 @@ blinder restore     # merge AI edits back to original
 
 **`blinder bridge`** — auto-wire the extracted `.env` into each platform's build system. Idempotently injects Android `BuildConfig`, an iOS Run Script + `Info.plist` wiring, and Flutter `--dart-define-from-file`, so the build keeps working after extraction. Automating this "fixing after finding" is Blinder's core.
 
-**`blinder mask`** — (secondary workflow) create a read-only copy safe to share with AI:
+**`blinder hook install`** — real-time masking for Claude Code. Work in the original repo with no copy: Reads of secret-bearing files are served masked (`__BLINDER_*__` tokens), and Edits/Writes containing tokens are automatically substituted back to real values. Builds and tests keep working. ([details & limitations](./docs/commands.md#b-3-blinder-hook-install--claude-code-실시간-마스킹-사본-불필요))
+
+**`blinder mask`** — for copy-paste sharing (ChatGPT web and other hook-less environments), create a read-only copy:
 
 ```diff
 - apiKey: "AIzaSy9xK2mP3rT..."              # original (leak risk)
@@ -75,6 +78,14 @@ The secret ↔ token mapping is stored **outside** the copy (`<project root>/.bl
 > [!IMPORTANT]
 > You cant Build masked project. It is only for AI Agent read-only project.
 
+### Which workflow should I use?
+
+| Situation | Use |
+|---|---|
+| Remove hardcoded secrets from production code (root fix) | `blinder blind && blinder bridge` |
+| Working in the repo with a hook-capable agent (Claude Code) | `blinder hook install` — no copy, builds/tests keep working |
+| Copy-pasting code / sharing a folder (ChatGPT web, …) | `blinder mask` → work → `blinder restore` |
+
 
 <details>
 <summary><strong>🤔 Why Blinder?</strong></summary>
@@ -83,6 +94,7 @@ The secret ↔ token mapping is stored **outside** the copy (`<project root>/.bl
 |---|---|
 | 🪣 **Sharing folder "minus `.env`"** — hardcoded keys in source still ship | `blind` extracts keys into `.env` + auto-rewrites with env accessors |
 | 🤖 **Asking AI to "refactor"** — partial keys end up in answers / training data | `mask` replaces all secrets with `__BLINDER_*__` tokens in a **read-only copy** |
+| 🖥️ **Claude Code reads the whole repo** — secrets flow into agent context | `hook install` redirects Reads of secret files to masked copies + auto-substitutes Edits/Writes (no copy, no workflow change) |
 | 🧨 **Worried about breaking the build** — moving keys to `.env` needs BuildConfig / Info.plist / dart-define wiring | `bridge` idempotently injects per-platform build-system wiring |
 | 🔁 **Merging AI edits back** — flipping tokens back to real secrets is error-prone | `restore` auto-restores from the `.blinder_maps/` mapping |
 | 📦 **Sharing the copy wholesale leaks the map** — the mapping file holds every original secret | The map lives **outside** the copy (`.blinder_maps/`) — the copy contains zero secrets |
@@ -120,7 +132,7 @@ Dedicated scanners like [Gitleaks](https://github.com/gitleaks/gitleaks) (160+ p
 
 | Doc | Contents |
 |---|---|
-| [📋 commands.md](./docs/commands.md) | Full command reference (`blind`, `mask`, `scan`, `bridge`, `rollback`, `restore`) |
+| [📋 commands.md](./docs/commands.md) | Full command reference (`blind`, `bridge`, `hook`, `mask`, `restore`, `scan`, `rollback`) |
 | [⚙️ configuration.md](./docs/configuration.md) | `.blinderSettings` options, custom patterns, metadata files |
 | [🔧 platforms.md](./docs/platforms.md) | Per-platform auto-fix examples, caveats, structured-file policy |
 | [🔌 architecture.md](./docs/architecture.md) | Plugin architecture, IPlatform interface, adding new platforms |
