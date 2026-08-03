@@ -98,6 +98,25 @@ AI가 마스킹된 사본에서 작업한 **모든 코드 변경 + 신규 파일
 
 ---
 
+### B-3. `blinder hook install` — Claude Code 실시간 마스킹 (사본 불필요)
+
+사본을 만들지 않고, Claude Code가 **원본 리포에서** 작업하되 시크릿이 든 파일을 읽을 때만 마스킹된 내용을 보게 합니다.
+
+동작 방식:
+1. 프로젝트를 스캔해 시크릿 맵을 `.blinder_maps/_hook.json`에 저장.
+2. `.claude/settings.json`에 PreToolUse 훅(matcher `Read|Edit|Write`, 명령 `blinder-hook`)과 `.env`류 Read deny 규칙을 등록.
+3. 이후 Claude Code가 시크릿 파일을 **Read** → `.blinder_shadow/`의 마스킹 사본으로 자동 리다이렉트 (`__BLINDER_*__` 토큰만 노출).
+4. Claude Code가 토큰이 포함된 **Edit/Write** 실행 → 토큰을 실값으로 역치환해 원본에 정상 적용. 토큰이 새 파일에 쓰이면 그 파일도 맵에 자동 등록되어 이후 Read가 계속 마스킹됩니다.
+
+전제 조건: `blinder`가 글로벌 설치되어 `blinder-hook`이 PATH에 있어야 하며, 훅은 **새 Claude Code 세션부터** 적용됩니다.
+
+> [!WARNING]
+> **한계 — Bash 경유 읽기는 가로채지 못합니다.** `cat`/`grep` 등 셸 명령으로 파일을 읽으면 마스킹되지 않습니다. 따라서 권장 순서는 **`blind` + `bridge`를 먼저** 실행해 소스에서 시크릿을 제거하고, 남는 파일(.env 등)은 deny 규칙으로 차단, hook은 그 위의 추가 방어층으로 쓰는 것입니다. 시크릿을 추가/변경했다면 `blinder hook install`을 다시 실행해 맵을 갱신하세요.
+
+제거 방법: `.claude/settings.json`의 BLINDER 훅 항목·deny 규칙 삭제 + `.blinder_maps/_hook.json`, `.blinder_shadow/` 삭제.
+
+---
+
 ## 🟨 그룹 C: 보조 명령
 
 ### C-1. `blinder scan` — 수동 스캔 (수정 없음)

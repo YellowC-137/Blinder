@@ -79,10 +79,65 @@ const shadow2 = fs.readFileSync(decision2.hookSpecificOutput.updatedInput.file_p
 expect('stale shadow regenerated', shadow2.includes('const other = 2;'), true);
 expect('regenerated shadow still masked', shadow2.includes(SECRET), false);
 
-// 7) Corrupt map → fail closed
+// ── Edit/Write reverse substitution ──
+
+const editInput = (file, old_string, new_string) => ({
+  hook_event_name: 'PreToolUse',
+  tool_name: 'Edit',
+  cwd: repo,
+  tool_input: { file_path: file, old_string, new_string }
+});
+const writeInput = (file, content) => ({
+  hook_event_name: 'PreToolUse',
+  tool_name: 'Write',
+  cwd: repo,
+  tool_input: { file_path: file, content }
+});
+
+// 8) Edit with tokens → both strings substituted with the real value
+const editDecision = handleHookInput(
+  editInput(path.join(repo, 'src/config.js'),
+    'const key = "__BLINDER_STRIPE_KEY__";',
+    'const key = "__BLINDER_STRIPE_KEY__"; // moved'),
+  repo);
+expect('edit with tokens → allow', editDecision?.hookSpecificOutput?.permissionDecision, 'allow');
+expect('old_string substituted', editDecision?.hookSpecificOutput?.updatedInput?.old_string, `const key = "${SECRET}";`);
+expect('new_string substituted', editDecision?.hookSpecificOutput?.updatedInput?.new_string, `const key = "${SECRET}"; // moved`);
+
+// 9) Edit without tokens → defer
+expect('edit without tokens → null',
+  handleHookInput(editInput(path.join(repo, 'src/config.js'), 'const other = 2;', 'const other = 3;'), repo),
+  null);
+
+// 10) Write with token to a NEW file → substituted AND file registered in map,
+//     so a later Read of that file is masked (Read→Write→Read must not leak)
+const newFile = path.join(repo, 'src/copy.js');
+const writeDecision = handleHookInput(writeInput(newFile, 'const k = "__BLINDER_STRIPE_KEY__";\n'), repo);
+expect('write with token → allow', writeDecision?.hookSpecificOutput?.permissionDecision, 'allow');
+expect('write content substituted', writeDecision?.hookSpecificOutput?.updatedInput?.content, `const k = "${SECRET}";\n`);
+fs.writeFileSync(newFile, writeDecision.hookSpecificOutput.updatedInput.content); // simulate the tool executing
+const rereadDecision = handleHookInput(readInput(newFile), repo);
+expect('re-read of written file → masked', rereadDecision?.hookSpecificOutput?.permissionDecision, 'allow');
+const rereadContent = fs.readFileSync(rereadDecision.hookSpecificOutput.updatedInput.file_path, 'utf8');
+expect('re-read shadow has no secret', rereadContent.includes(SECRET), false);
+
+// 11) Write with token outside the project → defer (tokens stay placeholders)
+expect('outside-project write → null',
+  handleHookInput(writeInput('/tmp/elsewhere.js', 'const k = "__BLINDER_STRIPE_KEY__";'), repo),
+  null);
+
+// 12) Unknown token only → defer (nothing to substitute)
+expect('unknown token → null',
+  handleHookInput(writeInput(path.join(repo, 'src/x.js'), 'const k = "__BLINDER_NOPE__";'), repo),
+  null);
+
+// 13) Corrupt map → fail closed for Read and token-bearing Edit
 fs.writeFileSync(mapFile, '{not json');
-expect('corrupt map → deny',
+expect('corrupt map → read denied',
   handleHookInput(readInput(path.join(repo, 'src/config.js')), repo)?.hookSpecificOutput?.permissionDecision,
+  'deny');
+expect('corrupt map → edit denied',
+  handleHookInput(editInput(path.join(repo, 'src/config.js'), '__BLINDER_STRIPE_KEY__', 'x'), repo)?.hookSpecificOutput?.permissionDecision,
   'deny');
 
 fs.rmSync(repo, { recursive: true, force: true });

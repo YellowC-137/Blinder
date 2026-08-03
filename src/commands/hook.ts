@@ -78,9 +78,12 @@ function updateClaudeSettings(repoPath: string): void {
   settings.hooks ??= {};
   settings.hooks.PreToolUse ??= [];
   const entries = settings.hooks.PreToolUse as Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>;
-  const installed = entries.some(e => (e.hooks ?? []).some(h => h.command === HOOK_COMMAND));
-  if (!installed) {
-    entries.push({ matcher: 'Read', hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 30 } as { command: string }] });
+  const MATCHER = 'Read|Edit|Write';
+  const existing = entries.find(e => (e.hooks ?? []).some(h => h.command === HOOK_COMMAND));
+  if (existing) {
+    existing.matcher = MATCHER; // upgrade installs made by older versions
+  } else {
+    entries.push({ matcher: MATCHER, hooks: [{ type: 'command', command: HOOK_COMMAND, timeout: 30 } as { command: string }] });
   }
 
   settings.permissions ??= {};

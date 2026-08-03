@@ -15,8 +15,16 @@ export interface PreToolUseInput {
   hook_event_name?: string;
   tool_name?: string;
   cwd?: string;
-  tool_input?: { file_path?: string; [key: string]: unknown };
+  tool_input?: {
+    file_path?: string;
+    old_string?: string;
+    new_string?: string;
+    content?: string;
+    [key: string]: unknown;
+  };
 }
+
+const TOKEN_MARKER = '__BLINDER_';
 
 export interface HookDecision {
   hookSpecificOutput: {
@@ -38,12 +46,18 @@ function deny(reason: string): HookDecision {
 }
 
 /**
- * PreToolUse(Read) handler: when the target file is registered in the hook
- * map as secret-bearing, redirect the read to an on-demand masked shadow
- * copy under .blinder_shadow/. Returns null to defer to the normal flow.
+ * PreToolUse handler.
+ * Read: when the target file is registered in the hook map as
+ * secret-bearing, redirect the read to an on-demand masked shadow copy
+ * under .blinder_shadow/.
+ * Edit/Write: substitute __BLINDER_*__ tokens in the tool input back to
+ * real values so agent edits made against masked content apply cleanly.
+ * Returns null to defer to the normal flow.
  */
 export function handleHookInput(input: PreToolUseInput, repoRootOverride?: string): HookDecision | null {
-  if (input.hook_event_name !== 'PreToolUse' || input.tool_name !== 'Read') return null;
+  if (input.hook_event_name !== 'PreToolUse') return null;
+  const tool = input.tool_name;
+  if (tool !== 'Read' && tool !== 'Edit' && tool !== 'Write') return null;
   const filePath = input.tool_input?.file_path;
   if (!filePath) return null;
 
@@ -55,15 +69,27 @@ export function handleHookInput(input: PreToolUseInput, repoRootOverride?: strin
   try {
     map = JSON.parse(fs.readFileSync(mapFile, 'utf8')) as MaskingMap;
   } catch {
-    // Can't know which files hold secrets — fail closed rather than leak.
+    // Can't know which files hold secrets — fail closed rather than leak
+    // (Read) or write literal tokens into sources (Edit/Write).
     return deny('Blinder hook map is unreadable. Re-run "blinder hook install".');
   }
 
   const absPath = path.resolve(repoRoot, filePath);
   const relPath = path.relative(repoRoot, absPath);
   if (relPath.startsWith('..') || path.isAbsolute(relPath)) return null; // outside project
-  if (relPath.split(path.sep)[0] === SHADOW_DIR) return null; // already a shadow read
+  if (relPath.split(path.sep)[0] === SHADOW_DIR) return null; // shadow itself
 
+  if (tool === 'Read') return handleRead(repoRoot, relPath, absPath, map, mapFile);
+  return handleEditWrite(tool, input, relPath, map, mapFile);
+}
+
+function handleRead(
+  repoRoot: string,
+  relPath: string,
+  absPath: string,
+  map: MaskingMap,
+  mapFile: string
+): HookDecision | null {
   const mapped = Object.values(map.mappings ?? {}).some(m => m.files?.includes(relPath));
   if (!mapped) return null;
 
@@ -81,6 +107,62 @@ export function handleHookInput(input: PreToolUseInput, repoRootOverride?: strin
     // File is known to contain secrets — never fall through to a raw read.
     return deny(`Blinder failed to mask ${relPath}: ${(err as Error).message}`);
   }
+}
+
+function handleEditWrite(
+  tool: 'Edit' | 'Write',
+  input: PreToolUseInput,
+  relPath: string,
+  map: MaskingMap,
+  mapFile: string
+): HookDecision | null {
+  const fields = tool === 'Edit' ? (['old_string', 'new_string'] as const) : (['content'] as const);
+  const toolInput = input.tool_input ?? {};
+  if (!fields.some(f => typeof toolInput[f] === 'string' && (toolInput[f] as string).includes(TOKEN_MARKER))) {
+    return null;
+  }
+
+  const updatedInput: Record<string, string> = {};
+  const usedNames = new Set<string>();
+  for (const f of fields) {
+    const value = toolInput[f];
+    if (typeof value !== 'string' || !value.includes(TOKEN_MARKER)) continue;
+    let out = value;
+    for (const [name, m] of Object.entries(map.mappings ?? {})) {
+      if (!m.redactedTag || !out.includes(m.redactedTag)) continue;
+      out = out.split(m.redactedTag).join(m.originalValue);
+      usedNames.add(name);
+    }
+    if (out !== value) updatedInput[f] = out;
+  }
+  if (usedNames.size === 0) return null;
+
+  // The write target now holds real secrets — register it in the map so
+  // subsequent Reads of it stay masked (closes the Read→Write→Read leak).
+  let mapChanged = false;
+  for (const name of usedNames) {
+    const files = map.mappings[name].files ?? (map.mappings[name].files = []);
+    if (!files.includes(relPath)) {
+      files.push(relPath);
+      mapChanged = true;
+    }
+  }
+  if (mapChanged) {
+    try {
+      fs.writeFileSync(mapFile, JSON.stringify(map, null, 2));
+    } catch (err) {
+      // Without the registration a later Read would serve the secret raw.
+      return deny(`Blinder could not update its hook map: ${(err as Error).message}`);
+    }
+  }
+
+  return {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'allow',
+      updatedInput
+    }
+  };
 }
 
 /**
