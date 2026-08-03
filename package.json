@@ -1,6 +1,6 @@
 {
   "name": "blinder",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Blinder - Secret refactoring: extract hardcoded secrets to .env and auto-wire platform build systems (iOS/Android/Flutter/Spring/Node/React), plus AI-agent masking",
   "main": "dist/bin/blinder.js",
   "type": "module",

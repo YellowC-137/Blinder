@@ -24,6 +24,22 @@
 
 ---
 
+## [1.3.0] - 2026-08-03
+
+Claude Code 실시간 마스킹(hook)과 외부 스캐너 연동 릴리스.
+
+### Added
+- **`blinder hook install`**: Claude Code PreToolUse 훅 기반 실시간 마스킹. 사본 없이 원본 리포에서 작업하되, 시크릿 파일 Read는 `.blinder_shadow/`의 마스킹 사본으로 자동 리다이렉트되고, `__BLINDER_*__` 토큰이 포함된 Edit/Write는 실값으로 자동 역치환되어 원본에 적용. 전용 경량 실행 엔트리 `blinder-hook` 신설(전체 CLI 임포트 그래프 우회, Read당 ~50ms). `.claude/settings.json` 훅·deny 규칙 멱등 등록, `.gitignore` BLINDER HOOK 블록 자동 추가.
+- **`blinder blind --from <report>`**: 외부 스캐너 리포트(Gitleaks JSON / TruffleHog v3 NDJSON 자동 판별)를 탐지 소스로 사용 — 탐지는 전용 스캐너에 맡기고 Blinder는 수정만 담당. 각 항목은 워킹 트리와 대조 검증(파일 없음·시크릿 불일치·프로젝트 밖 경로는 스킵 후 건수 보고), 라인 불일치 자동 재배치, 멀티라인 시크릿(개인키 등)은 리포트만 하고 auto-fix 제외.
+
+### Changed
+- **문서 리포지셔닝**: blind+bridge(하드코딩 시크릿 → `.env` + 플랫폼 빌드 연동 자동 배선)를 코어 스토리로, mask는 복붙 공유용 보조 워크플로로 재정의. README에 "스캐너와의 관계"·"어떤 워크플로를 쓸까?" 섹션 신설, `scan`은 간이 스캐너로 명시(정밀 게이팅은 Gitleaks/TruffleHog 권장).
+
+### Security
+- **훅 fail-closed 보강**: 맵 파일이 손상되었거나 JSON은 유효하지만 형태가 잘못된 경우(찢어진 쓰기 등), 그리고 훅 내부 예외 발생 시 해당 도구 호출을 deny 하여 원본 시크릿 노출을 차단. 맵 쓰기는 temp→rename 원자적 교체로 동시 실행 경합 제거. 토큰이 새 파일에 쓰이면 해당 파일을 맵에 자동 등록해 Read→Write→Read 우회 누출 차단.
+
+---
+
 ## [1.2.1] - 2026-06-17
 
 github 설치 복구 패치.
