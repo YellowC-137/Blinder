@@ -17,7 +17,7 @@ interface ValidateMatchOptions {
  * (보안지침 §4: AST 기반 정밀 검증 로직)
  */
 class ASTProvider {
-  private parser: Parser | null;
+  private parsers: Map<string, Parser>;
   private languages: Map<string, Language>;
   private initialized: boolean;
   private wasmDir: string;
@@ -26,7 +26,7 @@ class ASTProvider {
   private _warnedSwift: boolean;
 
   constructor() {
-    this.parser = null;
+    this.parsers = new Map();
     this.languages = new Map();
     this.initialized = false;
     this.disabled = false;
@@ -63,7 +63,6 @@ class ASTProvider {
       await Parser.init({
         locateFile(): string { return selfWasmPath; }
       });
-      this.parser = new Parser();
       this.initialized = true;
       return true;
     } catch (err) {
@@ -103,6 +102,18 @@ class ASTProvider {
   }
 
   /**
+   * 언어별 전용 Parser 인스턴스 반환 (동시성 안전)
+   */
+  async getParser(langId: string): Promise<Parser> {
+    if (this.parsers.has(langId)) return this.parsers.get(langId)!;
+    const lang = await this.loadLanguage(langId);
+    const parser = new Parser();
+    parser.setLanguage(lang);
+    this.parsers.set(langId, parser);
+    return parser;
+  }
+
+  /**
    * 시크릿 후보가 실제 문자열 리터럴 내부인지 검증
    *
    * AST 엔진이 비활성화(disabled)된 경우 정규식 결과를 그대로 신뢰한다.
@@ -127,12 +138,11 @@ class ASTProvider {
     if (!this.initialized && !(await this.init())) return true; // Fallback to Regex
 
     try {
-      const lang = await this.loadLanguage(langId);
-      this.parser!.setLanguage(lang);
+      const parser = await this.getParser(langId);
 
       const sourceCode = fs.readFileSync(filePath, 'utf8');
       // 0.25+ 에서 parse() 가 null 반환 가능 (취소/타임아웃)
-      const tree = this.parser!.parse(sourceCode);
+      const tree = parser.parse(sourceCode);
       if (!tree) return true; // Fallback to Regex
 
       // 해당 오프셋에 있는 노드 찾기

@@ -71,10 +71,10 @@ export function detectReactBuildTool(pkg: PackageJson | null): ReactBuildTool | 
  * True if pkg looks like a frontend project (React/Vue/Svelte/Next/Vite).
  * Used by the Node.js plugin to avoid double-matching with frontend plugins.
  *
- * Uses runtime dependencies only.
+ * Checks all dependency categories (dependencies, devDependencies, peerDependencies).
  */
 export function isFrontendProject(pkg: PackageJson | null): boolean {
   if (!pkg) return false;
   const frontendDeps: string[] = ['react', 'next', 'vite', 'vue', '@angular/core', 'svelte', 'nuxt', 'remix'];
-  return frontendDeps.some(d => hasRuntimeDep(pkg, d));
+  return frontendDeps.some(d => hasDep(pkg, d));
 }

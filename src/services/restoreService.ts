@@ -147,10 +147,14 @@ export function detectChanges(maskDir: string, repoPath: string, mapData: Maskin
       // the old statSync walker did, or a symlinked file is reported as
       // "deleted" and restore offers to delete the original source file.
       if (!d.isSymbolicLink()) return false;
-      try { return fs.statSync(path.join(d.parentPath, d.name)).isFile(); }
+      const parent = (d as any).parentPath ?? (d as any).path ?? maskDir;
+      try { return fs.statSync(path.join(parent, d.name)).isFile(); }
       catch { return false; } // broken link — ignore
     })
-    .map(d => path.relative(maskDir, path.join(d.parentPath, d.name)))
+    .map(d => {
+      const parent = (d as any).parentPath ?? (d as any).path ?? maskDir;
+      return path.relative(maskDir, path.join(parent, d.name));
+    })
     .filter(f => f !== '.blinder_map.json' && !isOsMetadata(f));
 
   const pathPrefixes = options.paths && options.paths.length > 0 ? options.paths : [];

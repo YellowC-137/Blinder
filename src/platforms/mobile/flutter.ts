@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { setupFlutterBridge } from '../../utils/flutterBridge.js';
 import { definePlatform } from '../definePlatform.js';
+import { escapeRegExp } from '../../utils/regexGuard.js';
 
 export default definePlatform({
   id: 'flutter',
@@ -67,6 +68,7 @@ export default definePlatform({
 
     // 2. Remove IDE launch configs
     const defineArg = '--dart-define-from-file=.env';
+    const escapedArg = escapeRegExp(defineArg);
     
     // VS Code
     const launchJsonPath = path.join(repoPath, '.vscode', 'launch.json');
@@ -74,9 +76,9 @@ export default definePlatform({
         try {
             let content = fs.readFileSync(launchJsonPath, 'utf8');
             if (content.includes(defineArg)) {
-                content = content.replace(new RegExp(`"${defineArg}",\\s*`, 'g'), '');
-                content = content.replace(new RegExp(`,\\s*"${defineArg}"`, 'g'), '');
-                content = content.replace(new RegExp(`"${defineArg}"`, 'g'), '');
+                content = content.replace(new RegExp(`"${escapedArg}",\\s*`, 'g'), '');
+                content = content.replace(new RegExp(`,\\s*"${escapedArg}"`, 'g'), '');
+                content = content.replace(new RegExp(`"${escapedArg}"`, 'g'), '');
                 fs.writeFileSync(launchJsonPath, content);
             }
         } catch (err) {
@@ -94,7 +96,7 @@ export default definePlatform({
             const absPath = path.join(ideaDir, file);
             let content = fs.readFileSync(absPath, 'utf8');
             if (content.includes(defineArg)) {
-                content = content.replace(new RegExp(`\\s*${defineArg}`, 'g'), '');
+                content = content.replace(new RegExp(`\\s*${escapedArg}`, 'g'), '');
                 fs.writeFileSync(absPath, content);
             }
         }
