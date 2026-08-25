@@ -1,4 +1,5 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import inquirer from 'inquirer';
 import logger from '../utils/logger.js';
 import { generatePluginFile, registerPlugin } from '../services/pluginService.js';
@@ -75,7 +76,7 @@ export async function addPlatform(_repoPath: string): Promise<void> {
   const category: string = categoryChoice === 'custom' ? (customCategory as string) : categoryChoice;
   const config = { ...answers, category };
 
-  const sourceRoot: string = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  const sourceRoot: string = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
   try {
     const pluginPath: string = generatePluginFile(sourceRoot, config);

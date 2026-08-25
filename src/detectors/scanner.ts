@@ -103,7 +103,22 @@ async function scanSmallFile(
   const xmlCommentRanges = (ext === '.xml' || ext === '.html' || ext === '.htm' || ext === '.svg' || ext === '.yml' || ext === '.yaml')
     ? collectXmlCommentRanges(content)
     : [];
-  const inXmlComment = (offset: number): boolean => xmlCommentRanges.some(([s, e]) => offset >= s && offset < e);
+  const inXmlComment = (offset: number): boolean => {
+    if (xmlCommentRanges.length === 0) return false;
+    let lo = 0, hi = xmlCommentRanges.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const [start, end] = xmlCommentRanges[mid];
+      if (offset < start) {
+        hi = mid - 1;
+      } else if (offset >= end) {
+        lo = mid + 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  };
 
   const ctx: MatchContext = { filePath, repoPath, ext, astLang, platforms, options, usedEnvNames, results, inXmlComment };
 
